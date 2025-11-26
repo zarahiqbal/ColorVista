@@ -705,12 +705,14 @@ export default function DashboardScreen() {
   return (
     <Dashboard
       onGoToWelcome={() => router.push("/welcome")}
-      
+      onGoToLive={() => router.push("/live")}
+
       // Generic navigation for quiz / difficulty etc.
       navigate={(screen: string) => router.push(("/" + screen.toLowerCase()) as any)}
 
       // 👉 Add Live Detection Navigation
-      onGoToLive={() => router.push("/live")}
+      
+
     />
   );
 }
