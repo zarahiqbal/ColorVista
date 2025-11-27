@@ -343,13 +343,13 @@
 
 import React from 'react';
 import {
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -385,7 +385,7 @@ const toolsData = [
   },
   {
     title: 'Media Upload',
-    screen: 'MediaUpload',
+    screen: 'mediaupload',
     icon: <Feather name="upload-cloud" size={28} color={COLORS.primary} />,
   },
   {
