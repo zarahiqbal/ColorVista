@@ -550,10 +550,10 @@ const Register: React.FC = () => {
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
-    if (!acceptTerms) {
-      setApiError('Please accept the terms and conditions');
-      return;
-    }
+//     if (!acceptTerms) {
+//       setApiError('Please accept the terms and conditions');
+//       return;
+//     }
 
     setIsLoading(true);
     setApiError('');

@@ -310,20 +310,20 @@ import {
 } from 'react-native';
 import { useAuth } from '../AuthContext';
 
-interface LoginFormData {
-  email: string;
-  password: string;
-}
+// interface LoginFormData {
+//   email: string;
+//   password: string;
+// }
 
-interface LoginResponse {
-  message: string;
-  user?: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    role: string;
-  };
-}
+// interface LoginResponse {
+//   message: string;
+//   user?: {
+//     firstName: string;
+//     lastName: string;
+//     email: string;
+//     role: string;
+//   };
+// }
 
 const Login: React.FC = () => {
   const router = useRouter();
@@ -365,24 +365,24 @@ const Login: React.FC = () => {
     }
   };
 
-  const validateForm = (): boolean => {
-    const newErrors: Partial<LoginFormData> = {};
+//   const validateForm = (): boolean => {
+//     const newErrors: Partial<LoginFormData> = {};
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
+//     if (!formData.email.trim()) {
+//       newErrors.email = 'Email is required';
+//     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+//       newErrors.email = 'Please enter a valid email address';
+//     }
 
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
+//     if (!formData.password) {
+//       newErrors.password = 'Password is required';
+//     } else if (formData.password.length < 6) {
+//       newErrors.password = 'Password must be at least 6 characters';
+//     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+//     setErrors(newErrors);
+//     return Object.keys(newErrors).length === 0;
+//   };
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
@@ -402,11 +402,11 @@ const Login: React.FC = () => {
         }),
       });
 
-      const data: LoginResponse = await response.json();
+//       const data: LoginResponse = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
-      }
+//       if (!response.ok) {
+//         throw new Error(data.message || 'Login failed');
+//       }
 
       console.log('Login successful:', data);
 
