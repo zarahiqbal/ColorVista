@@ -44,10 +44,9 @@ import { createStackNavigator } from '@react-navigation/stack';
 import React from 'react';
 
 // Import your screens
-import {DifficultySelection } from '../screens/DifficultyLevel';
-import Welcome  from '../screens/Welcome';
+import { DifficultySelection } from '../screens/DifficultyLevel';
+import Welcome from '../screens/Welcome';
 import Dashboard from './dashboard';
-
 // Navigation types
 export type RootStackParamList = {
   Dashboard: undefined;

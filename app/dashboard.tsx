@@ -698,19 +698,47 @@
     
 //   );
 // }
-import { router } from "expo-router";
+import { router, Stack } from "expo-router"; // 1. Import Stack
 import Dashboard from "../screens/Dashboard";
 
 export default function DashboardScreen() {
   return (
-    <Dashboard
-      onGoToWelcome={() => router.push("/welcome")}
-      
-      // Generic navigation for quiz / difficulty etc.
-      navigate={(screen: string) => router.push(("/" + screen.toLowerCase()) as any)}
+    <>
+      {/* 2. Add Stack.Screen with headerShown: false */}
+      <Stack.Screen options={{ headerShown: false }} />
 
-      // 👉 Add Live Detection Navigation
-      onGoToLive={() => router.push("/live")}
-    />
+      {/* 3. Your existing Dashboard component */}
+      <Dashboard
+        onGoToWelcome={() => router.push("/welcome")}
+        onGoToLive={() => router.push("/live")}
+        onGoToMedia={() => router.push("/mediaupload")}
+        
+        // Generic navigation for quiz / difficulty etc.
+        navigate={(screen: string) => router.push(("/" + screen.toLowerCase()) as any)}
+
+        // 👉 Add Live Detection Navigation
+      />
+    </>
   );
 }
+
+// import { router } from "expo-router";
+// import Dashboard from "../screens/Dashboard";
+
+// export default function DashboardScreen() {
+//   return (
+//     <Dashboard
+    
+//       onGoToWelcome={() => router.push("/welcome")}
+//       onGoToLive={() => router.push("/live")}
+//       onGoToMedia={() => router.push("/mediaupload")}
+      
+//       // Generic navigation for quiz / difficulty etc.
+//       navigate={(screen: string) => router.push(("/" + screen.toLowerCase()) as any)}
+
+//       // 👉 Add Live Detection Navigation
+      
+
+//     />
+//   );
+// }
