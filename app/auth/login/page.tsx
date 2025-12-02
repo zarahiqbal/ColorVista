@@ -295,3 +295,469 @@
 // };
 
 // export default Login;
+
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { useAuth } from '../AuthContext';
+
+// interface LoginFormData {
+//   email: string;
+//   password: string;
+// }
+
+// interface LoginResponse {
+//   message: string;
+//   user?: {
+//     firstName: string;
+//     lastName: string;
+//     email: string;
+//     role: string;
+//   };
+// }
+
+const Login: React.FC = () => {
+  const router = useRouter();
+  const { user, setUser, isLoading: authLoading } = useAuth();
+  const [formData, setFormData] = useState<LoginFormData>({
+    email: '',
+    password: '',
+  });
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errors, setErrors] = useState<Partial<LoginFormData>>({});
+  const [apiError, setApiError] = useState<string>('');
+  const [rememberMe, setRememberMe] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (user && !isLoading && !authLoading) {
+      // Redirect logged-in users based on role
+      if (user.role === 'admin') {
+        router.replace('/');
+      } else {
+        router.replace('/');
+      }
+    }
+  }, [user, isLoading, authLoading]);
+
+  const handleInputChange = (name: keyof LoginFormData, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: '',
+      }));
+    }
+    if (apiError) {
+      setApiError('');
+    }
+  };
+
+//   const validateForm = (): boolean => {
+//     const newErrors: Partial<LoginFormData> = {};
+
+//     if (!formData.email.trim()) {
+//       newErrors.email = 'Email is required';
+//     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+//       newErrors.email = 'Please enter a valid email address';
+//     }
+
+//     if (!formData.password) {
+//       newErrors.password = 'Password is required';
+//     } else if (formData.password.length < 6) {
+//       newErrors.password = 'Password must be at least 6 characters';
+//     }
+
+//     setErrors(newErrors);
+//     return Object.keys(newErrors).length === 0;
+//   };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+
+    setIsLoading(true);
+    setApiError('');
+
+    try {
+      const response = await fetch('YOUR_API_URL/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email.trim(),
+          password: formData.password,
+        }),
+      });
+
+//       const data: LoginResponse = await response.json();
+
+//       if (!response.ok) {
+//         throw new Error(data.message || 'Login failed');
+//       }
+
+      console.log('Login successful:', data);
+
+      if (data.user) {
+        setUser({
+          ...data.user,
+          role: data.user.role as 'user' | 'admin',
+        });
+      }
+
+      // Navigation will happen automatically via useEffect
+    } catch (error) {
+      console.error('Login error:', error);
+      setApiError(
+        error instanceof Error
+          ? error.message
+          : 'Login failed. Please try again.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <ScrollView 
+      style={styles.container} 
+      contentContainerStyle={styles.contentContainer}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={styles.header}>
+        <Text style={styles.title}>Welcome Back</Text>
+        <Text style={styles.subtitle}>Sign in to your account</Text>
+      </View>
+
+      <View style={styles.form}>
+        {apiError ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{apiError}</Text>
+          </View>
+        ) : null}
+
+        {/* Email Field */}
+        <View style={styles.fieldContainer}>
+          <Text style={styles.label}>Email Address</Text>
+          <View style={[styles.inputContainer, errors.email && styles.inputError]}>
+            <Ionicons name="mail-outline" size={20} color="#9CA3AF" style={styles.icon} />
+            <TextInput
+              value={formData.email}
+              onChangeText={(text) => handleInputChange('email', text)}
+              style={styles.input}
+              placeholder="Enter your email"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              editable={!isLoading}
+            />
+          </View>
+          {errors.email ? <Text style={styles.fieldError}>{errors.email}</Text> : null}
+        </View>
+
+        {/* Password Field */}
+        <View style={styles.fieldContainer}>
+          <Text style={styles.label}>Password</Text>
+          <View style={[styles.inputContainer, errors.password && styles.inputError]}>
+            <Ionicons
+              name="lock-closed-outline"
+              size={20}
+              color="#9CA3AF"
+              style={styles.icon}
+            />
+            <TextInput
+              value={formData.password}
+              onChangeText={(text) => handleInputChange('password', text)}
+              style={[styles.input, styles.inputWithButton]}
+              placeholder="Enter your password"
+              placeholderTextColor="#9CA3AF"
+              secureTextEntry={!showPassword}
+              editable={!isLoading}
+            />
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
+              style={styles.eyeButton}
+              disabled={isLoading}
+            >
+              <Ionicons
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={20}
+                color="#9CA3AF"
+              />
+            </TouchableOpacity>
+          </View>
+          {errors.password ? (
+            <Text style={styles.fieldError}>{errors.password}</Text>
+          ) : null}
+        </View>
+
+        {/* Remember Me & Forgot Password */}
+        <View style={styles.optionsContainer}>
+          <TouchableOpacity
+            style={styles.rememberMeContainer}
+            onPress={() => setRememberMe(!rememberMe)}
+            disabled={isLoading}
+          >
+            <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+              {rememberMe && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+            </View>
+            <Text style={styles.rememberMeText}>Remember me</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.push('../forgot-password')}
+            disabled={isLoading}
+          >
+            <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Submit Button */}
+        <TouchableOpacity
+          style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
+          onPress={handleSubmit}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color="#FFFFFF" size="small" />
+              <Text style={styles.submitButtonText}>Signing in...</Text>
+            </View>
+          ) : (
+            <Text style={styles.submitButtonText}>Sign In</Text>
+          )}
+        </TouchableOpacity>
+
+        {/* Register Link */}
+        <View style={styles.registerContainer}>
+          <Text style={styles.registerText}>Don't have an account? </Text>
+          <TouchableOpacity
+            onPress={() => router.push('../signup')}
+            disabled={isLoading}
+          >
+            <Text style={styles.registerLink}>Sign up here</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Divider */}
+      <View style={styles.dividerContainer}>
+        <View style={styles.divider} />
+        <Text style={styles.dividerText}>Or continue with</Text>
+        <View style={styles.divider} />
+      </View>
+
+      {/* Social Login Buttons */}
+      <View style={styles.socialButtonsContainer}>
+        <TouchableOpacity style={styles.socialButton} disabled={isLoading}>
+          <Text style={styles.socialButtonText}>Google</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.socialButton} disabled={isLoading}>
+          <Text style={styles.socialButtonText}>Apple</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  // ... (same styles as before)
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  contentContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#000000',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  form: {
+    width: '100%',
+  },
+  errorContainer: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#DC2626',
+  },
+  fieldContainer: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#000000',
+    marginBottom: 8,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFFFFF',
+  },
+  inputError: {
+    borderColor: '#EF4444',
+  },
+  icon: {
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#000000',
+  },
+  inputWithButton: {
+    paddingRight: 40,
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: 12,
+    padding: 4,
+  },
+  fieldError: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: 4,
+  },
+  optionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  rememberMeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    borderRadius: 4,
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#000000',
+    borderColor: '#000000',
+  },
+  rememberMeText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  forgotPasswordText: {
+    fontSize: 14,
+    color: '#000000',
+    fontWeight: '500',
+  },
+  submitButton: {
+    backgroundColor: '#000000',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  submitButtonDisabled: {
+    opacity: 0.5,
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  registerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  registerText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  registerLink: {
+    fontSize: 14,
+    color: '#000000',
+    fontWeight: '500',
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#D1D5DB',
+  },
+  dividerText: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginHorizontal: 8,
+  },
+  socialButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  socialButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  socialButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+});
+
+export default Login;
