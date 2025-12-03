@@ -702,7 +702,28 @@ import { router, Stack } from "expo-router"; // 1. Import Stack
 import Dashboard from "../screens/Dashboard";
 
 export default function DashboardScreen() {
+  const navigate = (screen: string) => {
+    // Map screen names to actual route names
+    const routeMap: Record<string, any> = {
+      "livescreen": "/live",
+      "mediaupload": "/mediaupload",
+      "vrscreen": "/vrscreen",
+      "gamesscreen": "/gamesscreen",
+      "welcome": "/welcome",
+      "enhancerscreen": "/enhancerscreen",
+    };
+    
+    const route = routeMap[screen.toLowerCase()];
+    if (route) {
+      router.push(route);
+    }
+  };
+
   return (
+    <Dashboard
+      onGoToWelcome={() => router.push("/welcome")}
+      navigate={navigate}
+    />
     <>
       {/* 2. Add Stack.Screen with headerShown: false */}
       <Stack.Screen options={{ headerShown: false }} />
