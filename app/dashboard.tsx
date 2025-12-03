@@ -702,15 +702,27 @@ import { router } from "expo-router";
 import Dashboard from "../screens/Dashboard";
 
 export default function DashboardScreen() {
+  const navigate = (screen: string) => {
+    // Map screen names to actual route names
+    const routeMap: Record<string, any> = {
+      "livescreen": "/live",
+      "mediaupload": "/mediaupload",
+      "vrscreen": "/vrscreen",
+      "gamesscreen": "/gamesscreen",
+      "welcome": "/welcome",
+      "enhancerscreen": "/enhancerscreen",
+    };
+    
+    const route = routeMap[screen.toLowerCase()];
+    if (route) {
+      router.push(route);
+    }
+  };
+
   return (
     <Dashboard
       onGoToWelcome={() => router.push("/welcome")}
-      
-      // Generic navigation for quiz / difficulty etc.
-      navigate={(screen: string) => router.push(("/" + screen.toLowerCase()) as any)}
-
-      // 👉 Add Live Detection Navigation
-      onGoToLive={() => router.push("/live")}
+      navigate={navigate}
     />
   );
 }

@@ -2,13 +2,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as React from 'react';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextStyle,
-    TouchableOpacity,
-    View,
-    ViewStyle,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle,
+  Modal,
+  Alert,
 } from 'react-native';
 
 // Type definitions for styles
@@ -27,6 +30,7 @@ interface Styles {
   cardLeft: ViewStyle;
   label: TextStyle;
   value: TextStyle;
+  input: TextStyle;
   colorblindnessRow: ViewStyle;
   updateButton: ViewStyle;
   updateText: TextStyle;
@@ -42,24 +46,96 @@ interface Styles {
   linkText: TextStyle;
   logoutButton: ViewStyle;
   logoutText: TextStyle;
+  modalOverlay: ViewStyle;
+  modalContent: ViewStyle;
+  modalTitle: TextStyle;
+  modalOption: ViewStyle;
+  modalOptionText: TextStyle;
+  modalCancel: ViewStyle;
+  modalCancelText: TextStyle;
+  cancelButton: ViewStyle;
+  cancelText: TextStyle;
+  actionButtons: ViewStyle;
+  saveButton: ViewStyle;
+  saveText: TextStyle;
 }
 
 const ProfileScreen: React.FC = () => {
   const router = useRouter();
 
-  const handleUpdateUsername = (): void => {
-    console.log('Update username');
-    // Add your navigation or modal logic here
+  // State for editable fields
+  const [username, setUsername] = React.useState('Alex Doe');
+  const [email, setEmail] = React.useState('alex.doe@email.com');
+  const [colorblindnessType, setColorblindnessType] = React.useState('Protanopia');
+  
+  // State for edit mode
+  const [isEditingUsername, setIsEditingUsername] = React.useState(false);
+  const [isEditingEmail, setIsEditingEmail] = React.useState(false);
+  const [showColorblindnessModal, setShowColorblindnessModal] = React.useState(false);
+
+  // Temporary state for editing
+  const [tempUsername, setTempUsername] = React.useState(username);
+  const [tempEmail, setTempEmail] = React.useState(email);
+
+  const colorblindnessTypes = [
+    'Protanopia',
+    'Deuteranopia',
+    'Tritanopia',
+    'Protanomaly',
+    'Deuteranomaly',
+    'Tritanomaly',
+    'Achromatopsia',
+    'Normal Vision'
+  ];
+
+  const handleUsernameEdit = (): void => {
+    setTempUsername(username);
+    setIsEditingUsername(true);
   };
 
-  const handleUpdateEmail = (): void => {
-    console.log('Update email');
-    // Add your navigation or modal logic here
+  const handleUsernameSave = (): void => {
+    if (tempUsername.trim()) {
+      setUsername(tempUsername);
+      setIsEditingUsername(false);
+      Alert.alert('Success', 'Username updated successfully!');
+    } else {
+      Alert.alert('Error', 'Username cannot be empty');
+    }
+  };
+
+  const handleUsernameCancel = (): void => {
+    setTempUsername(username);
+    setIsEditingUsername(false);
+  };
+
+  const handleEmailEdit = (): void => {
+    setTempEmail(email);
+    setIsEditingEmail(true);
+  };
+
+  const handleEmailSave = (): void => {
+    if (tempEmail.trim() && tempEmail.includes('@')) {
+      setEmail(tempEmail);
+      setIsEditingEmail(false);
+      Alert.alert('Success', 'Email updated successfully!');
+    } else {
+      Alert.alert('Error', 'Please enter a valid email address');
+    }
+  };
+
+  const handleEmailCancel = (): void => {
+    setTempEmail(email);
+    setIsEditingEmail(false);
   };
 
   const handleChangeColorblindness = (): void => {
-    console.log('Change colorblindness type');
-    // Add your navigation or modal logic here
+    setShowColorblindnessModal(true);
+  };
+
+  const selectColorblindnessType = (type: string): void => {
+    setColorblindnessType(type);
+    setShowColorblindnessModal(false);
+    Alert.alert('Success', `Colorblindness type changed to ${type}`);
   };
 
   const handleViewQuizDetails = (): void => {
@@ -78,8 +154,21 @@ const ProfileScreen: React.FC = () => {
   };
 
   const handleLogout = (): void => {
-    console.log('Logout');
-    // Add your logout logic here
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to log out?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Log Out',
+          onPress: () => console.log('Logged out'),
+          style: 'destructive'
+        }
+      ]
+    );
   };
 
   return (
@@ -111,30 +200,86 @@ const ProfileScreen: React.FC = () => {
         <View style={styles.card}>
           <View style={styles.cardLeft}>
             <Text style={styles.label}>Username</Text>
-            <Text style={styles.value}>Alex Doe</Text>
+            {isEditingUsername ? (
+              <TextInput
+                style={styles.input}
+                value={tempUsername}
+                onChangeText={setTempUsername}
+                autoFocus
+                placeholder="Enter username"
+              />
+            ) : (
+              <Text style={styles.value}>{username}</Text>
+            )}
           </View>
-          <TouchableOpacity 
-            style={styles.updateButton}
-            onPress={handleUpdateUsername}
-          >
-            <Text style={styles.updateText}>Update</Text>
-            <Ionicons name="chevron-forward" size={20} color="#14B8A6" />
-          </TouchableOpacity>
+          {isEditingUsername ? (
+            <View style={styles.actionButtons}>
+              <TouchableOpacity 
+                style={styles.cancelButton}
+                onPress={handleUsernameCancel}
+              >
+                <Ionicons name="close-circle-outline" size={22} color="#6B7280" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.saveButton}
+                onPress={handleUsernameSave}
+              >
+                <Ionicons name="checkmark-circle" size={22} color="#14B8A6" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity 
+              style={styles.updateButton}
+              onPress={handleUsernameEdit}
+            >
+              <Text style={styles.updateText}>Update</Text>
+              <Ionicons name="create-outline" size={20} color="#14B8A6" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Email Section */}
         <View style={styles.card}>
           <View style={styles.cardLeft}>
             <Text style={styles.label}>E-mail</Text>
-            <Text style={styles.value}>alex.doe@email.com</Text>
+            {isEditingEmail ? (
+              <TextInput
+                style={styles.input}
+                value={tempEmail}
+                onChangeText={setTempEmail}
+                autoFocus
+                placeholder="Enter email"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            ) : (
+              <Text style={styles.value}>{email}</Text>
+            )}
           </View>
-          <TouchableOpacity 
-            style={styles.updateButton}
-            onPress={handleUpdateEmail}
-          >
-            <Text style={styles.updateText}>Update</Text>
-            <Ionicons name="chevron-forward" size={20} color="#14B8A6" />
-          </TouchableOpacity>
+          {isEditingEmail ? (
+            <View style={styles.actionButtons}>
+              <TouchableOpacity 
+                style={styles.cancelButton}
+                onPress={handleEmailCancel}
+              >
+                <Ionicons name="close-circle-outline" size={22} color="#6B7280" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.saveButton}
+                onPress={handleEmailSave}
+              >
+                <Ionicons name="checkmark-circle" size={22} color="#14B8A6" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity 
+              style={styles.updateButton}
+              onPress={handleEmailEdit}
+            >
+              <Text style={styles.updateText}>Update</Text>
+              <Ionicons name="create-outline" size={20} color="#14B8A6" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Colorblindness Type Section */}
@@ -143,7 +288,7 @@ const ProfileScreen: React.FC = () => {
             <Text style={styles.label}>Colorblindness Type</Text>
             <View style={styles.colorblindnessRow}>
               <Ionicons name="eye-outline" size={20} color="#9CA3AF" />
-              <Text style={styles.value}>Protanopia</Text>
+              <Text style={styles.value}>{colorblindnessType}</Text>
             </View>
           </View>
           <TouchableOpacity 
@@ -204,6 +349,47 @@ const ProfileScreen: React.FC = () => {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Colorblindness Type Modal */}
+      <Modal
+        visible={showColorblindnessModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowColorblindnessModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowColorblindnessModal(false)}
+        >
+          <TouchableOpacity 
+            activeOpacity={1} 
+            style={styles.modalContent}
+          >
+            <Text style={styles.modalTitle}>Select Colorblindness Type</Text>
+            <ScrollView style={{ maxHeight: 400 }}>
+              {colorblindnessTypes.map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  style={styles.modalOption}
+                  onPress={() => selectColorblindnessType(type)}
+                >
+                  <Text style={styles.modalOptionText}>{type}</Text>
+                  {colorblindnessType === type && (
+                    <Ionicons name="checkmark" size={24} color="#14B8A6" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalCancel}
+              onPress={() => setShowColorblindnessModal(false)}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -290,6 +476,7 @@ const styles = StyleSheet.create<Styles>({
   },
   cardLeft: {
     flex: 1,
+    marginRight: 12,
   },
   label: {
     fontSize: 14,
@@ -301,10 +488,24 @@ const styles = StyleSheet.create<Styles>({
     fontWeight: '600',
     color: '#000',
   },
+  input: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    borderBottomWidth: 2,
+    borderBottomColor: '#14B8A6',
+    paddingVertical: 4,
+    paddingHorizontal: 0,
+  },
   colorblindnessRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   updateButton: {
     flexDirection: 'row',
@@ -316,9 +517,25 @@ const styles = StyleSheet.create<Styles>({
     color: '#14B8A6',
     fontWeight: '600',
   },
+  saveButton: {
+    padding: 4,
+  },
+  saveText: {
+    fontSize: 16,
+    color: '#14B8A6',
+    fontWeight: '600',
+  },
   changeText: {
     fontSize: 16,
     color: '#14B8A6',
+    fontWeight: '600',
+  },
+  cancelButton: {
+    padding: 4,
+  },
+  cancelText: {
+    fontSize: 16,
+    color: '#6B7280',
     fontWeight: '600',
   },
   sectionTitle: {
@@ -384,6 +601,52 @@ const styles = StyleSheet.create<Styles>({
     borderColor: '#E5E7EB',
   },
   logoutText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#000',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: '#000',
+  },
+  modalCancel: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalCancelText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#6B7280',
