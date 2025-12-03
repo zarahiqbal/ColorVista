@@ -1,8 +1,21 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+
+// Define the shape of a question for TypeScript
+interface Question {
+  question: string;
+  options: {
+    A: string;
+    B: string;
+    C: string;
+    D: string;
+  };
+  answer: string;
+}
 
 export default function Quiz1({ difficulty }: { difficulty: string }) {
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [current, setCurrent] = useState(0);
   const [loading, setLoading] = useState(true);
   const [score, setScore] = useState(0);
@@ -10,53 +23,44 @@ export default function Quiz1({ difficulty }: { difficulty: string }) {
 
   const totalQuestions = difficulty === "easy" ? 6 : 12;
 
-  // --- Fetch AI Questions from Gemini ---
+  // --- Initialize Gemini SDK ---
+  // WARNING: In a production app, do not store API keyys directly in the client code.
+  // Use a backend proxy or environment variables (e.g., react-native-dotenv).
+  const API_KEY = "AIzaSyCbgrAzbDixjiMEel-jfxLdP6f2yEVyHRA"; 
+  const genAI = new GoogleGenerativeAI(API_KEY);
+
+  // --- Fetch AI Questions ---
   const loadQuestions = async () => {
     try {
-      const response = await fetch(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyC_A2MqbvglFNOLEP6ORkxld9Ys4tL1R8s",
-        {
-          method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    contents: [
-      {
-        parts: [
-          {
-            // Updated prompt to be more specific about the JSON structure
-            text: `Generate ${totalQuestions} multiple-choice questions about color blindness theory and facts.
-            
-            Return the result specifically as a JSON Array of objects.
-            Schema:
-            [
-              {
-                "question": "string",
-                "options": { "A": "string", "B": "string", "C": "string", "D": "string" },
-                "answer": "string (A, B, C, or D)"
-              }
-            ]`
-          }
-        ]
-      }
-    ],
-          })
+      const model = genAI.getGenerativeModel({ 
+        model: "gemini-2.5-flash", // Using the correct, currently available model
+        generationConfig: {
+          responseMimeType: "application/json", // Forces strict JSON response
+          temperature: 0.7,
         }
-      );
+      });
 
-      const data = await response.json();
+      const prompt = `Generate ${totalQuestions} multiple-choice questions about color blindness theory and facts ${difficulty} difficulty. 
+      Output strictly a JSON array where each object has: 
+      - "question": string
+      - "options": object with keys A, B, C, D
+      - "answer": string (one of "A", "B", "C", "D")`;
 
-      // Extract AI text
-      const aiText =
-        data?.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      const text = response.text();
 
-      // Convert text → JSON array
-      console.log("AI Response Text:", aiText);
-      const parsed = JSON.parse(aiText);
+      console.log("AI Response:", text);
 
-      setQuestions(parsed);
+      // Parse the JSON
+      const parsedQuestions: Question[] = JSON.parse(text);
+      
+      setQuestions(parsedQuestions);
       setLoading(false);
+
     } catch (error) {
-      console.log("Gemini Fetch Error:", error);
+      console.error("Gemini Fetch Error:", error);
+      Alert.alert("Error", "Failed to load quiz. Please check your internet connection or API Key.");
       setLoading(false);
     }
   };
@@ -83,7 +87,7 @@ export default function Quiz1({ difficulty }: { difficulty: string }) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#1E40AF" />
-        <Text style={styles.loadingText}>Generating questions...</Text>
+        <Text style={styles.loadingText}>Generating {difficulty} questions...</Text>
       </View>
     );
   }
@@ -98,6 +102,15 @@ export default function Quiz1({ difficulty }: { difficulty: string }) {
         </Text>
       </View>
     );
+  }
+
+  // Safety check if questions failed to load but loading is false
+  if (questions.length === 0) {
+    return (
+        <View style={styles.center}>
+          <Text>No questions available.</Text>
+        </View>
+    )
   }
 
   const q = questions[current];
@@ -118,7 +131,7 @@ export default function Quiz1({ difficulty }: { difficulty: string }) {
           onPress={() => handleAnswer(key)}
         >
           <Text style={styles.optionText}>
-            {key}. {q.options[key]}
+            {key}. {q.options[key as keyof typeof q.options]}
           </Text>
         </TouchableOpacity>
       ))}

@@ -1,14 +1,40 @@
-import { View, Text, StyleSheet } from "react-native";
+import React, { useState } from 'react';
+import { useCameraPermissions } from 'expo-camera';
+import { Alert } from 'react-native';
 
-export default function Live() {
+// Adjust path if your file structure is different
+import LiveScreen from '../screens/LiveScreen'; 
+
+export default function LiveRoute() {
+  const [active, setActive] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
+
+  const handleToggleCamera = async () => {
+    // 1. Check Permissions
+    if (!permission) return;
+
+    if (!permission.granted) {
+      const result = await requestPermission();
+      if (!result.granted) {
+        Alert.alert(
+          "Permission Required", 
+          "We need access to your camera to run live detection."
+        );
+        return;
+      }
+    }
+
+    // 2. Toggle State
+    setActive((prev) => !prev);
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.text}>Live Detection Screen</Text>
-    </View>
+    <LiveScreen 
+      active={active}
+      permission={permission}
+      onRequestPermission={requestPermission}
+      onToggleCamera={handleToggleCamera}
+      facing="back"
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", alignItems: "center" },
-  text: { fontSize: 26, fontWeight: "bold" },
-});

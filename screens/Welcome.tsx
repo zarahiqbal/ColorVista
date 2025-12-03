@@ -327,7 +327,7 @@
 
 // export default Welcome;
 
-import { CheckCircle, Clock, Eye, Shield } from 'lucide-react-native';
+import { AlertTriangle, CheckCircle, Clock, Eye, Shield } from 'lucide-react-native';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -376,11 +376,14 @@ export default function Welcome({ onStart }: any) {
         </View>
 
         <View style={styles.warningBox}>
-          <Text style={styles.warningTitle}>Before You Start:</Text>
-          <Text style={styles.warningItem}>• Use a well-lit environment</Text>
-          <Text style={styles.warningItem}>• Adjust screen brightness</Text>
-          <Text style={styles.warningItem}>• Remove colored glasses</Text>
-          <Text style={styles.warningItem}>• Take your time</Text>
+          <View style={styles.warningHeader}>
+  <AlertTriangle color="#6c601dff" size={20} />
+  <Text style={styles.warningsTitle}>Before You Start:</Text>
+</View>
+          <Text style={styles.warningItem}>Use a well-lit environment</Text>
+          <Text style={styles.warningItem}>Adjust screen brightness</Text>
+          <Text style={styles.warningItem}>Remove colored glasses</Text>
+          <Text style={styles.warningItem}>Take your time</Text>
         </View>
 
         {/* IMPORTANT: This now calls onStart */}
@@ -411,7 +414,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 2,
     alignItems: 'center',
-    backgroundColor: '#2570bcff',
+    backgroundColor: '',
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -443,6 +446,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    marginRight: 10,
+    marginLeft: 10,
   },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginBottom: 8 },
   paragraph: { color: '#374151', lineHeight: 20 },
@@ -451,6 +456,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginBottom: 20,
+    marginRight: 10,
+    marginLeft: 10,
   },
   featureItem: {
     width: '48%',
@@ -464,20 +471,30 @@ const styles = StyleSheet.create({
   featureTitle: { fontWeight: '600', color: '#111827' },
   featureDesc: { fontSize: 12, color: '#4B5563' },
   warningBox: {
-    backgroundColor: '#FFF8E1',
-    borderColor: '#F59E0B',
+    backgroundColor: '#e3d68d30',
+    borderColor: '#6c601dff',
     borderWidth: 2,
     borderRadius: 12,
     padding: 10,
     marginBottom: 20,
+    alignItems: 'center',
+    marginRight: 70,
+    marginLeft: 70,
   },
-  warningTitle: { fontWeight: '600', color: '#111827', marginBottom: 5 },
+  warningTitle: { fontWeight: '600', color: '#111827', marginBottom: 5 ,},
   warningItem: { fontSize: 13, color: '#374151', marginVertical: 1 },
   button: {
     backgroundColor: '#1E40AF',
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
+    marginLeft: 10,
+    marginRight: 10,
+  },
+  iconWarning:{
+     display: "flex",
+     justifyContent: "center",
+     marginTop: 5,
   },
   buttonText: { color: 'white', fontWeight: '600', fontSize: 16 },
   footerText: {
@@ -486,7 +503,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
   },
+  warningHeader: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 6,   // or marginRight
+  marginBottom: 5,
+},
+
+warningsTitle: {
+  fontWeight: "600",
+  color: "#111827",
+  fontSize: 15,
+},
+
 });
+
 
 
 // import { CheckCircle, Clock, Eye, Shield } from 'lucide-react-native';
