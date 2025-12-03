@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import React, { useState } from 'react';
@@ -19,7 +19,8 @@ import {
 const { width } = Dimensions.get('window');
 
 // REPLACE WITH YOUR COMPUTER'S LOCAL IP ADDRESS (e.g., 192.168.1.5)
-const SERVER_URL = 'http://192.168.1.12:5000/process-image'; 
+// Make sure to include the protocol (http://) so fetch can connect.
+const SERVER_URL = 'http://10.135.55.162:5000/process-image'; 
 
 export default function MediaUpload() {
   const [image, setImage] = useState<string | null>(null);
@@ -37,7 +38,7 @@ export default function MediaUpload() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: 'Images' as any,
       allowsEditing: true, // Crops to square/portrait usually
       quality: 1,
     });
@@ -60,10 +61,11 @@ export default function MediaUpload() {
         encoding: 'base64' as any,
       });
 
-      // 2. Send to Backend
-      // Note: Use a try/catch block with a timeout fallback for demonstration
+      // 2. Send to Backend with enhanced error handling
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout for processing
+
+      console.log('Sending request to:', SERVER_URL);
 
       const response = await fetch(SERVER_URL, {
         method: 'POST',
@@ -77,27 +79,40 @@ export default function MediaUpload() {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new Error('Server error');
+        const errorData = await response.text();
+        throw new Error(`Server error (${response.status}): ${errorData}`);
       }
 
       const data = await response.json();
 
+      if (!data.processed_image) {
+        throw new Error('No processed image in response');
+      }
+
       // 3. Display Result (Data should be base64 string)
       setProcessedImage(`data:image/jpeg;base64,${data.processed_image}`);
-      Alert.alert("Success", "Objects detected and labeled!");
+      Alert.alert("Success", "Colors detected and labeled!");
 
-    } catch (error) {
-      console.log("Processing failed, falling back to simulation:", error);
+    } catch (error: any) {
+      const errorMessage = error?.message || String(error);
+      console.error("Processing error:", errorMessage);
       
-      // FALLBACK SIMULATION (If no python server is running)
-      // This is just so the UI interaction works in the demo
-      setTimeout(() => {
-        setProcessedImage(image); // Just shows original in simulation
+      if (errorMessage.includes('Network')) {
         Alert.alert(
-          "Simulation Mode", 
-          "Server not connected. In a real setup, the Python script would return the labeled image. (Check console for connection error)"
+          "Connection Error", 
+          `Cannot reach server at ${SERVER_URL}\n\nMake sure:\n1. Python server is running\n2. IP address is correct\n3. Both devices are on same WiFi`
         );
-      }, 1500);
+      } else if (errorMessage.includes('timeout')) {
+        Alert.alert(
+          "Timeout Error", 
+          "Server took too long to respond. Please try again."
+        );
+      } else {
+        Alert.alert(
+          "Processing Failed", 
+          errorMessage
+        );
+      }
     } finally {
       setIsProcessing(false);
     }

@@ -31,17 +31,19 @@ def detect_and_draw_colors(image):
     
     # Define color ranges (Lower, Upper) in HSV
     # Note: HSV in OpenCV is H: 0-179, S: 0-255, V: 0-255
+    # Ranges are more lenient to detect colors better
     colors = {
         "Red": [
-            (np.array([0, 120, 70]), np.array([10, 255, 255])),
-            (np.array([170, 120, 70]), np.array([180, 255, 255])) # Red wraps around
+            (np.array([0, 50, 50]), np.array([10, 255, 255])),
+            (np.array([170, 50, 50]), np.array([180, 255, 255])) # Red wraps around
         ],
-        "Blue": [(np.array([94, 80, 2]), np.array([126, 255, 255]))],
-        "Green": [(np.array([25, 52, 72]), np.array([102, 255, 255]))],
-        "Yellow": [(np.array([20, 100, 100]), np.array([30, 255, 255]))]
+        "Blue": [(np.array([90, 50, 50]), np.array([130, 255, 255]))],
+        "Green": [(np.array([40, 40, 40]), np.array([90, 255, 255]))],
+        "Yellow": [(np.array([15, 50, 50]), np.array([35, 255, 255]))]
     }
     
     output = image.copy()
+    detected_colors = []  # Track detected colors
     
     # Loop through each color definition
     for color_name, ranges in colors.items():
@@ -51,52 +53,73 @@ def detect_and_draw_colors(image):
         for (lower, upper) in ranges:
             mask = cv2.bitwise_or(mask, cv2.inRange(hsv, lower, upper))
             
-        # Clean up noise
-        mask = cv2.erode(mask, None, iterations=2)
-        mask = cv2.dilate(mask, None, iterations=2)
+        # Clean up noise with adaptive morphology
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=1)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=1)
         
         # Find contours
         contours, _ = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         for c in contours:
-            # Filter small blobs (noise)
-            if cv2.contourArea(c) > 1000:
+            area = cv2.contourArea(c)
+            # Filter small blobs (noise) - adjusted threshold
+            if area > 500:
                 # 2. Encircle the object (Minimum Enclosing Circle)
                 ((x, y), radius) = cv2.minEnclosingCircle(c)
                 
-                # Draw the circle
-                cv2.circle(output, (int(x), int(y)), int(radius), (0, 255, 255), 3)
-                
-                # 3. Write the color name on top
-                text_x = int(x) - 20
-                text_y = int(y) - int(radius) - 10
-                
-                # Add background for text readability
-                cv2.putText(output, color_name, (text_x, text_y), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 0), 4) # Black border
-                cv2.putText(output, color_name, (text_x, text_y), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2) # White text
-
+                # Only draw if radius is reasonable
+                if radius > 5:
+                    # Draw the circle with color-specific color
+                    circle_color = (0, 255, 255) if color_name != "Yellow" else (0, 255, 255)
+                    cv2.circle(output, (int(x), int(y)), int(radius), circle_color, 3)
+                    
+                    # 3. Write the color name on top
+                    text_x = int(x) - 40
+                    text_y = int(y) - int(radius) - 15
+                    
+                    # Ensure text is within bounds
+                    text_x = max(10, text_x)
+                    text_y = max(30, text_y)
+                    
+                    # Add background for text readability
+                    cv2.putText(output, color_name, (text_x, text_y), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 5) # Black border
+                    cv2.putText(output, color_name, (text_x, text_y), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2) # White text
+                    
+                    detected_colors.append(color_name)
+    
+    print(f"Detected colors: {detected_colors if detected_colors else 'None'}")
     return output
 
 @app.route('/process-image', methods=['POST'])
 def process_image():
     try:
+        # Validate request
+        if not request.json:
+            return jsonify({"error": "No JSON data provided"}), 400
+        
         data = request.json
         image_data = data.get('image')
 
         if not image_data:
-            return jsonify({"error": "No image provided"}), 400
+            return jsonify({"error": "No image provided in request"}), 400
 
-        # Decode base64 to image
-        img_bytes = base64.b64decode(image_data)
-        nparr = np.frombuffer(img_bytes, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        try:
+            # Decode base64 to image
+            img_bytes = base64.b64decode(image_data)
+            nparr = np.frombuffer(img_bytes, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        except Exception as decode_error:
+            print(f"Decode error: {decode_error}")
+            return jsonify({"error": f"Failed to decode image: {str(decode_error)}"}), 400
 
         if img is None:
-            return jsonify({"error": "Invalid image data"}), 400
+            return jsonify({"error": "Invalid image data - could not decode"}), 400
 
         # Process image
+        print(f"Processing image of size: {img.shape}")
         processed_img = detect_and_draw_colors(img)
 
         # Encode back to base64
@@ -106,9 +129,25 @@ def process_image():
         return jsonify({"processed_image": processed_base64})
 
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Processing error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
+
+@app.route('/ping', methods=['GET'])
+def ping():
+    return jsonify({"status": "ok"})
+
 if __name__ == '__main__':
+    print("\n=== ColorVista Server Starting ===")
+    print("Server will be accessible at: http://0.0.0.0:5000")
+    print("To find your local IP address:")
+    print("  Windows: ipconfig (look for IPv4 Address)")
+    print("  Mac/Linux: ifconfig")
+    print("Then update SERVER_URL in MediaUpload.tsx with your IP")
+    print("Example: http://192.168.x.x:5000/process-image")
+    print("==================================\n")
+    
     # Run on 0.0.0.0 to be accessible from other devices (like your phone)
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
