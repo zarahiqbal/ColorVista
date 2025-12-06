@@ -25,11 +25,19 @@ if missing_deps:
 
 app = Flask(__name__)
 
-def detect_and_draw_colors(image):
+def detect_and_draw_colors(image, draw=True, center_only=False, roi_size=80):
+    # Downscale for faster processing if needed
+    h, w = image.shape[:2]
+    if w > 640:
+        scale = 640 / w
+        new_w = int(w * scale)
+        new_h = int(h * scale)
+        image = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+    
     # Convert to HSV color space
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    
-    # Define color ranges in HSV
+
+    # Define color ranges in HSV (available to both center-only and full modes)
     colors = {
         "Red": [
             (np.array([0, 50, 50]), np.array([10, 255, 255])),
@@ -46,12 +54,86 @@ def detect_and_draw_colors(image):
         "Black": [(np.array([0, 0, 0]), np.array([180, 255, 30]))],
         "Gray": [(np.array([0, 0, 50]), np.array([180, 50, 200]))]
     }
-    
-    # Create a copy with slight brightness boost for better visibility
+
+    # Refined color palette for drawing - used for center-only marker
+    color_bgr = {
+        "Red": (0, 50, 255),
+        "Blue": (255, 120, 0),
+        "Green": (80, 220, 100),
+        "Yellow": (0, 220, 255),
+        "Orange": (0, 140, 255),
+        "Cyan": (255, 240, 0),
+        "Purple": (220, 100, 180),
+        "Pink": (180, 150, 255),
+        "White": (240, 240, 240),
+        "Black": (40, 40, 40),
+        "Gray": (150, 150, 150)
+    }
+
+    # Prepare output image and overlay early so center-only path can draw markers
     output = image.copy()
-    
-    # Create an overlay for semi-transparent effects
     overlay = output.copy()
+
+    # Fast center-only detection path: analyze small ROI around image center
+    if center_only:
+        ch, cw = hsv.shape[:2]
+        half = max(4, int(roi_size / 2))
+        y1 = max(0, ch // 2 - half)
+        y2 = min(ch, ch // 2 + half)
+        x1 = max(0, cw // 2 - half)
+        x2 = min(cw, cw // 2 + half)
+
+        roi_hsv = hsv[y1:y2, x1:x2]
+        roi_bgr = image[y1:y2, x1:x2]
+        roi_area = roi_hsv.shape[0] * roi_hsv.shape[1]
+
+        # Count mask pixels for each color
+        counts = {}
+        for color_name, ranges in colors.items():
+            mask = np.zeros(roi_hsv.shape[:2], dtype="uint8")
+            for (lower, upper) in ranges:
+                mask = cv2.bitwise_or(mask, cv2.inRange(roi_hsv, lower, upper))
+            # small morphology to reduce noise
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=1)
+            counts[color_name] = int(cv2.countNonZero(mask))
+
+        # Choose best color by max count
+        best_color = None
+        best_count = 0
+        for k, v in counts.items():
+            if v > best_count:
+                best_count = v
+                best_color = k
+
+        # Threshold: require at least 1% of ROI area or >10 pixels
+        if best_count < max(roi_area * 0.01, 10):
+            best_color = None
+
+        detected = []
+        if best_color:
+            detected = [best_color]
+
+        # Draw small marker at center on output for UX
+        if draw:
+            center_x = (x1 + x2) // 2
+            center_y = (y1 + y2) // 2
+            if best_color:
+                col = color_bgr.get(best_color, (0, 255, 255))
+            else:
+                col = (255, 255, 255)
+            cv2.circle(output, (center_x, center_y), max(6, int(min(w, h) * 0.02)), col, 3, lineType=cv2.LINE_AA)
+            # small semi-transparent inner fill
+            overlay = output.copy()
+            cv2.circle(overlay, (center_x, center_y), max(4, int(min(w, h) * 0.015)), col, -1, lineType=cv2.LINE_AA)
+            cv2.addWeighted(overlay, 0.6, output, 0.4, 0, output)
+            if best_color:
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                cv2.putText(output, best_color, (center_x + 10, center_y - 10), font, 0.6, (255, 255, 255), 2, lineType=cv2.LINE_AA)
+
+        return (output, detected) if draw else detected
+    
+    # (colors, color_bgr and output/overlay already initialized above)
 
     # Estimate background HSV
     h, w = hsv.shape[:2]
@@ -135,51 +217,45 @@ def detect_and_draw_colors(image):
             area = info["area"]
             radius = info["radius"]
             (x, y) = info["center"]
+            contour = info["contour"]
 
             if area >= max(0.005 * img_area, 500) and radius > 5:
                 draw_color = color_bgr.get(color_name, (0, 255, 255))
 
-                # Subtle radius padding
-                padded_radius = max(radius + 3, int(np.sqrt(area / np.pi)) + 2)
+                if draw:
+                    # Draw contour with thick, bold outline for maximum visibility
+                    cv2.drawContours(output, [contour], 0, draw_color, 4, lineType=cv2.LINE_AA)
+                    
+                    # Add extra bold outer outline for better visibility
+                    cv2.drawContours(output, [contour], 0, (255, 255, 255), 1, lineType=cv2.LINE_AA)
 
-                # Draw semi-transparent filled circle for subtle highlight
-                cv2.circle(overlay, (x, y), padded_radius, draw_color, -1, lineType=cv2.LINE_AA)
-                
-                # Blend the overlay (15% opacity for subtle effect)
-                cv2.addWeighted(overlay, 0.15, output, 0.85, 0, output)
-                overlay = output.copy()
+                    # Draw circle outline as backup
+                    padded_radius = max(radius + 2, int(np.sqrt(area / np.pi)) + 1)
+                    cv2.circle(output, (x, y), padded_radius, draw_color, 3, lineType=cv2.LINE_AA)
 
-                # Draw thin, elegant circle outline
-                cv2.circle(output, (x, y), padded_radius, draw_color, 2, lineType=cv2.LINE_AA)
+                    # Add text label
+                    label = color_name
+                    font = cv2.FONT_HERSHEY_SIMPLEX
+                    font_scale = max(0.4, min(0.8, padded_radius / 50.0))
+                    thickness = 2
+                    (text_w, text_h), baseline = cv2.getTextSize(label, font, font_scale, thickness)
 
-                # Refined text styling
-                label = color_name
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                font_scale = max(0.5, min(0.9, padded_radius / 60.0))
-                thickness = 2
-                (text_w, text_h), baseline = cv2.getTextSize(label, font, font_scale, thickness)
+                    # Position text above center
+                    text_x = max(5, min(int(x - text_w / 2), output.shape[1] - text_w - 5))
+                    text_y = max(text_h + 5, int(y - padded_radius - 5))
 
-                # Position text elegantly above the circle
-                text_x = int(x - text_w / 2)
-                text_y = int(y - padded_radius - 8)
-                
-                if text_y - text_h < 5:
-                    text_y = int(y - padded_radius / 2)
-
-                # Draw text with subtle shadow for depth
-                shadow_offset = 2
-                cv2.putText(output, label, (text_x + shadow_offset, text_y + shadow_offset), 
-                           font, font_scale, (0, 0, 0), thickness + 1, lineType=cv2.LINE_AA)
-                
-                # Main text in white for contrast
-                cv2.putText(output, label, (text_x, text_y), 
-                           font, font_scale, (255, 255, 255), thickness, lineType=cv2.LINE_AA)
+                    # Draw text with black background for visibility
+                    cv2.rectangle(output, (text_x - 2, text_y - text_h - 2), (text_x + text_w + 2, text_y + 2), (0, 0, 0), -1)
+                    cv2.putText(output, label, (text_x, text_y), font, font_scale, (255, 255, 255), thickness, lineType=cv2.LINE_AA)
 
                 detected_colors.append(color_name)
 
     detected_colors = list(dict.fromkeys(detected_colors))
     print(f"Detected major colors: {detected_colors if detected_colors else 'None'}")
-    return output
+    if draw:
+        return output, detected_colors
+    else:
+        return detected_colors
 
 @app.route('/process-image', methods=['POST'])
 def process_image():
@@ -205,14 +281,14 @@ def process_image():
             return jsonify({"error": "Invalid image data - could not decode"}), 400
 
         print(f"Processing image of size: {img.shape}")
-        processed_img = detect_and_draw_colors(img)
+        processed_img, detected_colors = detect_and_draw_colors(img, draw=True)
 
         # Use higher quality JPEG encoding
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 95]
         _, buffer = cv2.imencode('.jpg', processed_img, encode_param)
         processed_base64 = base64.b64encode(buffer).decode('utf-8')
 
-        return jsonify({"processed_image": processed_base64})
+        return jsonify({"processed_image": processed_base64, "detected_colors": detected_colors})
 
     except Exception as e:
         print(f"Processing error: {e}")
@@ -224,6 +300,53 @@ def process_image():
 @app.route('/ping', methods=['GET'])
 def ping():
     return jsonify({"status": "ok"})
+
+
+@app.route('/process-frame', methods=['POST'])
+def process_frame():
+    try:
+        # Accept JSON with base64 image, or raw bytes
+        if request.json:
+            data = request.json
+            image_data = data.get('image')
+        else:
+            image_data = None
+
+        if not image_data:
+            return jsonify({"error": "No image provided in request"}), 400
+
+        try:
+            img_bytes = base64.b64decode(image_data)
+            nparr = np.frombuffer(img_bytes, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        except Exception as decode_error:
+            print(f"Decode error: {decode_error}")
+            return jsonify({"error": f"Failed to decode image: {str(decode_error)}"}), 400
+
+        if img is None:
+            return jsonify({"error": "Invalid image data - could not decode"}), 400
+
+        # If client requests center-only, do the faster path
+        mode = (request.json or {}).get('mode') if request.json else None
+        center_only = (mode == 'center')
+
+        # Process with drawing enabled to show outlines and detected colors
+        processed_img, detected_colors = detect_and_draw_colors(img, draw=True, center_only=center_only)
+        
+        # Encode with lower quality for faster transmission (faster = less latency)
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 60]
+        _, buffer = cv2.imencode('.jpg', processed_img, encode_param)
+        processed_base64 = base64.b64encode(buffer).decode('utf-8')
+        
+        return jsonify({
+            "detected_colors": detected_colors,
+            "processed_image": processed_base64
+        })
+    except Exception as e:
+        print(f"Frame processing error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     print("\n=== ColorVista Server Starting ===")

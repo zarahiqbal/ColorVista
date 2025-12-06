@@ -9,36 +9,38 @@ import {
   Dimensions,
   Image,
   Platform,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
 // REPLACE WITH YOUR COMPUTER'S LOCAL IP ADDRESS (e.g., 192.168.1.5)
 // Make sure to include the protocol (http://) so fetch can connect.
-const SERVER_URL = 'http://10.135.55.162:5000/process-image'; 
+const SERVER_URL = 'http://192.168.1.5:5000/process-image'; 
 
 export default function MediaUpload() {
   const [image, setImage] = useState<string | null>(null);
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  // Only request permissions for media library (no audio)
   const [permissionResponse, requestPermission] = MediaLibrary.usePermissions();
 
   // Pick image from gallery
   const pickImage = async () => {
+    // Request permission for media library only (no audio)
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Sorry, we need camera roll permissions to make this work!');
       return;
     }
 
+    // Use 'images' string for compatibility
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: 'Images' as any,
+      mediaTypes: 'images',
       allowsEditing: true, // Crops to square/portrait usually
       quality: 1,
     });
@@ -123,6 +125,7 @@ export default function MediaUpload() {
     if (!targetImage) return;
 
     try {
+      // Request permission if not already granted
       if (permissionResponse?.status !== 'granted') {
         const { status } = await requestPermission();
         if (status !== 'granted') {
@@ -133,26 +136,28 @@ export default function MediaUpload() {
 
       // If it's a base64 string (from server), we need to write it to a file first
       if (targetImage.startsWith('data:image')) {
-        // Robustly strip the data URL prefix for any image mime type
+        // Strip the data URL prefix for any image mime type
         const base64Code = targetImage.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
 
-        const docDir = (FileSystem as any).documentDirectory ?? (FileSystem as any).cacheDirectory ?? '';
+        // Use cacheDirectory for temporary file writing
+        const docDir = (FileSystem as any).cacheDirectory ?? (FileSystem as any).documentDirectory ?? '';
         if (!docDir) throw new Error('No writable document directory available');
 
-        const filename = docDir + 'processed_cv.jpg';
+        // Use a unique filename to avoid overwrite issues
+        const filename = docDir + `processed_cv_${Date.now()}.jpg`;
         await FileSystem.writeAsStringAsync(filename, base64Code, {
-          encoding: 'base64' as any,
+          encoding: 'base64',
         });
         await MediaLibrary.createAssetAsync(filename);
       } else {
         // It's a local URI
         await MediaLibrary.createAssetAsync(targetImage);
       }
-      
+
       Alert.alert("Saved", "Image saved to your gallery!");
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      Alert.alert("Error", "Could not save image.");
+      Alert.alert("Error", error?.message || "Could not save image.");
     }
   };
 
