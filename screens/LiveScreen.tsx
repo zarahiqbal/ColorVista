@@ -1,441 +1,11 @@
-// import React, { useState, useEffect } from "react";
-// import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-// import { CameraView, useCameraPermissions } from "expo-camera";
+import { CameraType, CameraView, PermissionResponse } from 'expo-camera';
+import { AlertCircle, CameraOff, ScanLine } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-// export default function LiveScreen() {
-//   const [permission, requestPermission] = useCameraPermissions();
-//   const [active, setActive] = useState(false);
-
-//   if (!permission) {
-//     return <View />;
-//   }
-
-//   if (!permission.granted) {
-//     return (
-//       <View style={styles.center}>
-//         <Text>We need your permission to show the camera</Text>
-//         <TouchableOpacity onPress={requestPermission} style={styles.button}>
-//           <Text style={styles.buttonText}>Grant Permission</Text>
-//         </TouchableOpacity>
-//       </View>
-//     );
-//   }
-
-//   return (
-//     <View style={styles.container}>
-//       <Text style={styles.title}>Live Detection</Text>
-
-//       <View style={styles.cameraBox}>
-//         {active ? (
-//           <CameraView style={StyleSheet.absoluteFill} facing="back" />
-//         ) : (
-//           <Text style={styles.placeholder}>Camera is Off</Text>
-//         )}
-//       </View>
-
-//       <TouchableOpacity
-//         style={[styles.button, active ? styles.stopBtn : styles.startBtn]}
-//         onPress={() => setActive(!active)}
-//       >
-//         <Text style={styles.buttonText}>
-//           {active ? "Stop Detection" : "Start Live Detection"}
-//         </Text>
-//       </TouchableOpacity>
-//     </View>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: { flex: 1, padding: 20, backgroundColor: "#fff" },
-//   title: { fontSize: 26, fontWeight: "700", textAlign: "center", marginBottom: 20 },
-//   cameraBox: {
-//     width: "100%",
-//     height: 350,
-//     backgroundColor: "#ddd",
-//     borderRadius: 15,
-//     overflow: "hidden",
-//     justifyContent: "center",
-//     alignItems: "center",
-//   },
-//   placeholder: { fontSize: 18, color: "#555" },
-//   button: { padding: 15, borderRadius: 12, alignItems: "center", marginTop: 20 },
-//   startBtn: { backgroundColor: "#2ECC71" },
-//   stopBtn: { backgroundColor: "#E74C3C" },
-//   buttonText: { color: "#fff", fontSize: 18, fontWeight: "700" },
-//   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-// });
-// import { CameraType, CameraView, PermissionResponse } from 'expo-camera';
-// import { AlertCircle, CameraOff, ScanLine } from 'lucide-react-native';
-// import React, { useEffect, useRef } from 'react';
-// import { Animated, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-
-// const SCAN_AREA_HEIGHT = 300;
-
-// interface LiveScreenProps {
-//   active: boolean;
-//   permission: PermissionResponse | null;
-//   onRequestPermission: () => Promise<PermissionResponse>;
-//   onToggleCamera: () => void;
-//   facing?: CameraType;
-// }
-
-// export default function LiveScreen({ 
-//   active, 
-//   permission, 
-//   onRequestPermission, 
-//   onToggleCamera, 
-//   facing = 'back' 
-// }: LiveScreenProps) {
-  
-//   // Animation Logic
-//   const scanAnim = useRef(new Animated.Value(0)).current;
-
-//   useEffect(() => {
-//     let animation: Animated.CompositeAnimation;
-
-//     if (active) {
-//       animation = Animated.loop(
-//         Animated.sequence([
-//           Animated.timing(scanAnim, {
-//             toValue: 1,
-//             duration: 2000,
-//             useNativeDriver: true,
-//           }),
-//           Animated.timing(scanAnim, {
-//             toValue: 0,
-//             duration: 0,
-//             useNativeDriver: true,
-//           }),
-//         ])
-//       );
-//       animation.start();
-//     } else {
-//       scanAnim.setValue(0);
-//       scanAnim.stopAnimation();
-//     }
-
-//     return () => {
-//       if (animation) animation.stop();
-//     };
-//   }, [active]);
-
-//   const scanLineTranslateY = scanAnim.interpolate({
-//     inputRange: [0, 1],
-//     outputRange: [0, SCAN_AREA_HEIGHT],
-//   });
-
-//   // Loading State
-//   if (!permission) {
-//     return <View style={styles.container} />;
-//   }
-
-//   return (
-//     <SafeAreaView style={styles.safeArea}>
-//       <View style={styles.container}>
-        
-//         {/* Header */}
-//         <View style={styles.header}>
-//           <Text style={styles.title}>Live Detection</Text>
-//           <Text style={styles.subtitle}>Object recognition stream</Text>
-//         </View>
-
-//         {/* Camera Viewport Container */}
-//         <View style={styles.cameraContainer}>
-//           <View style={styles.cameraWrapper}>
-            
-//             {/* Active Camera View */}
-//             {active && permission.granted ? (
-//               <CameraView
-//                 style={StyleSheet.absoluteFill}
-//                 facing={facing}
-//                 animateShutter={false}
-//               />
-//             ) : (
-//               /* Inactive State / Placeholder */
-//               <View style={styles.placeholderContainer}>
-//                 <View style={styles.iconCircle}>
-//                   <CameraOff size={32} color="#9CA3AF" />
-//                 </View>
-//                 <Text style={styles.placeholderText}>Camera is Off</Text>
-//               </View>
-//             )}
-
-//             {/* Permission Denied State */}
-//             {!permission.granted && !permission.canAskAgain && (
-//               <View style={styles.errorContainer}>
-//                 <AlertCircle size={48} color="#EF4444" />
-//                 <Text style={styles.errorText}>Camera permission denied</Text>
-//                 <TouchableOpacity onPress={onRequestPermission} style={styles.errorButton}>
-//                     <Text style={styles.errorButtonText}>Grant Permission</Text>
-//                 </TouchableOpacity>
-//               </View>
-//             )}
-
-//             {/* Scanner Overlay (Visible when active) */}
-//             {active && permission.granted && (
-//               <View style={styles.overlayContainer} pointerEvents="none">
-//                 {/* Bounding Box */}
-//                 <View style={styles.boundingBox}>
-//                   <View style={[styles.corner, styles.cornerTL]} />
-//                   <View style={[styles.corner, styles.cornerTR]} />
-//                   <View style={[styles.corner, styles.cornerBL]} />
-//                   <View style={[styles.corner, styles.cornerBR]} />
-//                 </View>
-
-//                 {/* Animated Scan Line */}
-//                 <View style={styles.scanArea}>
-//                   <Animated.View
-//                     style={[
-//                       styles.scanLine,
-//                       { transform: [{ translateY: scanLineTranslateY }] },
-//                     ]}
-//                   />
-//                 </View>
-
-//                 {/* Live Indicator */}
-//                 <View style={styles.liveIndicator}>
-//                   <View style={styles.recordingDot} />
-//                   <Text style={styles.liveText}>LIVE</Text>
-//                 </View>
-//               </View>
-//             )}
-//           </View>
-//         </View>
-
-//         {/* Controls */}
-//         <View style={styles.controls}>
-//           <TouchableOpacity
-//             onPress={onToggleCamera}
-//             activeOpacity={0.8}
-//             style={[
-//               styles.button,
-//               active ? styles.buttonStop : styles.buttonStart
-//             ]}
-//           >
-//             {active ? (
-//               <>
-//                 <CameraOff size={24} color="#FFF" />
-//                 <Text style={styles.buttonText}>Stop Detection</Text>
-//               </>
-//             ) : (
-//               <>
-//                 <ScanLine size={24} color="#FFF" />
-//                 <Text style={styles.buttonText}>Start Live Detection</Text>
-//               </>
-//             )}
-//           </TouchableOpacity>
-
-//           <Text style={styles.statusText}>
-//             {active ? "Processing video frames..." : "Ready to start camera stream"}
-//           </Text>
-//         </View>
-//       </View>
-//     </SafeAreaView>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   safeArea: {
-//     flex: 1,
-//     backgroundColor: '#F9FAFB',
-//   },
-//   container: {
-//     flex: 1,
-//     justifyContent: 'space-between',
-//   },
-//   header: {
-//     paddingTop: 20,
-//     paddingBottom: 20,
-//     paddingHorizontal: 24,
-//     alignItems: 'center',
-//   },
-//   title: {
-//     fontSize: 24,
-//     fontWeight: 'bold',
-//     color: '#1F2937',
-//   },
-//   subtitle: {
-//     fontSize: 14,
-//     color: '#6B7280',
-//     marginTop: 4,
-//   },
-//   cameraContainer: {
-//     paddingHorizontal: 24,
-//     flex: 1,
-//     justifyContent: 'center',
-//   },
-//   cameraWrapper: {
-//     width: '100%',
-//     aspectRatio: 3 / 4,
-//     backgroundColor: '#F3F4F6',
-//     borderRadius: 24,
-//     overflow: 'hidden',
-//     borderWidth: 1,
-//     borderColor: '#E5E7EB',
-//     position: 'relative',
-//     elevation: 4,
-//     shadowColor: '#000',
-//     shadowOffset: { width: 0, height: 2 },
-//     shadowOpacity: 0.1,
-//     shadowRadius: 8,
-//   },
-//   placeholderContainer: {
-//     flex: 1,
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//     backgroundColor: '#F3F4F6',
-//   },
-//   iconCircle: {
-//     width: 64,
-//     height: 64,
-//     backgroundColor: '#E5E7EB',
-//     borderRadius: 32,
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//     marginBottom: 16,
-//   },
-//   placeholderText: {
-//     fontWeight: '500',
-//     color: '#9CA3AF',
-//   },
-//   errorContainer: {
-//     position: 'absolute',
-//     inset: 0,
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//     backgroundColor: '#FEF2F2',
-//     padding: 24,
-//     zIndex: 10,
-//   },
-//   errorText: {
-//     color: '#EF4444',
-//     marginTop: 16,
-//     fontWeight: '600',
-//     textAlign: 'center',
-//   },
-//   errorButton: {
-//       marginTop: 12,
-//       paddingHorizontal: 16,
-//       paddingVertical: 8,
-//       backgroundColor: '#FEE2E2',
-//       borderRadius: 8
-//   },
-//   errorButtonText: {
-//       color: '#B91C1C',
-//       fontWeight: '600',
-//       fontSize: 12
-//   },
-//   overlayContainer: {
-//     ...StyleSheet.absoluteFillObject,
-//   },
-//   boundingBox: {
-//     position: 'absolute',
-//     top: '50%',
-//     left: '50%',
-//     width: 200,
-//     height: 200,
-//     transform: [{ translateX: -100 }, { translateY: -100 }],
-//     borderWidth: 2,
-//     borderColor: 'rgba(74, 222, 128, 0.5)',
-//     borderRadius: 12,
-//   },
-//   scanArea: {
-//     position: 'absolute',
-//     top: '50%',
-//     left: '50%',
-//     width: 200,
-//     height: 200,
-//     transform: [{ translateX: -100 }, { translateY: -100 }],
-//     overflow: 'hidden',
-//   },
-//   scanLine: {
-//     width: '100%',
-//     height: 4,
-//     backgroundColor: '#4ADE80',
-//     shadowColor: '#4ADE80',
-//     shadowOffset: { width: 0, height: 0 },
-//     shadowOpacity: 0.8,
-//     shadowRadius: 10,
-//   },
-//   corner: {
-//     position: 'absolute',
-//     width: 20,
-//     height: 20,
-//     borderColor: '#22C55E',
-//   },
-//   cornerTL: { top: -2, left: -2, borderTopWidth: 4, borderLeftWidth: 4, borderTopLeftRadius: 4 },
-//   cornerTR: { top: -2, right: -2, borderTopWidth: 4, borderRightWidth: 4, borderTopRightRadius: 4 },
-//   cornerBL: { bottom: -2, left: -2, borderBottomWidth: 4, borderLeftWidth: 4, borderBottomLeftRadius: 4 },
-//   cornerBR: { bottom: -2, right: -2, borderBottomWidth: 4, borderRightWidth: 4, borderBottomRightRadius: 4 },
-//   liveIndicator: {
-//     position: 'absolute',
-//     top: 16,
-//     right: 16,
-//     backgroundColor: 'rgba(0,0,0,0.6)',
-//     paddingHorizontal: 12,
-//     paddingVertical: 6,
-//     borderRadius: 999,
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     gap: 8,
-//   },
-//   recordingDot: {
-//     width: 8,
-//     height: 8,
-//     borderRadius: 4,
-//     backgroundColor: '#EF4444',
-//   },
-//   liveText: {
-//     color: '#FFF',
-//     fontSize: 12,
-//     fontWeight: 'bold',
-//     letterSpacing: 1,
-//   },
-//   controls: {
-//     padding: 24,
-//     paddingBottom: 40,
-//   },
-//   button: {
-//     width: '100%',
-//     paddingVertical: 16,
-//     borderRadius: 16,
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//     gap: 12,
-//     shadowColor: '#000',
-//     shadowOffset: { width: 0, height: 4 },
-//     shadowOpacity: 0.2,
-//     shadowRadius: 8,
-//     elevation: 5,
-//   },
-//   buttonStart: {
-//     backgroundColor: '#10B981',
-//   },
-//   buttonStop: {
-//     backgroundColor: '#EF4444',
-//   },
-//   buttonText: {
-//     color: '#FFF',
-//     fontSize: 18,
-//     fontWeight: 'bold',
-//   },
-//   statusText: {
-//     textAlign: 'center',
-//     color: '#9CA3AF',
-//     fontSize: 12,
-//     marginTop: 16,
-//   },
-// });
-
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions } from 'react-native';
-// 1. Change this import to fix the deprecation warning
-import { SafeAreaView } from 'react-native-safe-area-context'; 
-import { CameraView, CameraType, PermissionResponse } from 'expo-camera';
-import { ScanLine, CameraOff, AlertCircle } from 'lucide-react-native';
-
-const SCAN_AREA_HEIGHT = 300;
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const SCAN_AREA_SIZE = 220;
 
 interface LiveScreenProps {
   active: boolean;
@@ -452,8 +22,104 @@ export default function LiveScreen({
   onToggleCamera, 
   facing = 'back' 
 }: LiveScreenProps) {
+
+  // Server endpoint - update IP to your computer running the Python server
+  const SERVER_FRAME_URL = 'http://192.168.1.5:5000/process-frame';
+
+  const [detectedColors, setDetectedColors] = useState<string[]>([]);
+  const [isConnected, setIsConnected] = useState(true);
+  const cameraRef = useRef<any>(null);
+  const isProcessingRef = useRef(false);
+  const frameIntervalRef = useRef<any>(null);
+  const targetFPS = 5; // Reduced for smoother performance
+
+  // Map color names returned by server to CSS color strings for UI
+  const colorMap: Record<string, string> = {
+    Red: '#FF3B30',
+    Blue: '#007AFF',
+    Green: '#34C759',
+    Yellow: '#FFCC00',
+    Orange: '#FF9500',
+    Cyan: '#5AC8FA',
+    Purple: '#AF52DE',
+    Pink: '#FF2D55',
+    White: '#FFFFFF',
+    Black: '#1F2937',
+    Gray: '#8E8E93',
+  };
+
+  // Handle camera ready and start frame capture
+  const handleCameraReady = () => {
+    console.log('Camera ready, starting frame capture...');
+    
+    // Clear any existing interval
+    if (frameIntervalRef.current) {
+      clearInterval(frameIntervalRef.current);
+    }
+
+    // Start capturing frames at intervals
+    const interval = Math.round(1000 / targetFPS);
+    
+    frameIntervalRef.current = setInterval(async () => {
+      if (isProcessingRef.current || !cameraRef.current || !active) return;
+      
+      isProcessingRef.current = true;
+      
+      try {
+        if (cameraRef.current?.takePictureAsync) {
+          const photo = await cameraRef.current.takePictureAsync({ 
+            base64: true, 
+            quality: 0.3, 
+            skipProcessing: true,
+            exif: false,
+          });
+          const base64 = (photo as any)?.base64;
+
+          if (base64) {
+            fetch(SERVER_FRAME_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ image: base64, mode: 'center' }),
+            })
+              .then((res) => res.json())
+              .then((json) => {
+                if (json?.detected_colors) {
+                  setDetectedColors(json.detected_colors || []);
+                  setIsConnected(true);
+                }
+              })
+              .catch((err) => {
+                console.warn('Frame request error', err);
+                setIsConnected(false);
+              });
+          }
+        }
+      } catch (err) {
+        console.warn('Capture error', err);
+      } finally {
+        isProcessingRef.current = false;
+      }
+    }, interval);
+  };
+
+  // Cleanup interval when component unmounts or camera stops
+  useEffect(() => {
+    if (!active || !permission?.granted) {
+      if (frameIntervalRef.current) {
+        clearInterval(frameIntervalRef.current);
+        frameIntervalRef.current = null;
+      }
+      setDetectedColors([]);
+    }
+
+    return () => {
+      if (frameIntervalRef.current) {
+        clearInterval(frameIntervalRef.current);
+      }
+    };
+  }, [active, permission]);
   
-  // Animation Logic
+  // Animation Logic for scanning line
   const scanAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -477,7 +143,6 @@ export default function LiveScreen({
       animation.start();
     } else {
       scanAnim.setValue(0);
-      scanAnim.stopAnimation();
     }
 
     return () => {
@@ -487,23 +152,30 @@ export default function LiveScreen({
 
   const scanLineTranslateY = scanAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, SCAN_AREA_HEIGHT],
+    outputRange: [0, SCAN_AREA_SIZE],
   });
 
   // Loading State
   if (!permission) {
-    return <View style={styles.container} />;
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <View style={styles.container}>
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Loading camera...</Text>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
-    // 2. Used SafeAreaView from the new context library
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
         
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Live Detection</Text>
-          <Text style={styles.subtitle}>Object recognition stream</Text>
+          <Text style={styles.title}>Live Color Detection</Text>
+          <Text style={styles.subtitle}>Point camera at objects to detect colors</Text>
         </View>
 
         {/* Camera Viewport Container */}
@@ -512,58 +184,113 @@ export default function LiveScreen({
             
             {/* Active Camera View */}
             {active && permission.granted ? (
-              <CameraView
-                style={StyleSheet.absoluteFill}
-                facing={facing}
-                animateShutter={false}
-              />
+              <>
+                <CameraView
+                  ref={cameraRef}
+                  style={StyleSheet.absoluteFill}
+                  facing={facing}
+                  animateShutter={false}
+                  onCameraReady={handleCameraReady}
+                />
+                
+                {/* Scanner Overlay */}
+                <View style={styles.overlayContainer} pointerEvents="none">
+                  
+                  {/* Bounding Box */}
+                  <View style={styles.boundingBox}>
+                    <View style={[styles.corner, styles.cornerTL]} />
+                    <View style={[styles.corner, styles.cornerTR]} />
+                    <View style={[styles.corner, styles.cornerBL]} />
+                    <View style={[styles.corner, styles.cornerBR]} />
+                  </View>
+
+                  {/* Animated Scan Line */}
+                  <View style={styles.scanArea}>
+                    <Animated.View
+                      style={[
+                        styles.scanLine,
+                        { transform: [{ translateY: scanLineTranslateY }] },
+                      ]}
+                    />
+                  </View>
+
+                  {/* Crosshair at center */}
+                  <View style={styles.crosshairContainer}>
+                    <View style={styles.crosshairLineV} />
+                    <View style={styles.crosshairLineH} />
+                    <View
+                      style={[
+                        styles.crosshairDot,
+                        detectedColors && detectedColors[0]
+                          ? { backgroundColor: colorMap[detectedColors[0]] || '#FFFFFF' }
+                          : { backgroundColor: '#FFFFFF' },
+                      ]}
+                    />
+                  </View>
+
+                  {/* Center color label */}
+                  {detectedColors && detectedColors[0] && (
+                    <View style={styles.centerLabelContainer}>
+                      <View style={styles.centerLabel}>
+                        <View 
+                          style={[
+                            styles.centerLabelDot, 
+                            { backgroundColor: colorMap[detectedColors[0]] || '#FFFFFF' }
+                          ]} 
+                        />
+                        <Text style={styles.centerLabelText}>{detectedColors[0]}</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Live Indicator */}
+                  <View style={styles.liveIndicator}>
+                    <View style={[styles.recordingDot, !isConnected && styles.recordingDotDisconnected]} />
+                    <Text style={styles.liveText}>{isConnected ? 'LIVE' : 'OFFLINE'}</Text>
+                  </View>
+
+                  {/* All detected colors overlay */}
+                  {detectedColors?.length > 0 && (
+                    <View style={styles.colorsOverlay}>
+                      {detectedColors.slice(0, 3).map((c, idx) => (
+                        <View key={`${c}-${idx}`} style={styles.colorChip}>
+                          <View 
+                            style={[
+                              styles.colorChipDot, 
+                              { backgroundColor: colorMap[c] || '#FFFFFF' }
+                            ]} 
+                          />
+                          <Text style={styles.colorChipText}>{c}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              </>
             ) : (
               /* Inactive State / Placeholder */
               <View style={styles.placeholderContainer}>
                 <View style={styles.iconCircle}>
-                  <CameraOff size={32} color="#9CA3AF" />
+                  <CameraOff size={40} color="#9CA3AF" />
                 </View>
                 <Text style={styles.placeholderText}>Camera is Off</Text>
+                <Text style={styles.placeholderSubtext}>
+                  Tap the button below to start detection
+                </Text>
               </View>
             )}
 
             {/* Permission Denied State */}
-            {!permission.granted && !permission.canAskAgain && (
+            {!permission.granted && (
               <View style={styles.errorContainer}>
                 <AlertCircle size={48} color="#EF4444" />
-                <Text style={styles.errorText}>Camera permission denied</Text>
+                <Text style={styles.errorText}>Camera Permission Required</Text>
+                <Text style={styles.errorSubtext}>
+                  Allow camera access to detect colors
+                </Text>
                 <TouchableOpacity onPress={onRequestPermission} style={styles.errorButton}>
-                    <Text style={styles.errorButtonText}>Grant Permission</Text>
+                  <Text style={styles.errorButtonText}>Grant Permission</Text>
                 </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Scanner Overlay (Visible when active) */}
-            {active && permission.granted && (
-              <View style={styles.overlayContainer} pointerEvents="none">
-                {/* Bounding Box */}
-                <View style={styles.boundingBox}>
-                  <View style={[styles.corner, styles.cornerTL]} />
-                  <View style={[styles.corner, styles.cornerTR]} />
-                  <View style={[styles.corner, styles.cornerBL]} />
-                  <View style={[styles.corner, styles.cornerBR]} />
-                </View>
-
-                {/* Animated Scan Line */}
-                <View style={styles.scanArea}>
-                  <Animated.View
-                    style={[
-                      styles.scanLine,
-                      { transform: [{ translateY: scanLineTranslateY }] },
-                    ]}
-                  />
-                </View>
-
-                {/* Live Indicator */}
-                <View style={styles.liveIndicator}>
-                  <View style={styles.recordingDot} />
-                  <Text style={styles.liveText}>LIVE</Text>
-                </View>
               </View>
             )}
           </View>
@@ -574,9 +301,11 @@ export default function LiveScreen({
           <TouchableOpacity
             onPress={onToggleCamera}
             activeOpacity={0.8}
+            disabled={!permission?.granted}
             style={[
               styles.button,
-              active ? styles.buttonStop : styles.buttonStart
+              active ? styles.buttonStop : styles.buttonStart,
+              !permission?.granted && styles.buttonDisabled
             ]}
           >
             {active ? (
@@ -587,13 +316,15 @@ export default function LiveScreen({
             ) : (
               <>
                 <ScanLine size={24} color="#FFF" />
-                <Text style={styles.buttonText}>Start Live Detection</Text>
+                <Text style={styles.buttonText}>Start Detection</Text>
               </>
             )}
           </TouchableOpacity>
 
           <Text style={styles.statusText}>
-            {active ? "Processing video frames..." : "Ready to start camera stream"}
+            {active 
+              ? (isConnected ? "Analyzing colors in real-time..." : "Connecting to server...") 
+              : "Ready to detect colors"}
           </Text>
         </View>
       </View>
@@ -610,137 +341,245 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
   },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
   header: {
-    paddingVertical: 20,
+    paddingVertical: 24,
     paddingHorizontal: 24,
     alignItems: 'center',
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#1F2937',
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
     color: '#6B7280',
-    marginTop: 4,
+    marginTop: 6,
+    textAlign: 'center',
   },
   cameraContainer: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     flex: 1,
     justifyContent: 'center',
   },
   cameraWrapper: {
     width: '100%',
     aspectRatio: 3 / 4,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#000000',
     borderRadius: 24,
     overflow: 'hidden',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#E5E7EB',
     position: 'relative',
-    elevation: 4,
+    elevation: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
   },
   placeholderContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F3F4F6',
+    padding: 24,
   },
   iconCircle: {
-    width: 64,
-    height: 64,
+    width: 80,
+    height: 80,
     backgroundColor: '#E5E7EB',
-    borderRadius: 32,
+    borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   placeholderText: {
-    fontWeight: '500',
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  placeholderSubtext: {
+    fontSize: 14,
     color: '#9CA3AF',
+    textAlign: 'center',
   },
   errorContainer: {
     position: 'absolute',
-    inset: 0,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FEF2F2',
-    padding: 24,
+    padding: 32,
     zIndex: 10,
   },
   errorText: {
     color: '#EF4444',
     marginTop: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: 18,
+    textAlign: 'center',
+  },
+  errorSubtext: {
+    color: '#B91C1C',
+    marginTop: 8,
+    fontSize: 14,
     textAlign: 'center',
   },
   errorButton: {
-      marginTop: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      backgroundColor: '#FEE2E2',
-      borderRadius: 8
+    marginTop: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
+    elevation: 2,
   },
   errorButtonText: {
-      color: '#B91C1C',
-      fontWeight: '600',
-      fontSize: 12
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 16,
   },
   overlayContainer: {
     ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   boundingBox: {
     position: 'absolute',
-    top: '50%',
-    left: '50%',
-    width: 200,
-    height: 200,
-    transform: [{ translateX: -100 }, { translateY: -100 }],
+    width: SCAN_AREA_SIZE,
+    height: SCAN_AREA_SIZE,
     borderWidth: 2,
-    borderColor: 'rgba(74, 222, 128, 0.5)',
-    borderRadius: 12,
+    borderColor: 'rgba(74, 222, 128, 0.6)',
+    borderRadius: 16,
   },
   scanArea: {
     position: 'absolute',
-    top: '50%',
-    left: '50%',
-    width: 200,
-    height: 200,
-    transform: [{ translateX: -100 }, { translateY: -100 }],
+    width: SCAN_AREA_SIZE,
+    height: SCAN_AREA_SIZE,
     overflow: 'hidden',
   },
   scanLine: {
     width: '100%',
-    height: 4,
+    height: 3,
     backgroundColor: '#4ADE80',
     shadowColor: '#4ADE80',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
+    shadowOpacity: 1,
+    shadowRadius: 12,
   },
   corner: {
     position: 'absolute',
-    width: 20,
-    height: 20,
+    width: 24,
+    height: 24,
     borderColor: '#22C55E',
   },
-  cornerTL: { top: -2, left: -2, borderTopWidth: 4, borderLeftWidth: 4, borderTopLeftRadius: 4 },
-  cornerTR: { top: -2, right: -2, borderTopWidth: 4, borderRightWidth: 4, borderTopRightRadius: 4 },
-  cornerBL: { bottom: -2, left: -2, borderBottomWidth: 4, borderLeftWidth: 4, borderBottomLeftRadius: 4 },
-  cornerBR: { bottom: -2, right: -2, borderBottomWidth: 4, borderRightWidth: 4, borderBottomRightRadius: 4 },
+  cornerTL: { 
+    top: -2, 
+    left: -2, 
+    borderTopWidth: 4, 
+    borderLeftWidth: 4, 
+    borderTopLeftRadius: 6 
+  },
+  cornerTR: { 
+    top: -2, 
+    right: -2, 
+    borderTopWidth: 4, 
+    borderRightWidth: 4, 
+    borderTopRightRadius: 6 
+  },
+  cornerBL: { 
+    bottom: -2, 
+    left: -2, 
+    borderBottomWidth: 4, 
+    borderLeftWidth: 4, 
+    borderBottomLeftRadius: 6 
+  },
+  cornerBR: { 
+    bottom: -2, 
+    right: -2, 
+    borderBottomWidth: 4, 
+    borderRightWidth: 4, 
+    borderBottomRightRadius: 6 
+  },
+  crosshairContainer: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+  },
+  crosshairLineV: {
+    position: 'absolute',
+    width: 2,
+    height: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 1,
+  },
+  crosshairLineH: {
+    position: 'absolute',
+    height: 2,
+    width: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 1,
+  },
+  crosshairDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: 'rgba(0, 0, 0, 0.3)',
+    zIndex: 101,
+  },
+  centerLabelContainer: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: 40,
+    alignItems: 'center',
+    zIndex: 99,
+  },
+  centerLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 8,
+  },
+  centerLabelDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  centerLabelText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
   liveIndicator: {
     position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
+    top: 20,
+    right: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -751,19 +590,53 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#EF4444',
   },
+  recordingDotDisconnected: {
+    backgroundColor: '#9CA3AF',
+  },
   liveText: {
-    color: '#FFF',
+    color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: 'bold',
-    letterSpacing: 1,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+  },
+  colorsOverlay: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    alignItems: 'center',
+  },
+  colorChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 8,
+  },
+  colorChipDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  colorChipText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
   },
   controls: {
     padding: 24,
-    paddingBottom: 40,
+    paddingBottom: 32,
   },
   button: {
     width: '100%',
-    paddingVertical: 16,
+    paddingVertical: 18,
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -771,9 +644,9 @@ const styles = StyleSheet.create({
     gap: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 6,
   },
   buttonStart: {
     backgroundColor: '#10B981',
@@ -781,15 +654,21 @@ const styles = StyleSheet.create({
   buttonStop: {
     backgroundColor: '#EF4444',
   },
+  buttonDisabled: {
+    backgroundColor: '#D1D5DB',
+    opacity: 0.6,
+  },
   buttonText: {
-    color: '#FFF',
+    color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   statusText: {
     textAlign: 'center',
     color: '#9CA3AF',
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 16,
+    fontWeight: '500',
   },
 });
