@@ -141,7 +141,7 @@ export default function Login() {
               <Text style={{ color: colors.text, fontSize: 14 * scale }}>
                 Don't have an account?{' '}
               </Text>
-              <Link href="/auth/signup" asChild>
+              <Link href="../signup" asChild>
                   <TouchableOpacity>
                       <Text style={[styles.registerLink, { color: colors.text, fontSize: 14 * scale }]}>
                         Sign up here

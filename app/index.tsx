@@ -27,7 +27,7 @@ export default function Index() {
     const timer = setTimeout(() => {
       // Navigate to your login screen
       // We use .replace() so the user can't go "back" to the splash screen
-      router.replace('/auth/login'); 
+      router.replace('/dashboard'); 
     }, 3000);
 
     // Cleanup the timer if the user leaves the screen early
