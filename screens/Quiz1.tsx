@@ -26,7 +26,7 @@ export default function Quiz1({ difficulty }: { difficulty: string }) {
   // --- Initialize Gemini SDK ---
   // WARNING: In a production app, do not store API keyys directly in the client code.
   // Use a backend proxy or environment variables (e.g., react-native-dotenv).
-  const API_KEY = "AIzaSyCbgrAzbDixjiMEel-jfxLdP6f2yEVyHRA"; 
+  const API_KEY = "AIzaSyBC0v9b55J0oqNXHbaL6WT5bUL26TAk3vk"; 
   const genAI = new GoogleGenerativeAI(API_KEY);
 
   // --- Fetch AI Questions ---
