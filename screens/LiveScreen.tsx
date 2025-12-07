@@ -1,11 +1,14 @@
+
 import { CameraType, CameraView, PermissionResponse } from 'expo-camera';
 import { AlertCircle, CameraOff, ScanLine } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const SCAN_AREA_SIZE = 220;
+// 1. IMPORT THEME HOOK
+import { useTheme } from '../Context/ThemeContext';
+
+const SCAN_AREA_HEIGHT = 300;
 
 interface LiveScreenProps {
   active: boolean;
@@ -22,104 +25,26 @@ export default function LiveScreen({
   onToggleCamera, 
   facing = 'back' 
 }: LiveScreenProps) {
-
-  // Server endpoint - update IP to your computer running the Python server
-  const SERVER_FRAME_URL = 'http://192.168.1.5:5000/process-frame';
-
-  const [detectedColors, setDetectedColors] = useState<string[]>([]);
-  const [isConnected, setIsConnected] = useState(true);
-  const cameraRef = useRef<any>(null);
-  const isProcessingRef = useRef(false);
-  const frameIntervalRef = useRef<any>(null);
-  const targetFPS = 5; // Reduced for smoother performance
-
-  // Map color names returned by server to CSS color strings for UI
-  const colorMap: Record<string, string> = {
-    Red: '#FF3B30',
-    Blue: '#007AFF',
-    Green: '#34C759',
-    Yellow: '#FFCC00',
-    Orange: '#FF9500',
-    Cyan: '#5AC8FA',
-    Purple: '#AF52DE',
-    Pink: '#FF2D55',
-    White: '#FFFFFF',
-    Black: '#1F2937',
-    Gray: '#8E8E93',
-  };
-
-  // Handle camera ready and start frame capture
-  const handleCameraReady = () => {
-    console.log('Camera ready, starting frame capture...');
-    
-    // Clear any existing interval
-    if (frameIntervalRef.current) {
-      clearInterval(frameIntervalRef.current);
-    }
-
-    // Start capturing frames at intervals
-    const interval = Math.round(1000 / targetFPS);
-    
-    frameIntervalRef.current = setInterval(async () => {
-      if (isProcessingRef.current || !cameraRef.current || !active) return;
-      
-      isProcessingRef.current = true;
-      
-      try {
-        if (cameraRef.current?.takePictureAsync) {
-          const photo = await cameraRef.current.takePictureAsync({ 
-            base64: true, 
-            quality: 0.3, 
-            skipProcessing: true,
-            exif: false,
-          });
-          const base64 = (photo as any)?.base64;
-
-          if (base64) {
-            fetch(SERVER_FRAME_URL, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image: base64, mode: 'center' }),
-            })
-              .then((res) => res.json())
-              .then((json) => {
-                if (json?.detected_colors) {
-                  setDetectedColors(json.detected_colors || []);
-                  setIsConnected(true);
-                }
-              })
-              .catch((err) => {
-                console.warn('Frame request error', err);
-                setIsConnected(false);
-              });
-          }
-        }
-      } catch (err) {
-        console.warn('Capture error', err);
-      } finally {
-        isProcessingRef.current = false;
-      }
-    }, interval);
-  };
-
-  // Cleanup interval when component unmounts or camera stops
-  useEffect(() => {
-    if (!active || !permission?.granted) {
-      if (frameIntervalRef.current) {
-        clearInterval(frameIntervalRef.current);
-        frameIntervalRef.current = null;
-      }
-      setDetectedColors([]);
-    }
-
-    return () => {
-      if (frameIntervalRef.current) {
-        clearInterval(frameIntervalRef.current);
-      }
-    };
-  }, [active, permission]);
   
-  // Animation Logic for scanning line
+  // 2. CONSUME THEME CONTEXT
+  const { darkMode, getFontSizeMultiplier } = useTheme();
+  const scale = getFontSizeMultiplier();
+
+  // 3. DEFINE DYNAMIC COLORS
+  const theme = {
+    bg: darkMode ? '#000000' : '#F9FAFB',
+    text: darkMode ? '#FFFFFF' : '#1F2937',
+    subText: darkMode ? '#A1A1AA' : '#6B7280',
+    cameraBg: darkMode ? '#1C1C1E' : '#F3F4F6', // Dark gray placeholder
+    borderColor: darkMode ? '#333333' : '#E5E7EB',
+    iconCircle: darkMode ? '#2C2C2E' : '#E5E7EB',
+    iconColor: darkMode ? '#6B7280' : '#9CA3AF',
+    statusText: darkMode ? '#666' : '#9CA3AF',
+    errorBg: darkMode ? '#3E1A1A' : '#FEF2F2', // Darker red bg for dark mode
+    errorText: '#EF4444', // Keep red for alerts
+  };
+
+  // Animation Logic
   const scanAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -157,126 +82,83 @@ export default function LiveScreen({
 
   // Loading State
   if (!permission) {
-    return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <View style={styles.container}>
-          <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Loading camera...</Text>
-          </View>
-        </View>
-      </SafeAreaView>
-    );
+    return <View style={[styles.container, { backgroundColor: theme.bg }]} />;
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.bg }]} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
         
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Live Color Detection</Text>
-          <Text style={styles.subtitle}>Point camera at objects to detect colors</Text>
+          <Text style={[styles.title, { color: theme.text, fontSize: 24 * scale }]}>
+            Live Detection
+          </Text>
+          <Text style={[styles.subtitle, { color: theme.subText, fontSize: 14 * scale }]}>
+            Object recognition stream
+          </Text>
         </View>
 
         {/* Camera Viewport Container */}
         <View style={styles.cameraContainer}>
-          <View style={styles.cameraWrapper}>
+          <View style={[styles.cameraWrapper, { borderColor: theme.borderColor, backgroundColor: theme.cameraBg }]}>
             
             {/* Active Camera View */}
             {active && permission.granted ? (
-              <>
-                <CameraView
-                  ref={cameraRef}
-                  style={StyleSheet.absoluteFill}
-                  facing={facing}
-                  animateShutter={false}
-                  onCameraReady={handleCameraReady}
-                />
-                
-                {/* Scanner Overlay */}
-                <View style={styles.overlayContainer} pointerEvents="none">
-                  
-                  {/* Bounding Box */}
-                  <View style={styles.boundingBox}>
-                    <View style={[styles.corner, styles.cornerTL]} />
-                    <View style={[styles.corner, styles.cornerTR]} />
-                    <View style={[styles.corner, styles.cornerBL]} />
-                    <View style={[styles.corner, styles.cornerBR]} />
-                  </View>
-
-                  {/* Animated Scan Line */}
-                  <View style={styles.scanArea}>
-                    <Animated.View
-                      style={[
-                        styles.scanLine,
-                        { transform: [{ translateY: scanLineTranslateY }] },
-                      ]}
-                    />
-                  </View>
-
-                  {/* Crosshair at center */}
-                  <View style={styles.crosshairContainer}>
-                    <View style={styles.crosshairLineV} />
-                    <View style={styles.crosshairLineH} />
-                    <View
-                      style={[
-                        styles.crosshairDot,
-                        detectedColors && detectedColors[0]
-                          ? { backgroundColor: colorMap[detectedColors[0]] || '#FFFFFF' }
-                          : { backgroundColor: '#FFFFFF' },
-                      ]}
-                    />
-                  </View>
-
-                  {/* Center color label */}
-                  {detectedColors && detectedColors[0] && (
-                    <View style={styles.centerLabelContainer}>
-                      <View style={styles.centerLabel}>
-                        <View 
-                          style={[
-                            styles.centerLabelDot, 
-                            { backgroundColor: colorMap[detectedColors[0]] || '#FFFFFF' }
-                          ]} 
-                        />
-                        <Text style={styles.centerLabelText}>{detectedColors[0]}</Text>
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Live Indicator */}
-                  <View style={styles.liveIndicator}>
-                    <View style={[styles.recordingDot, !isConnected && styles.recordingDotDisconnected]} />
-                    <Text style={styles.liveText}>{isConnected ? 'LIVE' : 'OFFLINE'}</Text>
-                  </View>
-
-                  {/* All detected colors overlay */}
-                  {detectedColors?.length > 0 && (
-                    <View style={styles.colorsOverlay}>
-                      {detectedColors.slice(0, 3).map((c, idx) => (
-                        <View key={`${c}-${idx}`} style={styles.colorChip}>
-                          <View 
-                            style={[
-                              styles.colorChipDot, 
-                              { backgroundColor: colorMap[c] || '#FFFFFF' }
-                            ]} 
-                          />
-                          <Text style={styles.colorChipText}>{c}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              </>
+              <CameraView
+                style={StyleSheet.absoluteFill}
+                facing={facing}
+                animateShutter={false}
+              />
             ) : (
               /* Inactive State / Placeholder */
-              <View style={styles.placeholderContainer}>
-                <View style={styles.iconCircle}>
-                  <CameraOff size={40} color="#9CA3AF" />
+              <View style={[styles.placeholderContainer, { backgroundColor: theme.cameraBg }]}>
+                <View style={[styles.iconCircle, { backgroundColor: theme.iconCircle }]}>
+                  <CameraOff size={32 * scale} color={theme.iconColor} />
                 </View>
-                <Text style={styles.placeholderText}>Camera is Off</Text>
-                <Text style={styles.placeholderSubtext}>
-                  Tap the button below to start detection
+                <Text style={[styles.placeholderText, { color: theme.iconColor, fontSize: 16 * scale }]}>
+                    Camera is Off
                 </Text>
+              </View>
+            )}
+
+            {/* Permission Denied State */}
+            {!permission.granted && !permission.canAskAgain && (
+              <View style={[styles.errorContainer, { backgroundColor: theme.errorBg }]}>
+                <AlertCircle size={48 * scale} color={theme.errorText} />
+                <Text style={[styles.errorText, { fontSize: 16 * scale }]}>Camera permission denied</Text>
+                <TouchableOpacity onPress={onRequestPermission} style={styles.errorButton}>
+                    <Text style={[styles.errorButtonText, { fontSize: 12 * scale }]}>Grant Permission</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Scanner Overlay (Visible when active) */}
+            {active && permission.granted && (
+              <View style={styles.overlayContainer} pointerEvents="none">
+                {/* Bounding Box */}
+                <View style={styles.boundingBox}>
+                  <View style={[styles.corner, styles.cornerTL]} />
+                  <View style={[styles.corner, styles.cornerTR]} />
+                  <View style={[styles.corner, styles.cornerBL]} />
+                  <View style={[styles.corner, styles.cornerBR]} />
+                </View>
+
+                {/* Animated Scan Line */}
+                <View style={styles.scanArea}>
+                  <Animated.View
+                    style={[
+                      styles.scanLine,
+                      { transform: [{ translateY: scanLineTranslateY }] },
+                    ]}
+                  />
+                </View>
+
+                {/* Live Indicator */}
+                <View style={styles.liveIndicator}>
+                  <View style={styles.recordingDot} />
+                  <Text style={[styles.liveText, { fontSize: 12 * scale }]}>LIVE</Text>
+                </View>
               </View>
             )}
 
@@ -310,21 +192,19 @@ export default function LiveScreen({
           >
             {active ? (
               <>
-                <CameraOff size={24} color="#FFF" />
-                <Text style={styles.buttonText}>Stop Detection</Text>
+                <CameraOff size={24 * scale} color="#FFF" />
+                <Text style={[styles.buttonText, { fontSize: 18 * scale }]}>Stop Detection</Text>
               </>
             ) : (
               <>
-                <ScanLine size={24} color="#FFF" />
-                <Text style={styles.buttonText}>Start Detection</Text>
+                <ScanLine size={24 * scale} color="#FFF" />
+                <Text style={[styles.buttonText, { fontSize: 18 * scale }]}>Start Live Detection</Text>
               </>
             )}
           </TouchableOpacity>
 
-          <Text style={styles.statusText}>
-            {active 
-              ? (isConnected ? "Analyzing colors in real-time..." : "Connecting to server...") 
-              : "Ready to detect colors"}
+          <Text style={[styles.statusText, { color: theme.statusText, fontSize: 12 * scale }]}>
+            {active ? "Processing video frames..." : "Ready to start camera stream"}
           </Text>
         </View>
       </View>
@@ -332,10 +212,10 @@ export default function LiveScreen({
   );
 }
 
+// Static Layout Styles
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   container: {
     flex: 1,
@@ -356,16 +236,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontSize: 28,
     fontWeight: 'bold',
-    color: '#1F2937',
-    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 6,
-    textAlign: 'center',
+    marginTop: 4,
   },
   cameraContainer: {
     paddingHorizontal: 20,
@@ -375,11 +249,9 @@ const styles = StyleSheet.create({
   cameraWrapper: {
     width: '100%',
     aspectRatio: 3 / 4,
-    backgroundColor: '#000000',
     borderRadius: 24,
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderWidth: 1,
     position: 'relative',
     elevation: 8,
     shadowColor: '#000',
@@ -391,28 +263,17 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F3F4F6',
-    padding: 24,
   },
   iconCircle: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 40,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
   },
   placeholderText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 8,
-  },
-  placeholderSubtext: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
+    fontWeight: '500',
   },
   errorContainer: {
     position: 'absolute',
@@ -422,8 +283,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FEF2F2',
-    padding: 32,
+    padding: 24,
     zIndex: 10,
   },
   errorText: {
@@ -448,9 +308,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   errorButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 16,
+      color: '#B91C1C',
+      fontWeight: '600',
   },
   overlayContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -594,41 +453,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#9CA3AF',
   },
   liveText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-  },
-  colorsOverlay: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    alignItems: 'center',
-  },
-  colorChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 8,
-  },
-  colorChipDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  colorChipText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '600',
+    color: '#FFF',
+    fontWeight: 'bold',
+    letterSpacing: 1,
   },
   controls: {
     padding: 24,
@@ -659,15 +486,11 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    color: '#FFF',
+    fontWeight: 'bold',
   },
   statusText: {
     textAlign: 'center',
-    color: '#9CA3AF',
-    fontSize: 13,
     marginTop: 16,
     fontWeight: '500',
   },

@@ -2,23 +2,38 @@ import { router, Stack } from "expo-router";
 import Dashboard from "../screens/Dashboard";
 
 export default function DashboardScreen() {
+  const navigate = (screen: string) => {
+    // Map screen names to actual route names
+    const routeMap: Record<string, any> = {
+      "livescreen": "/live",
+      "mediaupload": "/mediaupload",
+      "vrscreen": "/vrscreen",
+      "gamesscreen": "/gamesscreen",
+      "welcome": "/welcome",
+      "enhancerscreen": "/enhancerscreen",
+
+    };
+
+    const route = routeMap[screen.toLowerCase()];
+    
+    if (route) {
+      router.push(route);
+    } else {
+      // Fallback: try to push the screen name directly if not in map
+      // This handles the generic logic from your second block
+      router.push(("/" + screen.toLowerCase()) as any);
+    }
+  };
+
   return (
     <>
-      {/* 2. Add Stack.Screen with headerShown: false */}
+      {/* Configure the stack header to be hidden */}
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* 3. Your existing Dashboard component */}
       <Dashboard
-        onGoToWelcome={() => router.push("/welcome")}
-        onGoToLive={() => router.push("/live")}
-        onGoToMedia={() => router.push("/mediaupload")}
-        
-        // Generic navigation for quiz / difficulty etc.
-        navigate={(screen: string) => router.push(("/" + screen.toLowerCase()) as any)}
-
-        // 👉 Add Live Detection Navigation
+       // onGoToWelcome={() => router.push("/welcome")}
+        //navigate={navigate}
       />
     </>
   );
 }
-

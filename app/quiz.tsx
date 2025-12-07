@@ -1,3 +1,6 @@
+
+
+
 import { useLocalSearchParams } from "expo-router";
 import Quiz1 from "../screens/Quiz1";
 
@@ -6,3 +9,4 @@ export default function QuizScreen() {
 
   return <Quiz1 difficulty={difficulty as string} />;
 }
+
