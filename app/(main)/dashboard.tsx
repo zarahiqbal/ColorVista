@@ -1,5 +1,5 @@
 import { router, Stack } from "expo-router";
-import Dashboard from "../screens/Dashboard";
+import Dashboard from "../../screens/Dashboard";
 
 export default function DashboardScreen() {
   const navigate = (screen: string) => {
