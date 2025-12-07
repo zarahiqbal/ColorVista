@@ -1,16 +1,17 @@
+import { Ionicons } from '@expo/vector-icons'; // or react-native-vector-icons
+import { useNavigation } from '@react-navigation/native';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
+  View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; // or react-native-vector-icons
-import { useNavigation } from '@react-navigation/native';
 
 interface RegisterFormData {
   firstName: string;
@@ -340,9 +341,9 @@ const Register: React.FC = () => {
         {/* Login Link */}
         <View style={styles.loginContainer}>
           <Text style={styles.loginText}>Already have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Login' as never)}>
-            <Text style={styles.loginLink}>Sign in here</Text>
-          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/auth/login')}>
+          <Text style={styles.loginLink}>Sign in here</Text>
+        </TouchableOpacity>
         </View>
       </View>
 
