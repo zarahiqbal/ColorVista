@@ -560,14 +560,18 @@ import {
 } from 'react-native';
 
 import { useTheme } from '../Context/ThemeContext';
-// 1. IMPORT AUTH
+// 1. IMPORT AUTH AND USER DATA HOOKS
 import { useAuth } from '@/Context/AuthContext';
+import { useUserData } from '@/Context/useUserData';
 
 const ProfileScreen: React.FC = () => {
   const router = useRouter();
   
   // 2. CONSUME AUTH CONTEXT
   const { user, logout } = useAuth();
+  
+  // 2B. FETCH REAL-TIME USER DATA FROM FIREBASE
+  const { userData, loading: userDataLoading } = useUserData();
   
   // 3. DERIVE GUEST STATUS
   const isGuest = user?.isGuest === true;
@@ -590,14 +594,19 @@ const ProfileScreen: React.FC = () => {
     warningText: '#C05621',
   };
 
-  // 4. INITIALIZE DATA 
+  // 4. INITIALIZE DATA - use Firebase data if available
   const [username, setUsername] = React.useState(
-      isGuest ? 'Guest Explorer' : `${user?.firstName || 'Alex'} ${user?.lastName || 'Doe'}`
+      isGuest ? 'Guest Explorer' : userData ? `${userData.firstName || 'User'} ${userData.lastName || 'Profile'}` : `${user?.firstName || 'Alex'} ${user?.lastName || 'Doe'}`
   );
   const [email, setEmail] = React.useState(
-      isGuest ? 'Not Linked' : user?.email || 'alex.doe@email.com'
+      isGuest ? 'Not Linked' : userData?.email || user?.email || 'alex.doe@email.com'
   );
-  const [colorblindnessType, setColorblindnessType] = React.useState('Protanopia');
+  const [phone, setPhone] = React.useState(
+      isGuest ? 'Not Linked' : userData?.phone || user?.phone || 'Not provided'
+  );
+  const [colorblindnessType, setColorblindnessType] = React.useState(
+      userData?.cvdType || 'Normal Vision'
+  );
   
   const [isEditingUsername, setIsEditingUsername] = React.useState(false);
   const [isEditingEmail, setIsEditingEmail] = React.useState(false);
@@ -817,6 +826,19 @@ const ProfileScreen: React.FC = () => {
           )}
         </View>
 
+        {/* Phone Number Section */}
+        {!isGuest && (
+          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={styles.cardLeft}>
+              <Text style={[styles.label, { fontSize: 14 * scale }]}>Phone Number</Text>
+              <View style={styles.phoneRow}>
+                <Ionicons name="call-outline" size={20 * scale} color={theme.subText} />
+                <Text style={[styles.value, { color: theme.text, fontSize: 16 * scale }]}>{phone}</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* ========================================================== */}
         {/* RESTRICTED CONTENT: CVD Type & Scores (Hidden for Guests) */}
         {/* ========================================================== */}
@@ -958,6 +980,7 @@ const styles = StyleSheet.create({
   value: { fontWeight: '600' },
   input: { fontWeight: '600', borderBottomWidth: 2, paddingVertical: 4, paddingHorizontal: 0 },
   colorblindnessRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   actionButtons: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   updateButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   updateText: { color: '#14B8A6', fontWeight: '600' },

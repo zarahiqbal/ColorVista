@@ -38,36 +38,88 @@ def detect_and_draw_colors(image, draw=True, center_only=False, roi_size=80):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
     # Define color ranges in HSV (available to both center-only and full modes)
+    # Ranges selected to be reasonably distinct and cover common names.
     colors = {
-        "Red": [
-            (np.array([0, 50, 50]), np.array([10, 255, 255])),
-            (np.array([170, 50, 50]), np.array([180, 255, 255]))
-        ],
-        "Blue": [(np.array([90, 50, 50]), np.array([130, 255, 255]))],
-        "Green": [(np.array([40, 40, 40]), np.array([90, 255, 255]))],
-        "Yellow": [(np.array([15, 50, 50]), np.array([35, 255, 255]))],
-        "Orange": [(np.array([10, 100, 20]), np.array([25, 255, 255]))],
-        "Cyan": [(np.array([80, 50, 50]), np.array([100, 255, 255]))],
-        "Purple": [(np.array([130, 50, 50]), np.array([145, 255, 255]))],
-        "Pink": [(np.array([145, 50, 50]), np.array([170, 255, 255]))],
-        "White": [(np.array([0, 0, 200]), np.array([180, 50, 255]))],
-        "Black": [(np.array([0, 0, 0]), np.array([180, 255, 30]))],
-        "Gray": [(np.array([0, 0, 50]), np.array([180, 50, 200]))]
-    }
+    "Red": [
+        (np.array([0, 120, 50]), np.array([8, 255, 255])),
+        (np.array([170, 120, 50]), np.array([180, 255, 255]))
+    ],
+    "Orange": [(np.array([9, 120, 50]), np.array([20, 255, 255]))],
+    "Yellow": [(np.array([20, 100, 60]), np.array([35, 255, 255]))],
+    "Lime": [(np.array([35, 80, 60]), np.array([45, 255, 255]))],
+    "Green": [(np.array([45, 80, 40]), np.array([85, 255, 255]))],
+    "Teal": [(np.array([80, 50, 40]), np.array([100, 255, 255]))],
+    "Cyan": [(np.array([85, 60, 50]), np.array([100, 255, 255]))],
+    "Blue": [(np.array([100, 80, 40]), np.array([130, 255, 255]))],
+    "Navy": [(np.array([100, 80, 20]), np.array([130, 255, 120]))],
+    "Indigo": [(np.array([120, 80, 30]), np.array([140, 255, 210]))],
+    "Purple": [(np.array([135, 50, 40]), np.array([155, 255, 255]))],
+    "Violet": [(np.array([145, 30, 60]), np.array([160, 255, 255]))],
+    "Magenta": [(np.array([145, 80, 60]), np.array([170, 255, 255]))],
+    "Pink": [(np.array([160, 30, 120]), np.array([175, 200, 255]))],
+    "Maroon": [
+        (np.array([0, 80, 20]), np.array([8, 255, 120])),
+        (np.array([172, 80, 20]), np.array([180, 255, 120]))
+    ],
+    "Brown": [(np.array([8, 100, 20]), np.array([20, 255, 140]))],
+    "Olive": [(np.array([20, 40, 30]), np.array([40, 200, 160]))],
+    "Coral": [(np.array([2, 100, 100]), np.array([12, 255, 255]))],
+    "Salmon": [(np.array([0, 40, 100]), np.array([15, 200, 255]))],
+    "Beige": [(np.array([15, 10, 160]), np.array([35, 80, 255]))],
+    "Cream": [(np.array([18, 5, 200]), np.array([35, 60, 255]))],
+    "Mint": [(np.array([40, 20, 160]), np.array([80, 100, 255]))],
+    "Lavender": [(np.array([125, 15, 170]), np.array([155, 90, 255]))],
+    "ForestGreen": [(np.array([35, 60, 20]), np.array([85, 255, 140]))],
+    "SkyBlue": [(np.array([90, 30, 160]), np.array([115, 255, 255]))],
+    "Turquoise": [(np.array([85, 60, 90]), np.array([100, 255, 255]))],
+    "Gold": [(np.array([18, 130, 80]), np.array([30, 255, 255]))],
+    "Khaki": [(np.array([20, 30, 120]), np.array([40, 120, 230]))],
+    "Crimson": [
+        (np.array([0, 150, 60]), np.array([4, 255, 255])),
+        (np.array([175, 150, 60]), np.array([180, 255, 255]))
+    ],
+    "Silver": [(np.array([0, 0, 130]), np.array([180, 40, 210]))],
+    "Gray": [(np.array([0, 0, 30]), np.array([180, 40, 200]))],
+    "White": [(np.array([0, 0, 200]), np.array([180, 30, 255]))],
+    "Black": [(np.array([0, 0, 0]), np.array([180, 255, 35]))]
+}
 
     # Refined color palette for drawing - used for center-only marker
+    # BGR values chosen to be visually distinct and correspond to HSV names above.
     color_bgr = {
-        "Red": (0, 50, 255),
+        "Red": (0, 0, 220),
+        "Orange": (0, 120, 255),
+        "Yellow": (0, 215, 255),
+        "Lime": (50, 205, 50),
+        "Green": (60, 180, 75),
+        "Teal": (200, 180, 50),
+        "Cyan": (255, 200, 0),
         "Blue": (255, 120, 0),
-        "Green": (80, 220, 100),
-        "Yellow": (0, 220, 255),
-        "Orange": (0, 140, 255),
-        "Cyan": (255, 240, 0),
-        "Purple": (220, 100, 180),
-        "Pink": (180, 150, 255),
-        "White": (240, 240, 240),
-        "Black": (40, 40, 40),
-        "Gray": (150, 150, 150)
+        "Navy": (130, 90, 0),
+        "Indigo": (160, 60, 60),
+        "Purple": (200, 80, 180),
+        "Violet": (215, 100, 180),
+        "Magenta": (220, 60, 180),
+        "Pink": (203, 192, 255),
+        "Maroon": (0, 0, 110),
+        "Brown": (42, 42, 165),
+        "Olive": (85, 107, 47),
+        "Coral": (80, 127, 255),
+        "Salmon": (114, 128, 250),
+        "Beige": (220, 205, 190),
+        "Cream": (230, 220, 200),
+        "Mint": (180, 255, 200),
+        "Lavender": (230, 190, 255),
+        "ForestGreen": (34, 139, 34),
+        "SkyBlue": (235, 206, 135),
+        "Turquoise": (208, 224, 64),
+        "Gold": (0, 215, 255),
+        "Khaki": (140, 150, 200),
+        "Crimson": (0, 20, 180),
+        "Silver": (192, 192, 192),
+        "Gray": (150, 150, 150),
+        "White": (255, 255, 255),
+        "Black": (20, 20, 20)
     }
 
     # Prepare output image and overlay early so center-only path can draw markers
@@ -129,7 +181,21 @@ def detect_and_draw_colors(image, draw=True, center_only=False, roi_size=80):
             cv2.addWeighted(overlay, 0.6, output, 0.4, 0, output)
             if best_color:
                 font = cv2.FONT_HERSHEY_SIMPLEX
-                cv2.putText(output, best_color, (center_x + 10, center_y - 10), font, 0.6, (255, 255, 255), 2, lineType=cv2.LINE_AA)
+                # choose contrasting text color based on marker brightness
+                b, g, r = col
+                brightness = 0.299 * r + 0.587 * g + 0.114 * b
+                text_color = (0, 0, 0) if brightness > 150 else (255, 255, 255)
+                # draw small background rectangle for readability (inverse of text color)
+                (text_w, text_h), baseline = cv2.getTextSize(best_color, font, 0.6, 2)
+                text_x = center_x + 10
+                text_y = center_y - 10
+                bg_color = (255, 255, 255) if text_color == (0, 0, 0) else (0, 0, 0)
+                x1 = max(0, text_x - 2)
+                y1 = max(0, text_y - text_h - 2)
+                x2 = min(output.shape[1], text_x + text_w + 2)
+                y2 = min(output.shape[0], text_y + 2)
+                cv2.rectangle(output, (x1, y1), (x2, y2), bg_color, -1)
+                cv2.putText(output, best_color, (text_x, text_y), font, 0.6, text_color, 2, lineType=cv2.LINE_AA)
 
         return (output, detected) if draw else detected
     
@@ -198,18 +264,41 @@ def detect_and_draw_colors(image, draw=True, center_only=False, roi_size=80):
     detected_colors = []
 
     # Refined color palette for drawing - more vibrant and elegant
+    # Keep mapping consistent with the center-only palette above.
     color_bgr = {
-        "Red": (0, 50, 255),
+        "Red": (0, 0, 220),
+        "Orange": (0, 120, 255),
+        "Yellow": (0, 215, 255),
+        "Lime": (50, 205, 50),
+        "Green": (60, 180, 75),
+        "Teal": (200, 180, 50),
+        "Cyan": (255, 200, 0),
         "Blue": (255, 120, 0),
-        "Green": (80, 220, 100),
-        "Yellow": (0, 220, 255),
-        "Orange": (0, 140, 255),
-        "Cyan": (255, 240, 0),
-        "Purple": (220, 100, 180),
-        "Pink": (180, 150, 255),
-        "White": (240, 240, 240),
-        "Black": (40, 40, 40),
-        "Gray": (150, 150, 150)
+        "Navy": (130, 90, 0),
+        "Indigo": (160, 60, 60),
+        "Purple": (200, 80, 180),
+        "Violet": (215, 100, 180),
+        "Magenta": (220, 60, 180),
+        "Pink": (203, 192, 255),
+        "Maroon": (0, 0, 110),
+        "Brown": (42, 42, 165),
+        "Olive": (85, 107, 47),
+        "Coral": (80, 127, 255),
+        "Salmon": (114, 128, 250),
+        "Beige": (220, 205, 190),
+        "Cream": (230, 220, 200),
+        "Mint": (180, 255, 200),
+        "Lavender": (230, 190, 255),
+        "ForestGreen": (34, 139, 34),
+        "SkyBlue": (235, 206, 135),
+        "Turquoise": (208, 224, 64),
+        "Gold": (0, 215, 255),
+        "Khaki": (140, 150, 200),
+        "Crimson": (0, 20, 180),
+        "Silver": (192, 192, 192),
+        "Gray": (150, 150, 150),
+        "White": (255, 255, 255),
+        "Black": (20, 20, 20)
     }
 
     for color_name in major_colors:
