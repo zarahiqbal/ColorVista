@@ -1,511 +1,3 @@
-
-// import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
-// import { Stack, useRouter } from 'expo-router';
-// import { useState } from 'react';
-// import {
-//     Alert,
-//     Image,
-//     Modal,
-//     SafeAreaView,
-//     ScrollView,
-//     StyleSheet,
-//     Switch,
-//     Text,
-//     TextInput,
-//     TouchableOpacity,
-//     View
-// } from 'react-native';
-// // 1. IMPORT THE HOOK
-// import { useTheme } from '@/Context/ThemeContext';
-
-// export default function SettingsPage() {
-//   const router = useRouter();
-
-//   // 2. USE GLOBAL STATE
-//   // We pull state and setters from our Context
-//   const { 
-//     fontSize, 
-//     setFontSize, 
-//     darkMode, 
-//     setDarkMode, 
-//     colorBlindMode, 
-//     setColorBlindMode,
-//     getFontSizeMultiplier
-//   } = useTheme();
-
-//   // Local state for UI logic only
-//   const [notifications, setNotifications] = useState(true);
-//   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-//   const [modalVisible, setModalVisible] = useState(false);
-
-//   // 3. CALCULATE DYNAMIC STYLES
-//   const scale = getFontSizeMultiplier(); // e.g., 0.8, 1.0, or 1.2
-//   const textColor = darkMode ? '#FFFFFF' : '#000000';
-//   const subTextColor = darkMode ? '#A1A1AA' : '#666666';
-//   const sectionBg = darkMode ? '#1C1C1E' : '#FFFFFF';
-//   const containerBg = darkMode ? '#000000' : '#F2F2F7';
-//   const separatorColor = darkMode ? '#38383A' : '#F0F0F0';
-
-//   // Helper for dynamic text size
-//   const dText = (size: number) => ({
-//     fontSize: size * scale,
-//     color: textColor
-//   });
-
-//   const colorBlindOptions: any[] = ['None', 'Protanopia', 'Deuteranopia', 'Tritanopia'];
-
-//   return (
-//     <SafeAreaView style={[styles.container, { backgroundColor: containerBg }]}>
-//       {/* Dynamic Header */}
-//       <Stack.Screen options={{ 
-//         title: 'Settings Page', 
-//         headerShadowVisible: false,
-//         headerStyle: { backgroundColor: containerBg },
-//         headerTintColor: textColor,
-//       }} />
-
-//       <ScrollView contentContainerStyle={styles.scrollContent}>
-        
-//         {/* --- SECTION 1: USER INFO --- */}
-//         <View style={[styles.section, { backgroundColor: sectionBg, borderColor: separatorColor }]}>
-//           <View style={styles.userCard}>
-//             <Image 
-//               source={{ uri: 'https://i.pravatar.cc/150?img=12' }} 
-//               style={styles.avatar} 
-//             />
-//             <View style={styles.userInfo}>
-//               <Text style={[styles.userName, { color: textColor, fontSize: 18 * scale }]}>
-//                 Alex Johnson
-//               </Text>
-//               <Text style={[styles.userEmail, { color: subTextColor, fontSize: 14 * scale }]}>
-//                 alex.j@example.com
-//               </Text>
-//             </View>
-//             <TouchableOpacity>
-//               <Feather name="chevron-right" size={24} color={subTextColor} />
-//             </TouchableOpacity>
-//           </View>
-//         </View>
-
-//         {/* --- SECTION 2: APP SETTINGS --- */}
-//         <Text style={[styles.sectionHeader, { fontSize: 13 * scale }]}>APP SETTINGS</Text>
-//         <View style={[styles.section, { backgroundColor: sectionBg, borderColor: separatorColor }]}>
-          
-//           {/* Notifications Toggle */}
-//           <View style={styles.row}>
-//             <View style={styles.rowLabel}>
-//               <Ionicons name="notifications-outline" size={22} color={textColor} />
-//               <Text style={[styles.rowText, dText(16)]}>Notifications</Text>
-//             </View>
-//             <Switch 
-//               value={notifications} 
-//               onValueChange={setNotifications} 
-//               trackColor={{ false: '#767577', true: '#4CAF50' }}
-//             />
-//           </View>
-          
-//           <View style={[styles.separator, { backgroundColor: separatorColor }]} />
-
-//           {/* Dark Mode Toggle */}
-//           <View style={styles.row}>
-//             <View style={styles.rowLabel}>
-//               <Ionicons name="moon-outline" size={22} color={textColor} />
-//               <Text style={[styles.rowText, dText(16)]}>Dark Mode</Text>
-//             </View>
-//             <Switch 
-//               value={darkMode} 
-//               onValueChange={setDarkMode} 
-//               trackColor={{ false: '#767577', true: '#4CAF50' }}
-//             />
-//           </View>
-
-//           <View style={[styles.separator, { backgroundColor: separatorColor }]} />
-
-//           {/* Color Blind Mode Dropdown */}
-//           <View style={styles.dropdownContainer}>
-//              <TouchableOpacity 
-//                 style={[styles.row, { backgroundColor: sectionBg }]} 
-//                 onPress={() => setIsDropdownOpen(!isDropdownOpen)}
-//              >
-//                 <View style={styles.rowLabel}>
-//                   <Ionicons name="eye-outline" size={22} color={textColor} />
-//                   <Text style={[styles.rowText, dText(16)]}>Color Blind Mode</Text>
-//                 </View>
-//                 <View style={styles.dropdownValue}>
-//                   <Text style={[styles.valueText, { fontSize: 15 * scale }]}>{colorBlindMode}</Text>
-//                   <Feather name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={20} color={subTextColor} />
-//                 </View>
-//              </TouchableOpacity>
-
-//              {isDropdownOpen && (
-//                <View style={[styles.dropdownList, { backgroundColor: darkMode ? '#2C2C2E' : '#f9f9f9', borderTopColor: separatorColor }]}>
-//                  {colorBlindOptions.map((option) => (
-//                    <TouchableOpacity 
-//                      key={option} 
-//                      style={styles.dropdownItem}
-//                      onPress={() => {
-//                         setColorBlindMode(option);
-//                         setIsDropdownOpen(false);
-//                      }}
-//                    >
-//                      <Text style={[
-//                        styles.dropdownItemText, 
-//                        { color: textColor, fontSize: 15 * scale },
-//                        colorBlindMode === option && styles.selectedDropdownItem
-//                      ]}>
-//                        {option}
-//                      </Text>
-//                      {colorBlindMode === option && <Feather name="check" size={18} color="#007AFF" />}
-//                    </TouchableOpacity>
-//                  ))}
-//                </View>
-//              )}
-//           </View>
-
-//           <View style={[styles.separator, { backgroundColor: separatorColor }]} />
-
-//           {/* Font Size (Radio Style) */}
-//           <View style={styles.columnRow}>
-//              <View style={styles.rowLabel}>
-//                 <MaterialIcons name="format-size" size={22} color={textColor} />
-//                 <Text style={[styles.rowText, dText(16)]}>Font Size</Text>
-//              </View>
-//              <View style={styles.radioGroup}>
-//                {['Small', 'Medium', 'Large'].map((size) => (
-//                  <TouchableOpacity 
-//                     key={size} 
-//                     style={[
-//                       styles.radioButton, 
-//                       { backgroundColor: darkMode ? '#2C2C2E' : '#f9f9f9', borderColor: separatorColor },
-//                       fontSize === size && styles.radioButtonSelected
-//                     ]}
-//                     onPress={() => setFontSize(size as any)}
-//                  >
-//                    <Text style={[
-//                      styles.radioText, 
-//                      { color: textColor, fontSize: 14 * scale },
-//                      fontSize === size && styles.radioTextSelected
-//                    ]}>
-//                      {size}
-//                    </Text>
-//                  </TouchableOpacity>
-//                ))}
-//              </View>
-//           </View>
-
-//           <View style={[styles.separator, { backgroundColor: separatorColor }]} />
-
-//           {/* Change Password */}
-//           <TouchableOpacity style={styles.row} onPress={() => setModalVisible(true)}>
-//             <View style={styles.rowLabel}>
-//               <Ionicons name="lock-closed-outline" size={22} color={textColor} />
-//               <Text style={[styles.rowText, dText(16)]}>Change Password</Text>
-//             </View>
-//             <Feather name="chevron-right" size={20} color={subTextColor} />
-//           </TouchableOpacity>
-//         </View>
-
-
-//         {/* --- SECTION 3: USER ACTIVITY --- */}
-//         <Text style={[styles.sectionHeader, { fontSize: 13 * scale }]}>USER ACTIVITY</Text>
-//         <View style={[styles.section, { backgroundColor: sectionBg, borderColor: separatorColor }]}>
-//           <View style={styles.activityRow}>
-//              <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8}}>
-//                 <Text style={[styles.rowText, dText(16)]}>Color Accuracy</Text>
-//                 <Text style={{fontWeight: 'bold', color: '#4CAF50', fontSize: 16 * scale}}>78%</Text>
-//              </View>
-//              <View style={styles.progressBarBackground}>
-//                <View style={[styles.progressBarFill, { width: '78%' }]} />
-//              </View>
-//           </View>
-//         </View>
-
-//         {/* --- SECTION 4: OTHER OPTIONS --- */}
-//         <Text style={[styles.sectionHeader, { fontSize: 13 * scale }]}>OTHER OPTIONS</Text>
-//         <View style={[styles.section, { backgroundColor: sectionBg, borderColor: separatorColor }]}>
-//           <TouchableOpacity 
-//   style={styles.row} 
-//   onPress={() => router.push('/FAQs')} 
-// >
-//   <View style={styles.rowLabel}>
-//     <Feather name="help-circle" size={22} color={textColor} />
-//     <Text style={[styles.rowText, dText(16)]}>Help & FAQs</Text>
-//   </View>
-//   <Feather name="chevron-right" size={20} color={subTextColor} />
-// </TouchableOpacity>
-//           {/* <TouchableOpacity style={styles.row}>
-//             <View style={styles.rowLabel}>
-//               <Feather name="help-circle" size={22} color={textColor} />
-//               <Text style={[styles.rowText, dText(16)]}>Help & FAQs</Text>
-//             </View>
-//             <Feather name="chevron-right" size={20} color={subTextColor} />
-//           </TouchableOpacity> */}
-          
-//           <View style={[styles.separator, { backgroundColor: separatorColor }]} />
-
-//           <TouchableOpacity style={styles.row}>
-//             <View style={styles.rowLabel}>
-//               <Feather name="mail" size={22} color={textColor} />
-//               <Text style={[styles.rowText, dText(16)]}>Contact Support</Text>
-//             </View>
-//             <Feather name="chevron-right" size={20} color={subTextColor} />
-//           </TouchableOpacity>
-//         </View>
-
-//         {/* --- LOGOUT BUTTON --- */}
-//         <TouchableOpacity 
-//           style={[styles.logoutButton, { backgroundColor: sectionBg, borderColor: '#ffdddd' }]} 
-//           onPress={() => Alert.alert("Logged Out")}
-//         >
-//           <Text style={[styles.logoutText, { fontSize: 16 * scale }]}>Log Out</Text>
-//         </TouchableOpacity>
-
-//       </ScrollView>
-
-//       {/* --- CHANGE PASSWORD MODAL --- */}
-//       {/* Note: Modals are distinct environments, we manually style them here too */}
-//       <Modal
-//         animationType="slide"
-//         transparent={true}
-//         visible={modalVisible}
-//         onRequestClose={() => setModalVisible(false)}
-//       >
-//         <View style={styles.modalOverlay}>
-//           <View style={[styles.modalContent, { backgroundColor: sectionBg }]}>
-//             <Text style={[styles.modalTitle, { color: textColor }]}>Change Password</Text>
-            
-//             <TextInput 
-//               placeholder="Current Password" 
-//               placeholderTextColor="#999"
-//               secureTextEntry 
-//               style={[styles.input, { backgroundColor: containerBg, color: textColor }]} 
-//             />
-//             <TextInput 
-//               placeholder="New Password" 
-//               placeholderTextColor="#999"
-//               secureTextEntry 
-//               style={[styles.input, { backgroundColor: containerBg, color: textColor }]} 
-//             />
-//             <TextInput 
-//               placeholder="Confirm New Password" 
-//               placeholderTextColor="#999"
-//               secureTextEntry 
-//               style={[styles.input, { backgroundColor: containerBg, color: textColor }]} 
-//             />
-
-//             <View style={styles.modalActions}>
-//               <TouchableOpacity 
-//                 style={[styles.modalBtn, styles.cancelBtn]} 
-//                 onPress={() => setModalVisible(false)}
-//               >
-//                 <Text style={{color: '#666'}}>Cancel</Text>
-//               </TouchableOpacity>
-              
-//               <TouchableOpacity 
-//                 style={[styles.modalBtn, styles.confirmBtn]}
-//                 onPress={() => {
-//                    setModalVisible(false);
-//                    Alert.alert("Success", "Password updated successfully");
-//                 }}
-//               >
-//                 <Text style={{color: '#fff', fontWeight: 'bold'}}>Update</Text>
-//               </TouchableOpacity>
-//             </View>
-//           </View>
-//         </View>
-//       </Modal>
-
-//     </SafeAreaView>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     // Background color is now handled dynamically in component
-//   },
-//   scrollContent: {
-//     padding: 16,
-//     paddingBottom: 40,
-//   },
-//   sectionHeader: {
-//     fontWeight: '600',
-//     color: '#888',
-//     marginBottom: 8,
-//     marginTop: 24,
-//     marginLeft: 12,
-//     textTransform: 'uppercase',
-//   },
-//   section: {
-//     borderRadius: 12,
-//     overflow: 'hidden',
-//     borderWidth: 1,
-//     // Colors handled dynamically
-//   },
-//   separator: {
-//     height: 1,
-//     marginLeft: 50,
-//   },
-//   userCard: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     padding: 16,
-//   },
-//   avatar: {
-//     width: 60,
-//     height: 60,
-//     borderRadius: 30,
-//     marginRight: 16,
-//   },
-//   userInfo: {
-//     flex: 1,
-//   },
-//   userName: {
-//     fontWeight: 'bold',
-//   },
-//   userEmail: {
-//     marginTop: 2,
-//   },
-//   row: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     justifyContent: 'space-between',
-//     padding: 16,
-//   },
-//   columnRow: {
-//     padding: 16,
-//   },
-//   rowLabel: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//   },
-//   rowText: {
-//     marginLeft: 12,
-//   },
-//   dropdownContainer: {
-//     // bg handled dynamically
-//   },
-//   dropdownValue: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//   },
-//   valueText: {
-//     marginRight: 8,
-//     color: '#666',
-//   },
-//   dropdownList: {
-//     borderTopWidth: 1,
-//   },
-//   dropdownItem: {
-//     flexDirection: 'row',
-//     justifyContent: 'space-between',
-//     alignItems: 'center',
-//     padding: 14,
-//     paddingLeft: 44,
-//   },
-//   dropdownItemText: {
-//     // font size handled dynamically
-//   },
-//   selectedDropdownItem: {
-//     color: '#007AFF',
-//     fontWeight: '600',
-//   },
-//   radioGroup: {
-//     flexDirection: 'row',
-//     marginTop: 12,
-//     marginLeft: 34,
-//   },
-//   radioButton: {
-//     paddingVertical: 6,
-//     paddingHorizontal: 16,
-//     borderRadius: 20,
-//     borderWidth: 1,
-//     marginRight: 10,
-//   },
-//   radioButtonSelected: {
-//     backgroundColor: '#007AFF',
-//     borderColor: '#007AFF',
-//   },
-//   radioText: {
-//     // color handled dynamically
-//   },
-//   radioTextSelected: {
-//     color: '#fff',
-//     fontWeight: '600',
-//   },
-//   activityRow: {
-//     padding: 16,
-//   },
-//   progressBarBackground: {
-//     height: 8,
-//     backgroundColor: '#E5E5EA',
-//     borderRadius: 4,
-//     width: '100%',
-//   },
-//   progressBarFill: {
-//     height: '100%',
-//     backgroundColor: '#4CAF50',
-//     borderRadius: 4,
-//   },
-//   logoutButton: {
-//     marginTop: 24,
-//     padding: 16,
-//     borderRadius: 12,
-//     alignItems: 'center',
-//     borderWidth: 1,
-//   },
-//   logoutText: {
-//     color: '#FF3B30',
-//     fontWeight: '600',
-//   },
-//   modalOverlay: {
-//     flex: 1,
-//     backgroundColor: 'rgba(0,0,0,0.5)',
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//   },
-//   modalContent: {
-//     width: '85%',
-//     borderRadius: 16,
-//     padding: 24,
-//     shadowColor: "#000",
-//     shadowOffset: { width: 0, height: 2 },
-//     shadowOpacity: 0.25,
-//     shadowRadius: 4,
-//     elevation: 5,
-//   },
-//   modalTitle: {
-//     fontSize: 20,
-//     fontWeight: 'bold',
-//     marginBottom: 20,
-//     textAlign: 'center',
-//   },
-//   input: {
-//     padding: 12,
-//     borderRadius: 8,
-//     marginBottom: 12,
-//     fontSize: 16,
-//   },
-//   modalActions: {
-//     flexDirection: 'row',
-//     justifyContent: 'space-between',
-//     marginTop: 10,
-//   },
-//   modalBtn: {
-//     flex: 1,
-//     padding: 12,
-//     borderRadius: 8,
-//     alignItems: 'center',
-//     marginHorizontal: 5,
-//   },
-//   cancelBtn: {
-//     backgroundColor: '#E5E5EA',
-//   },
-//   confirmBtn: {
-//     backgroundColor: '#007AFF',
-//   },
-// });
-
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -523,7 +15,7 @@ import {
 } from 'react-native';
 
 // 1. IMPORT HOOKS
-import { useAuth } from '@/Context/AuthContext'; // Import Auth
+import { useAuth } from '@/Context/AuthContext';
 import { useTheme } from '@/Context/ThemeContext';
 
 export default function SettingsPage() {
@@ -540,31 +32,45 @@ export default function SettingsPage() {
     getFontSizeMultiplier
   } = useTheme();
 
-  const { user, logout } = useAuth(); // Get user from Auth
-  const isGuest = user?.isGuest === true; // Check guest status
+  const { user, logout } = useAuth(); 
+  const isGuest = user?.isGuest === true; 
 
-  // Local state for UI logic only
   const [notifications, setNotifications] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
 
-  // 3. CALCULATE DYNAMIC STYLES
+  // 3. CALCULATE DYNAMIC STYLES & PALETTE
   const scale = getFontSizeMultiplier();
-  const textColor = darkMode ? '#FFFFFF' : '#000000';
-  const subTextColor = darkMode ? '#A1A1AA' : '#666666';
-  const sectionBg = darkMode ? '#1C1C1E' : '#FFFFFF';
-  const containerBg = darkMode ? '#000000' : '#F2F2F7';
-  const separatorColor = darkMode ? '#38383A' : '#F0F0F0';
 
-  // Helper for dynamic text size
+  // --- DEFINED EARTH TONE PALETTE (MATCHING USER PROFILE) ---
+  const palette = {
+    beigeBg: '#F6F3EE',       // Main Background
+    charcoal: '#2F2F2F',      // Primary Text & Buttons
+    sage: '#8DA399',          // Accent (Switches, Active States)
+    taupe: '#AA957B',         // Secondary Accent
+    white: '#FFFFFF',
+    textLight: '#6B6661',
+    surfaceDark: '#1C1C1E',
+  };
+
+  const theme = {
+    bg: darkMode ? palette.surfaceDark : palette.beigeBg,
+    card: darkMode ? '#2C2C2E' : palette.white,
+    text: darkMode ? '#F6F3EE' : palette.charcoal,
+    subText: darkMode ? '#A1A1AA' : palette.textLight,
+    border: darkMode ? '#333' : '#E5E5E5', 
+    iconBg: darkMode ? '#3A3A3C' : '#F0EFE9', // Subtle circle bg for icons
+    primary: palette.charcoal,
+    accent: palette.sage,
+  };
+
   const dText = (size: number) => ({
     fontSize: size * scale,
-    color: textColor
+    color: theme.text
   });
 
   const colorBlindOptions: any[] = ['None', 'Protanopia', 'Deuteranopia', 'Tritanopia'];
 
-  // Handle Logout / Sign Up logic
   const handleAuthAction = () => {
     if (isGuest) {
       router.push('/auth/signup');
@@ -576,74 +82,81 @@ export default function SettingsPage() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: containerBg }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
       {/* Dynamic Header */}
       <Stack.Screen options={{ 
         title: 'Settings', 
         headerShadowVisible: false,
-        headerStyle: { backgroundColor: containerBg },
-        headerTintColor: textColor,
+        headerStyle: { backgroundColor: theme.bg },
+        headerTintColor: theme.text,
+        headerTitleStyle: { fontWeight: '800', fontSize: 24 * scale }
       }} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
-        {/* --- SECTION 1: USER INFO (HIDDEN FOR GUESTS) --- */}
-        
-              
-              
-        {/* --- SECTION 2: APP SETTINGS --- */}
-        <Text style={[styles.sectionHeader, { fontSize: 13 * scale }]}>APP SETTINGS</Text>
-        <View style={[styles.section, { backgroundColor: sectionBg, borderColor: separatorColor }]}>
+        {/* --- SECTION 1: APP SETTINGS --- */}
+        <Text style={[styles.sectionHeader, { fontSize: 13 * scale, color: theme.subText }]}>APP SETTINGS</Text>
+        <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
           
-          {/* Notifications Toggle (AVAILABLE FOR ALL) */}
+          {/* Notifications Toggle */}
           <View style={styles.row}>
             <View style={styles.rowLabel}>
-              <Ionicons name="notifications-outline" size={22} color={textColor} />
+              <View style={[styles.iconBox, { backgroundColor: theme.iconBg }]}>
+                 <Ionicons name="notifications-outline" size={20} color={theme.text} />
+              </View>
               <Text style={[styles.rowText, dText(16)]}>Notifications</Text>
             </View>
             <Switch 
               value={notifications} 
               onValueChange={setNotifications} 
-              trackColor={{ false: '#767577', true: '#4CAF50' }}
+              trackColor={{ false: '#D1D5DB', true: palette.sage }}
+              thumbColor={palette.white}
+              ios_backgroundColor="#D1D5DB"
             />
           </View>
           
-          <View style={[styles.separator, { backgroundColor: separatorColor }]} />
+          <View style={[styles.separator, { backgroundColor: theme.border }]} />
 
-          {/* Dark Mode Toggle (AVAILABLE FOR ALL) */}
+          {/* Dark Mode Toggle */}
           <View style={styles.row}>
             <View style={styles.rowLabel}>
-              <Ionicons name="moon-outline" size={22} color={textColor} />
+              <View style={[styles.iconBox, { backgroundColor: theme.iconBg }]}>
+                <Ionicons name="moon-outline" size={20} color={theme.text} />
+              </View>
               <Text style={[styles.rowText, dText(16)]}>Dark Mode</Text>
             </View>
             <Switch 
               value={darkMode} 
               onValueChange={setDarkMode} 
-              trackColor={{ false: '#767577', true: '#4CAF50' }}
+              trackColor={{ false: '#D1D5DB', true: palette.sage }}
+              thumbColor={palette.white}
+              ios_backgroundColor="#D1D5DB"
             />
           </View>
 
-          {/* Color Blind Mode Dropdown (HIDDEN FOR GUESTS) */}
+          {/* Color Blind Mode Dropdown */}
           {!isGuest && (
             <>
-              <View style={[styles.separator, { backgroundColor: separatorColor }]} />
+              <View style={[styles.separator, { backgroundColor: theme.border }]} />
               <View style={styles.dropdownContainer}>
                 <TouchableOpacity 
-                  style={[styles.row, { backgroundColor: sectionBg }]} 
+                  style={styles.row} 
                   onPress={() => setIsDropdownOpen(!isDropdownOpen)}
                 >
                   <View style={styles.rowLabel}>
-                    <Ionicons name="eye-outline" size={22} color={textColor} />
+                    <View style={[styles.iconBox, { backgroundColor: theme.iconBg }]}>
+                        <Ionicons name="eye-outline" size={20} color={theme.text} />
+                    </View>
                     <Text style={[styles.rowText, dText(16)]}>Color Blind Mode</Text>
                   </View>
                   <View style={styles.dropdownValue}>
-                    <Text style={[styles.valueText, { fontSize: 15 * scale }]}>{colorBlindMode}</Text>
-                    <Feather name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={20} color={subTextColor} />
+                    <Text style={[styles.valueText, { fontSize: 15 * scale, color: theme.subText }]}>{colorBlindMode}</Text>
+                    <Feather name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={20} color={theme.subText} />
                   </View>
                 </TouchableOpacity>
 
                 {isDropdownOpen && (
-                  <View style={[styles.dropdownList, { backgroundColor: darkMode ? '#2C2C2E' : '#f9f9f9', borderTopColor: separatorColor }]}>
+                  <View style={[styles.dropdownList, { borderTopColor: theme.border }]}>
                     {colorBlindOptions.map((option) => (
                       <TouchableOpacity 
                         key={option} 
@@ -655,12 +168,12 @@ export default function SettingsPage() {
                       >
                         <Text style={[
                           styles.dropdownItemText, 
-                          { color: textColor, fontSize: 15 * scale },
-                          colorBlindMode === option && styles.selectedDropdownItem
+                          { color: theme.text, fontSize: 15 * scale },
+                          colorBlindMode === option && { color: palette.sage, fontWeight: '700' }
                         ]}>
                           {option}
                         </Text>
-                        {colorBlindMode === option && <Feather name="check" size={18} color="#007AFF" />}
+                        {colorBlindMode === option && <Feather name="check" size={18} color={palette.sage} />}
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -669,29 +182,30 @@ export default function SettingsPage() {
             </>
           )}
 
-          <View style={[styles.separator, { backgroundColor: separatorColor }]} />
+          <View style={[styles.separator, { backgroundColor: theme.border }]} />
 
-          {/* Font Size (AVAILABLE FOR ALL) */}
+          {/* Font Size */}
           <View style={styles.columnRow}>
              <View style={styles.rowLabel}>
-                <MaterialIcons name="format-size" size={22} color={textColor} />
+                <View style={[styles.iconBox, { backgroundColor: theme.iconBg }]}>
+                    <MaterialIcons name="format-size" size={20} color={theme.text} />
+                </View>
                 <Text style={[styles.rowText, dText(16)]}>Font Size</Text>
              </View>
              <View style={styles.radioGroup}>
                {['Small', 'Medium', 'Large'].map((size) => (
                  <TouchableOpacity 
-                    key={size} 
-                    style={[
-                      styles.radioButton, 
-                      { backgroundColor: darkMode ? '#2C2C2E' : '#f9f9f9', borderColor: separatorColor },
-                      fontSize === size && styles.radioButtonSelected
-                    ]}
-                    onPress={() => setFontSize(size as any)}
+                   key={size} 
+                   style={[
+                     styles.radioButton, 
+                     { borderColor: fontSize === size ? palette.sage : theme.border, backgroundColor: fontSize === size ? palette.sage : 'transparent' }
+                   ]}
+                   onPress={() => setFontSize(size as any)}
                  >
                    <Text style={[
                      styles.radioText, 
-                     { color: textColor, fontSize: 14 * scale },
-                     fontSize === size && styles.radioTextSelected
+                     { color: fontSize === size ? '#FFF' : theme.text, fontSize: 13 * scale },
+                     fontSize === size && { fontWeight: '700' }
                    ]}>
                      {size}
                    </Text>
@@ -700,82 +214,89 @@ export default function SettingsPage() {
              </View>
           </View>
 
-          {/* Change Password (HIDDEN FOR GUESTS) */}
+          {/* Change Password */}
           {!isGuest && (
             <>
-              <View style={[styles.separator, { backgroundColor: separatorColor }]} />
+              <View style={[styles.separator, { backgroundColor: theme.border }]} />
               <TouchableOpacity style={styles.row} onPress={() => setModalVisible(true)}>
                 <View style={styles.rowLabel}>
-                  <Ionicons name="lock-closed-outline" size={22} color={textColor} />
+                  <View style={[styles.iconBox, { backgroundColor: theme.iconBg }]}>
+                    <Ionicons name="lock-closed-outline" size={20} color={theme.text} />
+                  </View>
                   <Text style={[styles.rowText, dText(16)]}>Change Password</Text>
                 </View>
-                <Feather name="chevron-right" size={20} color={subTextColor} />
+                <Feather name="chevron-right" size={20} color={theme.subText} />
               </TouchableOpacity>
             </>
           )}
         </View>
 
 
-        {/* --- SECTION 3: USER ACTIVITY (HIDDEN FOR GUESTS) --- */}
+        {/* --- SECTION 2: USER ACTIVITY --- */}
         {!isGuest && (
           <>
-            <Text style={[styles.sectionHeader, { fontSize: 13 * scale }]}>USER ACTIVITY</Text>
-            <View style={[styles.section, { backgroundColor: sectionBg, borderColor: separatorColor }]}>
+            <Text style={[styles.sectionHeader, { fontSize: 13 * scale, color: theme.subText }]}>USER ACTIVITY</Text>
+            <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
               <View style={styles.activityRow}>
-                 <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8}}>
-                    <Text style={[styles.rowText, dText(16)]}>Color Accuracy</Text>
-                    <Text style={{fontWeight: 'bold', color: '#4CAF50', fontSize: 16 * scale}}>78%</Text>
+                 <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10}}>
+                    <View style={styles.rowLabel}>
+                        <View style={[styles.iconBox, { backgroundColor: theme.iconBg }]}>
+                            <Ionicons name="analytics-outline" size={20} color={theme.text} />
+                        </View>
+                        <Text style={[styles.rowText, dText(16)]}>Color Accuracy</Text>
+                    </View>
+                    <Text style={{fontWeight: '800', color: palette.sage, fontSize: 16 * scale}}>78%</Text>
                  </View>
                  <View style={styles.progressBarBackground}>
-                   <View style={[styles.progressBarFill, { width: '78%' }]} />
+                   {/* Using Sage Green for Progress Bar */}
+                   <View style={[styles.progressBarFill, { width: '78%', backgroundColor: palette.sage }]} />
                  </View>
               </View>
             </View>
           </>
         )}
 
-        {/* --- SECTION 4: OTHER OPTIONS (AVAILABLE FOR ALL) --- */}
-        <Text style={[styles.sectionHeader, { fontSize: 13 * scale }]}>OTHER OPTIONS</Text>
-        <View style={[styles.section, { backgroundColor: sectionBg, borderColor: separatorColor }]}>
+        {/* --- SECTION 3: OTHER OPTIONS --- */}
+        <Text style={[styles.sectionHeader, { fontSize: 13 * scale, color: theme.subText }]}>OTHER OPTIONS</Text>
+        <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <TouchableOpacity 
             style={styles.row} 
             onPress={() => router.push('/FAQs')} 
           >
             <View style={styles.rowLabel}>
-              <Feather name="help-circle" size={22} color={textColor} />
+              <View style={[styles.iconBox, { backgroundColor: theme.iconBg }]}>
+                <Feather name="help-circle" size={20} color={theme.text} />
+              </View>
               <Text style={[styles.rowText, dText(16)]}>Help & FAQs</Text>
             </View>
-            <Feather name="chevron-right" size={20} color={subTextColor} />
+            <Feather name="chevron-right" size={20} color={theme.subText} />
           </TouchableOpacity>
           
-          <View style={[styles.separator, { backgroundColor: separatorColor }]} />
+          <View style={[styles.separator, { backgroundColor: theme.border }]} />
 
           <TouchableOpacity style={styles.row}>
             <View style={styles.rowLabel}>
-              <Feather name="mail" size={22} color={textColor} />
+              <View style={[styles.iconBox, { backgroundColor: theme.iconBg }]}>
+                <Feather name="mail" size={20} color={theme.text} />
+              </View>
               <Text style={[styles.rowText, dText(16)]}>Contact Support</Text>
             </View>
-            <Feather name="chevron-right" size={20} color={subTextColor} />
+            <Feather name="chevron-right" size={20} color={theme.subText} />
           </TouchableOpacity>
         </View>
 
-        {/* --- LOGOUT / SIGN UP BUTTON --- */}
+        {/* --- LOGOUT BUTTON (Styled like ProfileScreen Pill) --- */}
         <TouchableOpacity 
           style={[
             styles.logoutButton, 
-            { 
-              backgroundColor: sectionBg, 
-              borderColor: isGuest ? '#14B8A6' : '#ffdddd' // Green for Guest, Red for User
-            }
+            { backgroundColor: palette.charcoal } // Pill shape, Charcoal bg
           ]} 
           onPress={handleAuthAction}
         >
+          <Ionicons name={isGuest ? "log-in-outline" : "log-out-outline"} size={22 * scale} color="#FFF" />
           <Text style={[
             styles.logoutText, 
-            { 
-              fontSize: 16 * scale,
-              color: isGuest ? '#14B8A6' : '#FF3B30' 
-            }
+            { fontSize: 16 * scale, color: '#FFFFFF' }
           ]}>
             {isGuest ? 'Create Free Account' : 'Log Out'}
           </Text>
@@ -783,47 +304,47 @@ export default function SettingsPage() {
 
       </ScrollView>
 
-      {/* --- CHANGE PASSWORD MODAL (Only renders logic if not guest) --- */}
+      {/* --- CHANGE PASSWORD MODAL --- */}
       {!isGuest && (
         <Modal
-          animationType="slide"
+          animationType="fade"
           transparent={true}
           visible={modalVisible}
           onRequestClose={() => setModalVisible(false)}
         >
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: sectionBg }]}>
-              <Text style={[styles.modalTitle, { color: textColor }]}>Change Password</Text>
+          <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+            <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Change Password</Text>
               
               <TextInput 
                 placeholder="Current Password" 
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.subText}
                 secureTextEntry 
-                style={[styles.input, { backgroundColor: containerBg, color: textColor }]} 
+                style={[styles.input, { backgroundColor: theme.bg, color: theme.text }]} 
               />
               <TextInput 
                 placeholder="New Password" 
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.subText}
                 secureTextEntry 
-                style={[styles.input, { backgroundColor: containerBg, color: textColor }]} 
+                style={[styles.input, { backgroundColor: theme.bg, color: theme.text }]} 
               />
               <TextInput 
                 placeholder="Confirm New Password" 
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.subText}
                 secureTextEntry 
-                style={[styles.input, { backgroundColor: containerBg, color: textColor }]} 
+                style={[styles.input, { backgroundColor: theme.bg, color: theme.text }]} 
               />
 
               <View style={styles.modalActions}>
                 <TouchableOpacity 
-                  style={[styles.modalBtn, styles.cancelBtn]} 
+                  style={[styles.modalBtn, { backgroundColor: theme.bg }]} 
                   onPress={() => setModalVisible(false)}
                 >
-                  <Text style={{color: '#666'}}>Cancel</Text>
+                  <Text style={{color: theme.subText, fontWeight: '600'}}>Cancel</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
-                  style={[styles.modalBtn, styles.confirmBtn]}
+                  style={[styles.modalBtn, { backgroundColor: palette.sage }]}
                   onPress={() => {
                      setModalVisible(false);
                      Alert.alert("Success", "Password updated successfully");
@@ -846,61 +367,55 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    padding: 24,
     paddingBottom: 40,
   },
   sectionHeader: {
-    fontWeight: '600',
-    color: '#888',
-    marginBottom: 8,
+    fontWeight: '700',
+    marginBottom: 10,
     marginTop: 24,
-    marginLeft: 12,
-    textTransform: 'uppercase',
+    marginLeft: 4,
+    letterSpacing: 0.5,
   },
   section: {
-    borderRadius: 12,
+    borderRadius: 24, // Matches User Profile Cards
     overflow: 'hidden',
-    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
   },
   separator: {
     height: 1,
-    marginLeft: 50,
-  },
-  userCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-  },
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginRight: 16,
-  },
-  userInfo: {
-    flex: 1,
-  },
-  userName: {
-    fontWeight: 'bold',
-  },
-  userEmail: {
-    marginTop: 2,
+    marginLeft: 60, 
+    opacity: 0.5,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+  },
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   columnRow: {
-    padding: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
   },
   rowLabel: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   rowText: {
-    marginLeft: 12,
+    marginLeft: 14,
+    fontWeight: '600',
   },
   dropdownContainer: {
   },
@@ -910,114 +425,111 @@ const styles = StyleSheet.create({
   },
   valueText: {
     marginRight: 8,
-    color: '#666',
+    fontWeight: '500',
   },
   dropdownList: {
     borderTopWidth: 1,
+    backgroundColor: 'rgba(0,0,0,0.02)', // Subtle differentiate
   },
   dropdownItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 14,
-    paddingLeft: 44,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    paddingLeft: 70,
   },
   dropdownItemText: {
-  },
-  selectedDropdownItem: {
-    color: '#007AFF',
-    fontWeight: '600',
+    fontWeight: '500',
   },
   radioGroup: {
     flexDirection: 'row',
-    marginTop: 12,
-    marginLeft: 34,
+    marginTop: 16,
+    marginLeft: 50,
+    gap: 10,
   },
   radioButton: {
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
     borderWidth: 1,
-    marginRight: 10,
-  },
-  radioButtonSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
   },
   radioText: {
-  },
-  radioTextSelected: {
-    color: '#fff',
     fontWeight: '600',
   },
   activityRow: {
-    padding: 16,
+    padding: 20,
   },
   progressBarBackground: {
-    height: 8,
+    height: 10,
     backgroundColor: '#E5E5EA',
-    borderRadius: 4,
+    borderRadius: 5,
     width: '100%',
+    overflow: 'hidden',
+    marginTop: 8,
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#4CAF50',
-    borderRadius: 4,
+    borderRadius: 5,
   },
+  // Logout Button Styled like "Pill" from ProfileScreen
   logoutButton: {
-    marginTop: 24,
-    padding: 16,
-    borderRadius: 12,
+    marginTop: 40,
+    paddingVertical: 18,
+    borderRadius: 32, // Pill shape
     alignItems: 'center',
-    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 4,
   },
   logoutText: {
-    fontWeight: '600',
+    fontWeight: '700',
   },
+  // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 24,
   },
   modalContent: {
-    width: '85%',
-    borderRadius: 16,
+    width: '100%',
+    borderRadius: 24,
     padding: 24,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowRadius: 10,
+    elevation: 10,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '800',
     marginBottom: 20,
     textAlign: 'center',
   },
   input: {
-    padding: 12,
-    borderRadius: 8,
+    padding: 16,
+    borderRadius: 12,
     marginBottom: 12,
     fontSize: 16,
+    fontWeight: '500',
   },
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 10,
+    marginTop: 12,
+    gap: 12,
   },
   modalBtn: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    padding: 14,
+    borderRadius: 12,
     alignItems: 'center',
-    marginHorizontal: 5,
-  },
-  cancelBtn: {
-    backgroundColor: '#E5E5EA',
-  },
-  confirmBtn: {
-    backgroundColor: '#007AFF',
   },
 });

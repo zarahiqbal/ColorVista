@@ -675,7 +675,7 @@
 
 //ye opper wala Mudassir ka code. i added theme below
 import { CameraType, CameraView, PermissionResponse } from 'expo-camera';
-import { AlertCircle, CameraOff, ScanLine } from 'lucide-react-native';
+import { AlertCircle, CameraOff, ScanLine, Zap } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -700,11 +700,10 @@ export default function LiveScreen({
   facing = 'back' 
 }: LiveScreenProps) {
   
-  // 1. Consume Theme Context
   const { darkMode, getFontSizeMultiplier } = useTheme();
   const fontScale = getFontSizeMultiplier();
 
-  // Server endpoint - update IP to your computer running the Python server
+  // Server endpoint
   const SERVER_FRAME_URL = 'http://192.168.1.5:5000/process-frame';
 
   const [detectedColors, setDetectedColors] = useState<string[]>([]);
@@ -714,42 +713,39 @@ export default function LiveScreen({
   const frameIntervalRef = useRef<any>(null);
   const targetFPS = 5; 
 
-  // Map color names returned by server to CSS color strings for UI
+  // Map color names returned by server to CSS color strings
   const colorMap: Record<string, string> = {
-    Red: '#FF3B30',
-    Blue: '#007AFF',
-    Green: '#34C759',
-    Yellow: '#FFCC00',
-    Orange: '#FF9500',
-    Cyan: '#5AC8FA',
-    Purple: '#AF52DE',
-    Pink: '#FF2D55',
-    White: '#FFFFFF',
-    Black: '#1F2937',
-    Gray: '#8E8E93',
+    Red: '#FF3B30', Blue: '#007AFF', Green: '#34C759', Yellow: '#FFCC00',
+    Orange: '#FF9500', Cyan: '#5AC8FA', Purple: '#AF52DE', Pink: '#FF2D55',
+    White: '#FFFFFF', Black: '#1F2937', Gray: '#8E8E93',
   };
 
-  // 2. Generate Dynamic Styles based on Theme
+  // --- THEME & STYLES ---
   const styles = useMemo(() => {
-    // Theme Palette Definition
-    const colors = darkMode ? {
-      background: '#140a0aff',     // Dark Gray/Black
-      surface: '#1F2937',        // Slightly lighter dark
-      textPrimary: '#F9FAFB',    // White-ish
-      textSecondary: '#9CA3AF',  // Light Gray
-      border: '#374151',         // Dark Border
-      errorBg: '#451a1a',        // Dark Red BG
-      errorText: '#FCA5A5',      // Light Red Text
-      placeholderIcon: '#4B5563' // Darker Icon
-    } : {
-      background: '#F9FAFB',     // Light Gray
-      surface: '#FFFFFF',        // White
-      textPrimary: '#1F2937',    // Dark Gray/Black
-      textSecondary: '#6B7280',  // Gray
-      border: '#E5E7EB',         // Light Border
-      errorBg: '#FEF2F2',        // Light Red BG
-      errorText: '#EF4444',      // Red Text
-      placeholderIcon: '#9CA3AF' // Gray Icon
+    // EXTRACTED PALETTE FROM IMAGE
+    const palette = {
+      beigeBg: '#F6F3EE',       // The main background cream color
+      charcoal: '#2F2F2F',      // "Continue Test" button color
+      sage: '#8DA399',          // "Easy Mode" card color
+      taupe: '#A9927D',         // "Hard Mode" card color
+      textDark: '#1C1C1E',      // Primary Text
+      textLight: '#6B6661',     // Secondary Text
+      white: '#FFFFFF',
+      error: '#C25B5B',         // Muted Red
+    };
+
+    // We prioritize the image aesthetic (Light/Cream), but can darken slightly for Dark Mode if needed
+    // For this request, we stick to the provided image's "Earth Tone" aesthetic.
+    const colors = {
+      background: darkMode ? '#1C1C1E' : palette.beigeBg,
+      surface: darkMode ? '#2C2C2E' : palette.white,
+      textPrimary: darkMode ? '#F6F3EE' : palette.textDark,
+      textSecondary: darkMode ? '#9CA3AF' : palette.textLight,
+      accentMain: palette.sage,   // Main accent (Scanner, Borders)
+      accentSecondary: palette.taupe,
+      buttonPrimary: palette.charcoal,
+      buttonText: palette.white,
+      border: palette.sage,
     };
 
     return StyleSheet.create({
@@ -770,292 +766,205 @@ export default function LiveScreen({
       loadingText: {
         fontSize: 16 * fontScale,
         color: colors.textSecondary,
+        fontFamily: 'System', // San Francisco on iOS
       },
       header: {
-        paddingVertical: 24,
+        paddingVertical: 30,
         paddingHorizontal: 24,
         alignItems: 'center',
       },
       title: {
-        fontSize: 28 * fontScale,
-        fontWeight: 'bold',
+        fontSize: 26 * fontScale,
+        fontWeight: '800',
         color: colors.textPrimary,
         letterSpacing: -0.5,
+        marginBottom: 8,
       },
       subtitle: {
-        fontSize: 14 * fontScale,
+        fontSize: 15 * fontScale,
         color: colors.textSecondary,
-        marginTop: 6,
         textAlign: 'center',
+        fontWeight: '500',
       },
       cameraContainer: {
-        paddingHorizontal: 20,
+        paddingHorizontal: 24,
         flex: 1,
         justifyContent: 'center',
+        alignItems: 'center',
       },
       cameraWrapper: {
         width: '100%',
         aspectRatio: 3 / 4,
-        backgroundColor: '#000000',
-        borderRadius: 24,
+        backgroundColor: '#000',
+        borderRadius: 30, // Matches the soft corners in the image
         overflow: 'hidden',
-        borderWidth: 2,
-        borderColor: colors.border,
-        position: 'relative',
-        elevation: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
+        borderWidth: 4,
+        borderColor: colors.accentMain, // Using Sage Green for border
+        elevation: 10,
+        shadowColor: palette.charcoal,
+        shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.15,
-        shadowRadius: 12,
+        shadowRadius: 20,
       },
       placeholderContainer: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: darkMode ? '#1F2937' : '#F3F4F6', // Specific override for camera placeholder
+        backgroundColor: darkMode ? '#1F2937' : '#E8E4DC', // Slightly darker beige for placeholder
         padding: 24,
       },
       iconCircle: {
         width: 80,
         height: 80,
-        backgroundColor: darkMode ? '#374151' : '#E5E7EB',
+        backgroundColor: colors.accentMain, // Sage Green circle
         borderRadius: 40,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 20,
+        shadowColor: '#000',
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        shadowOffset: {width: 0, height: 2}
       },
       placeholderText: {
         fontSize: 18 * fontScale,
-        fontWeight: '600',
-        color: colors.textSecondary,
+        fontWeight: '700',
+        color: colors.textPrimary,
         marginBottom: 8,
       },
       placeholderSubtext: {
         fontSize: 14 * fontScale,
-        color: colors.placeholderIcon,
+        color: colors.textSecondary,
         textAlign: 'center',
       },
       errorContainer: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+        ...StyleSheet.absoluteFillObject,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: colors.errorBg,
+        backgroundColor: colors.background,
         padding: 32,
         zIndex: 10,
       },
       errorText: {
-        color: colors.errorText,
+        color: palette.error,
         marginTop: 16,
         fontWeight: '700',
         fontSize: 18 * fontScale,
-        textAlign: 'center',
-      },
-      errorSubtext: {
-        color: colors.errorText,
-        opacity: 0.8,
-        marginTop: 8,
-        fontSize: 14 * fontScale,
         textAlign: 'center',
       },
       errorButton: {
         marginTop: 20,
         paddingHorizontal: 24,
         paddingVertical: 12,
-        backgroundColor: '#EF4444',
+        backgroundColor: palette.error,
         borderRadius: 12,
-        elevation: 2,
       },
       errorButtonText: {
         color: '#FFFFFF',
         fontWeight: '700',
-        fontSize: 16 * fontScale,
       },
       overlayContainer: {
         ...StyleSheet.absoluteFillObject,
         alignItems: 'center',
         justifyContent: 'center',
       },
+      // --- SCANNER STYLES UPDATED TO THEME ---
       boundingBox: {
         position: 'absolute',
         width: SCAN_AREA_SIZE,
         height: SCAN_AREA_SIZE,
         borderWidth: 2,
-        borderColor: 'rgba(74, 222, 128, 0.6)',
-        borderRadius: 16,
+        borderColor: 'rgba(255, 255, 255, 0.4)', // Subtle white guide
+        borderRadius: 20,
       },
       scanArea: {
         position: 'absolute',
         width: SCAN_AREA_SIZE,
         height: SCAN_AREA_SIZE,
         overflow: 'hidden',
+        borderRadius: 20,
       },
       scanLine: {
         width: '100%',
-        height: 3,
-        backgroundColor: '#4ADE80',
-        shadowColor: '#4ADE80',
+        height: 4,
+        backgroundColor: colors.accentMain, // Sage Green Scanner
+        shadowColor: colors.accentMain,
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 12,
+        shadowOpacity: 0.8,
+        shadowRadius: 10,
       },
       corner: {
         position: 'absolute',
-        width: 24,
-        height: 24,
-        borderColor: '#22C55E',
+        width: 30,
+        height: 30,
+        borderColor: colors.accentMain, // Sage Green Corners
+        borderWidth: 4,
       },
-      // Corners remain static as they are overlay elements
-      cornerTL: { top: -2, left: -2, borderTopWidth: 4, borderLeftWidth: 4, borderTopLeftRadius: 6 },
-      cornerTR: { top: -2, right: -2, borderTopWidth: 4, borderRightWidth: 4, borderTopRightRadius: 6 },
-      cornerBL: { bottom: -2, left: -2, borderBottomWidth: 4, borderLeftWidth: 4, borderBottomLeftRadius: 6 },
-      cornerBR: { bottom: -2, right: -2, borderBottomWidth: 4, borderRightWidth: 4, borderBottomRightRadius: 6 },
-      crosshairContainer: {
-        position: 'absolute',
-        width: 60,
-        height: 60,
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 100,
-      },
-      crosshairLineV: {
-        position: 'absolute',
-        width: 2,
-        height: 60,
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        borderRadius: 1,
-      },
-      crosshairLineH: {
-        position: 'absolute',
-        height: 2,
-        width: 60,
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        borderRadius: 1,
-      },
-      crosshairDot: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        backgroundColor: '#FFFFFF',
-        borderWidth: 2,
-        borderColor: 'rgba(0, 0, 0, 0.3)',
-        zIndex: 101,
-      },
+      cornerTL: { top: 0, left: 0, borderBottomWidth: 0, borderRightWidth: 0, borderTopLeftRadius: 20 },
+      cornerTR: { top: 0, right: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderTopRightRadius: 20 },
+      cornerBL: { bottom: 0, left: 0, borderTopWidth: 0, borderRightWidth: 0, borderBottomLeftRadius: 20 },
+      cornerBR: { bottom: 0, right: 0, borderTopWidth: 0, borderLeftWidth: 0, borderBottomRightRadius: 20 },
+      
       centerLabelContainer: {
         position: 'absolute',
-        top: '50%',
-        marginTop: 40,
-        alignItems: 'center',
+        top: 20,
+        alignSelf: 'center',
         zIndex: 99,
       },
       centerLabel: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: 20,
+        backgroundColor: colors.buttonPrimary, // Dark Charcoal
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 30,
         gap: 8,
+        shadowColor: '#000',
+        shadowOffset: {width: 0, height: 4},
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
       },
       centerLabelDot: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-      },
-      centerLabelText: {
-        color: '#FFFFFF',
-        fontSize: 14 * fontScale,
-        fontWeight: '700',
-        letterSpacing: 0.5,
-      },
-      liveIndicator: {
-        position: 'absolute',
-        top: 20,
-        right: 20,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: 20,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-      },
-      recordingDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: '#EF4444',
-      },
-      recordingDotDisconnected: {
-        backgroundColor: '#9CA3AF',
-      },
-      liveText: {
-        color: '#FFFFFF',
-        fontSize: 12 * fontScale,
-        fontWeight: '700',
-        letterSpacing: 1.2,
-      },
-      colorsOverlay: {
-        position: 'absolute',
-        bottom: 20,
-        left: 20,
-        right: 20,
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-        alignItems: 'center',
-      },
-      colorChip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 20,
-        gap: 8,
-      },
-      colorChipDot: {
         width: 12,
         height: 12,
         borderRadius: 6,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.3)',
+        borderColor: 'rgba(255,255,255,0.2)',
       },
-      colorChipText: {
+      centerLabelText: {
         color: '#FFFFFF',
-        fontSize: 13 * fontScale,
-        fontWeight: '600',
+        fontSize: 15 * fontScale,
+        fontWeight: '700',
       },
+      
+      // --- CONTROLS ---
       controls: {
         padding: 24,
-        paddingBottom: 32,
+        paddingBottom: 40,
       },
       button: {
         width: '100%',
-        paddingVertical: 18,
-        borderRadius: 16,
+        height: 64, // Taller button like the "Continue Test" button
+        borderRadius: 32, // Pill shape
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 12,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.25,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.2,
         shadowRadius: 8,
         elevation: 6,
       },
       buttonStart: {
-        backgroundColor: '#10B981',
+        backgroundColor: colors.buttonPrimary, // Dark Charcoal #2F2F2F
       },
       buttonStop: {
-        backgroundColor: '#EF4444',
+        backgroundColor: palette.taupe, // Using Taupe for stop to keep earth tones (or use palette.error)
       },
       buttonDisabled: {
-        backgroundColor: darkMode ? '#4B5563' : '#D1D5DB', // Darker gray for disabled in dark mode
-        opacity: 0.6,
+        backgroundColor: '#9CA3AF',
+        opacity: 0.8,
       },
       buttonText: {
         color: '#FFFFFF',
@@ -1068,43 +977,46 @@ export default function LiveScreen({
         color: colors.textSecondary,
         fontSize: 13 * fontScale,
         marginTop: 16,
-        fontWeight: '500',
+        fontWeight: '600',
       },
+      crosshairContainer: {
+        position: 'absolute',
+        width: 60,
+        height: 60,
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 100,
+      },
+      crosshairDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#000',
+        shadowOpacity: 0.5,
+        shadowRadius: 4
+      }
     });
   }, [darkMode, fontScale]);
 
   // Handle camera ready and start frame capture
   const handleCameraReady = () => {
-    console.log('Camera ready, starting frame capture...');
-    
-    // Clear any existing interval
-    if (frameIntervalRef.current) {
-      clearInterval(frameIntervalRef.current);
-    }
-
-    // Start capturing frames at intervals
+    if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
     const interval = Math.round(1000 / targetFPS);
     
     frameIntervalRef.current = setInterval(async () => {
       if (isProcessingRef.current || !cameraRef.current || !active) return;
-      
       isProcessingRef.current = true;
-      
       try {
         if (cameraRef.current?.takePictureAsync) {
           const photo = await cameraRef.current.takePictureAsync({ 
-            base64: true, 
-            quality: 0.3, 
-            skipProcessing: true,
-            exif: false,
+            base64: true, quality: 0.3, skipProcessing: true, exif: false,
           });
-          const base64 = (photo as any)?.base64;
-
-          if (base64) {
+          if ((photo as any)?.base64) {
             fetch(SERVER_FRAME_URL, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image: base64, mode: 'center' }),
+              body: JSON.stringify({ image: (photo as any).base64, mode: 'center' }),
             })
               .then((res) => res.json())
               .then((json) => {
@@ -1113,10 +1025,7 @@ export default function LiveScreen({
                   setIsConnected(true);
                 }
               })
-              .catch((err) => {
-                console.warn('Frame request error', err);
-                setIsConnected(false);
-              });
+              .catch(() => setIsConnected(false));
           }
         }
       } catch (err) {
@@ -1127,52 +1036,30 @@ export default function LiveScreen({
     }, interval);
   };
 
-  // Cleanup interval when component unmounts or camera stops
   useEffect(() => {
     if (!active || !permission?.granted) {
-      if (frameIntervalRef.current) {
-        clearInterval(frameIntervalRef.current);
-        frameIntervalRef.current = null;
-      }
+      if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
       setDetectedColors([]);
     }
-
-    return () => {
-      if (frameIntervalRef.current) {
-        clearInterval(frameIntervalRef.current);
-      }
-    };
+    return () => { if (frameIntervalRef.current) clearInterval(frameIntervalRef.current); };
   }, [active, permission]);
   
-  // Animation Logic for scanning line
+  // Animation Logic
   const scanAnim = useRef(new Animated.Value(0)).current;
-
   useEffect(() => {
     let animation: Animated.CompositeAnimation;
-
     if (active) {
       animation = Animated.loop(
         Animated.sequence([
-          Animated.timing(scanAnim, {
-            toValue: 1,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scanAnim, {
-            toValue: 0,
-            duration: 0,
-            useNativeDriver: true,
-          }),
+          Animated.timing(scanAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+          Animated.timing(scanAnim, { toValue: 0, duration: 0, useNativeDriver: true }),
         ])
       );
       animation.start();
     } else {
       scanAnim.setValue(0);
     }
-
-    return () => {
-      if (animation) animation.stop();
-    };
+    return () => { if (animation) animation.stop(); };
   }, [active]);
 
   const scanLineTranslateY = scanAnim.interpolate({
@@ -1180,18 +1067,7 @@ export default function LiveScreen({
     outputRange: [0, SCAN_AREA_SIZE],
   });
 
-  // Loading State
-  if (!permission) {
-    return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <View style={styles.container}>
-          <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Loading camera...</Text>
-          </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  if (!permission) return <View style={styles.loadingContainer}><Text>Loading...</Text></View>;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -1199,15 +1075,13 @@ export default function LiveScreen({
         
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Live Color Detection</Text>
+          <Text style={styles.title}>Color Analysis</Text>
           <Text style={styles.subtitle}>Point camera at objects to detect colors</Text>
         </View>
 
-        {/* Camera Viewport Container */}
+        {/* Camera Viewport */}
         <View style={styles.cameraContainer}>
           <View style={styles.cameraWrapper}>
-            
-            {/* Active Camera View */}
             {active && permission.granted ? (
               <>
                 <CameraView
@@ -1218,11 +1092,21 @@ export default function LiveScreen({
                   onCameraReady={handleCameraReady}
                 />
                 
-                {/* Scanner Overlay */}
+                {/* Overlay Elements */}
                 <View style={styles.overlayContainer} pointerEvents="none">
                   
-                  {/* Bounding Box */}
+                  {/* Result Pill at Top Center (Cleaner than middle) */}
+                  {detectedColors && detectedColors[0] && (
+                    <View style={styles.centerLabelContainer}>
+                      <View style={styles.centerLabel}>
+                        <View style={[styles.centerLabelDot, { backgroundColor: colorMap[detectedColors[0]] || '#FFFFFF' }]} />
+                        <Text style={styles.centerLabelText}>{detectedColors[0]}</Text>
+                      </View>
+                    </View>
+                  )}
+
                   <View style={styles.boundingBox}>
+                    {/* Corners */}
                     <View style={[styles.corner, styles.cornerTL]} />
                     <View style={[styles.corner, styles.cornerTR]} />
                     <View style={[styles.corner, styles.cornerBL]} />
@@ -1239,80 +1123,28 @@ export default function LiveScreen({
                     />
                   </View>
 
-                  {/* Crosshair at center */}
+                  {/* Center Dot */}
                   <View style={styles.crosshairContainer}>
-                    <View style={styles.crosshairLineV} />
-                    <View style={styles.crosshairLineH} />
-                    <View
-                      style={[
-                        styles.crosshairDot,
-                        detectedColors && detectedColors[0]
-                          ? { backgroundColor: colorMap[detectedColors[0]] || '#FFFFFF' }
-                          : { backgroundColor: '#FFFFFF' },
-                      ]}
-                    />
+                    <View style={styles.crosshairDot} />
                   </View>
-
-                  {/* Center color label */}
-                  {detectedColors && detectedColors[0] && (
-                    <View style={styles.centerLabelContainer}>
-                      <View style={styles.centerLabel}>
-                        <View 
-                          style={[
-                            styles.centerLabelDot, 
-                            { backgroundColor: colorMap[detectedColors[0]] || '#FFFFFF' }
-                          ]} 
-                        />
-                        <Text style={styles.centerLabelText}>{detectedColors[0]}</Text>
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Live Indicator */}
-                  <View style={styles.liveIndicator}>
-                    <View style={[styles.recordingDot, !isConnected && styles.recordingDotDisconnected]} />
-                    <Text style={styles.liveText}>{isConnected ? 'LIVE' : 'OFFLINE'}</Text>
-                  </View>
-
-                  {/* All detected colors overlay */}
-                  {detectedColors?.length > 0 && (
-                    <View style={styles.colorsOverlay}>
-                      {detectedColors.slice(0, 3).map((c, idx) => (
-                        <View key={`${c}-${idx}`} style={styles.colorChip}>
-                          <View 
-                            style={[
-                              styles.colorChipDot, 
-                              { backgroundColor: colorMap[c] || '#FFFFFF' }
-                            ]} 
-                          />
-                          <Text style={styles.colorChipText}>{c}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
                 </View>
               </>
             ) : (
-              /* Inactive State / Placeholder */
               <View style={styles.placeholderContainer}>
                 <View style={styles.iconCircle}>
-                  <CameraOff size={40} color={styles.placeholderSubtext.color} />
+                  <Zap size={36} color="#FFFFFF" fill="#FFFFFF" />
                 </View>
-                <Text style={styles.placeholderText}>Camera is Off</Text>
+                <Text style={styles.placeholderText}>Camera Standby</Text>
                 <Text style={styles.placeholderSubtext}>
-                  Tap the button below to start detection
+                  Tap the button below to{'\n'}begin color analysis
                 </Text>
               </View>
             )}
 
-            {/* Permission Denied State */}
             {!permission.granted && (
               <View style={styles.errorContainer}>
                 <AlertCircle size={48} color={styles.errorText.color} />
-                <Text style={styles.errorText}>Camera Permission Required</Text>
-                <Text style={styles.errorSubtext}>
-                  Allow camera access to detect colors
-                </Text>
+                <Text style={styles.errorText}>Camera Access Denied</Text>
                 <TouchableOpacity onPress={onRequestPermission} style={styles.errorButton}>
                   <Text style={styles.errorButtonText}>Grant Permission</Text>
                 </TouchableOpacity>
@@ -1335,12 +1167,12 @@ export default function LiveScreen({
           >
             {active ? (
               <>
-                <CameraOff size={24} color="#FFF" />
-                <Text style={styles.buttonText}>Stop Detection</Text>
+                <CameraOff size={22} color="#FFF" />
+                <Text style={styles.buttonText}>Stop Analysis</Text>
               </>
             ) : (
               <>
-                <ScanLine size={24} color="#FFF" />
+                <ScanLine size={22} color="#FFF" />
                 <Text style={styles.buttonText}>Start Detection</Text>
               </>
             )}
@@ -1348,8 +1180,8 @@ export default function LiveScreen({
 
           <Text style={styles.statusText}>
             {active 
-              ? (isConnected ? "Analyzing colors in real-time..." : "Connecting to server...") 
-              : "Ready to detect colors"}
+              ? (isConnected ? "Live analysis in progress..." : "Connecting to server...") 
+              : "Ready to start"}
           </Text>
         </View>
       </View>
