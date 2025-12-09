@@ -704,7 +704,7 @@ export default function LiveScreen({
   const fontScale = getFontSizeMultiplier();
 
   // Server endpoint
-  const SERVER_FRAME_URL = 'http://10.135.88.41:5000/process-frame';
+  const SERVER_FRAME_URL = 'http://192.168.100.232:5000/process-frame';
 
   const [detectedColors, setDetectedColors] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(true);
@@ -1077,7 +1077,7 @@ export default function LiveScreen({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Color Analysis</Text>
-          <Text style={styles.subtitle}>Point camera at objects to detect colors</Text>
+          <Text style={styles.subtitle}>Navigate point at object to detect colors</Text>
         </View>
 
         {/* Camera Viewport */}
