@@ -219,12 +219,6 @@ const ProfileScreen: React.FC = () => {
               <View style={[styles.decoDot, { backgroundColor: palette.charcoal, bottom: 20, left: 20 }]} />
             </View>
             
-            <TouchableOpacity 
-              style={[styles.editIconBadge, { backgroundColor: palette.charcoal, borderColor: theme.bg }]}
-              onPress={() => isGuest ? handleGuestAction('upload photo') : console.log('Change')}
-            >
-              <Ionicons name="camera" size={16 * scale} color="#FFF" />
-            </TouchableOpacity>
           </View>
           
           <Text style={[styles.profileName, { color: theme.text, fontSize: 22 * scale }]}>
