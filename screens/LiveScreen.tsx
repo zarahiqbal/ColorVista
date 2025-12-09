@@ -704,7 +704,7 @@ export default function LiveScreen({
   const fontScale = getFontSizeMultiplier();
 
   // Server endpoint
-  const SERVER_FRAME_URL = 'http://10.135.88.41:5000/process-frame';
+  const SERVER_FRAME_URL = 'http://192.168.1.5:5000/process-frame';
 
   const [detectedColors, setDetectedColors] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(true);

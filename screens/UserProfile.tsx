@@ -1,9 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import * as React from 'react';
 import {
   Alert,
-  Modal,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -15,13 +14,16 @@ import {
 } from 'react-native';
 
 import { useAuth } from '@/Context/AuthContext';
+import { auth, db } from '@/Context/firebase';
 import { useUserData } from '@/Context/useUserData';
-import { useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { updateProfile } from 'firebase/auth';
+import { ref, update as updateDb } from 'firebase/database';
 import { useTheme } from '../Context/ThemeContext';
 
 const ProfileScreen: React.FC = () => {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, setUser } = useAuth();
   const { userData, loading: userDataLoading } = useUserData();
   const isGuest = user?.isGuest === true;
   const { darkMode, getFontSizeMultiplier } = useTheme();
@@ -63,7 +65,7 @@ const ProfileScreen: React.FC = () => {
   
   const [isEditingUsername, setIsEditingUsername] = React.useState(false);
   const [isEditingEmail, setIsEditingEmail] = React.useState(false);
-  const [showColorblindnessModal, setShowColorblindnessModal] = React.useState(false);
+  
 
   const [tempUsername, setTempUsername] = React.useState(username);
   const [tempEmail, setTempEmail] = React.useState(email);
@@ -74,15 +76,9 @@ const ProfileScreen: React.FC = () => {
     }
   }, [userData?.cvdType]);
 
-  useFocusEffect(
-    useCallback(() => {
-      console.log('Profile screen focused - CVD type is:', colorblindnessType);
-    }, [colorblindnessType])
-  );
 
-  const colorblindnessTypes = [
-    'Protanopia', 'Deuteranopia', 'Tritanopia', 'Normal Vision', 'Severe CVD'
-  ];
+
+  // CVD types are auto-detected via quizzes; manual selection removed
 
   const handleGuestAction = (actionName: string) => {
     Alert.alert(
@@ -101,13 +97,54 @@ const ProfileScreen: React.FC = () => {
     setIsEditingUsername(true);
   };
 
-  const handleUsernameSave = (): void => {
-    if (tempUsername.trim()) {
-      setUsername(tempUsername);
-      setIsEditingUsername(false);
-      Alert.alert('Success', 'Username updated successfully!');
-    } else {
+  const handleUsernameSave = async (): Promise<void> => {
+    if (!tempUsername.trim()) {
       Alert.alert('Error', 'Username cannot be empty');
+      return;
+    }
+
+    const fullName = tempUsername.trim();
+    const parts = fullName.split(' ');
+    const firstName = parts[0] || '';
+    const lastName = parts.slice(1).join(' ') || '';
+
+    // Optimistically update UI
+    setUsername(fullName);
+    setIsEditingUsername(false);
+    Alert.alert('Success', 'Username updated successfully!');
+
+    // If not a guest, persist to Firebase Realtime DB and update auth displayName
+    if (!isGuest && user?.uid) {
+      try {
+        const updates: Record<string, unknown> = {
+          firstName,
+          lastName,
+          updatedAt: new Date().toISOString(),
+        };
+
+        // Update Realtime Database
+        const userRef = ref(db, `users/${user.uid}`);
+        await updateDb(userRef, updates);
+
+        // Update Firebase Auth displayName
+        if (auth.currentUser) {
+          await updateProfile(auth.currentUser, { displayName: `${firstName} ${lastName}`.trim() });
+        }
+
+        // Update local context and persist to AsyncStorage
+        const newProfile = { ...(user as any), firstName, lastName, updatedAt: updates.updatedAt };
+        try {
+          // setUser is provided by AuthContext
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          setUser(newProfile);
+          await AsyncStorage.setItem('@user', JSON.stringify(newProfile));
+        } catch (e) {
+          // ignore persistence errors
+        }
+      } catch (err) {
+        console.error('Failed to update username in Firebase:', err);
+      }
     }
   };
 
@@ -137,21 +174,7 @@ const ProfileScreen: React.FC = () => {
     setIsEditingEmail(false);
   };
 
-  const handleChangeColorblindness = (): void => {
-    Alert.alert(
-      'Auto-Updated from Quiz',
-      'Your vision type is automatically detected and updated when you complete a quiz. You can manually override it here if needed.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Change Manually', onPress: () => setShowColorblindnessModal(true) }
-      ]
-    );
-  };
-
-  const selectColorblindnessType = (type: string): void => {
-    setColorblindnessType(type);
-    setShowColorblindnessModal(false);
-  };
+  // Manual change removed: CVD updated only from quiz results
 
   const handleViewQuizDetails = (): void => console.log('View quiz details');
   const handleViewAllScores = (): void => console.log('View all scores');
@@ -259,34 +282,8 @@ const ProfileScreen: React.FC = () => {
           </View>
           <View style={styles.cardLeft}>
             <Text style={[styles.label, { fontSize: 12 * scale, color: theme.subText }]}>EMAIL</Text>
-            {isEditingEmail ? (
-              <TextInput
-                style={[styles.input, { color: theme.text, fontSize: 16 * scale, borderBottomColor: palette.taupe }]}
-                value={tempEmail}
-                onChangeText={setTempEmail}
-                autoFocus
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            ) : (
-              <Text style={[styles.value, { color: theme.text, fontSize: 16 * scale }]}>{email}</Text>
-            )}
+            <Text style={[styles.value, { color: theme.text, fontSize: 16 * scale }]}>{email}</Text>
           </View>
-          
-          {isEditingEmail ? (
-            <View style={styles.actionButtons}>
-              <TouchableOpacity onPress={handleEmailCancel}>
-                <Ionicons name="close-circle" size={28 * scale} color={theme.subText} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleEmailSave}>
-                <Ionicons name="checkmark-circle" size={28 * scale} color={palette.sage} />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity onPress={handleEmailEdit}>
-              <Text style={[styles.editText, { color: palette.taupe, fontSize: 14 * scale }]}>Edit</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* Phone Number Card - NOW CONSISTENT */}
@@ -309,9 +306,8 @@ const ProfileScreen: React.FC = () => {
               VISION SETTINGS
             </Text>
             
-            <TouchableOpacity 
+            <View 
               style={[styles.card, { backgroundColor: theme.card }]} 
-              onPress={handleChangeColorblindness}
             >
               <View style={styles.cardIcon}>
                 <Ionicons name="eye-outline" size={20 * scale} color={theme.subText} />
@@ -320,8 +316,7 @@ const ProfileScreen: React.FC = () => {
                 <Text style={[styles.label, { fontSize: 12 * scale, color: theme.subText }]}>COLORBLIND TYPE</Text>
                 <Text style={[styles.value, { color: theme.text, fontSize: 16 * scale }]}>{colorblindnessType}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20 * scale} color={theme.subText} />
-            </TouchableOpacity>
+            </View>
 
             {/* STATISTICS SECTION */}
             <Text style={[styles.sectionHeader, { color: theme.subText, fontSize: 13 * scale }]}>
@@ -392,52 +387,7 @@ const ProfileScreen: React.FC = () => {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* Modal */}
-      {!isGuest && (
-        <Modal
-          visible={showColorblindnessModal}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowColorblindnessModal(false)}
-        >
-          <TouchableOpacity 
-            style={[styles.modalOverlay, { backgroundColor: theme.modalOverlay }]}
-            activeOpacity={1}
-            onPress={() => setShowColorblindnessModal(false)}
-          >
-            <TouchableOpacity 
-              activeOpacity={1} 
-              style={[styles.modalContent, { backgroundColor: theme.card }]}
-            >
-              <Text style={[styles.modalTitle, { color: theme.text, fontSize: 20 * scale }]}>
-                Select Vision Type
-              </Text>
-              <ScrollView style={{ maxHeight: 400 }}>
-                {colorblindnessTypes.map((type) => (
-                  <TouchableOpacity
-                    key={type}
-                    style={[styles.modalOption, { borderBottomColor: theme.border }]}
-                    onPress={() => selectColorblindnessType(type)}
-                  >
-                    <Text style={[styles.modalOptionText, { color: theme.text, fontSize: 16 * scale }]}>
-                      {type}
-                    </Text>
-                    {colorblindnessType === type && (
-                      <Ionicons name="checkmark-circle" size={24 * scale} color={palette.sage} />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-              <TouchableOpacity
-                style={[styles.modalCancel, { backgroundColor: palette.charcoal }]}
-                onPress={() => setShowColorblindnessModal(false)}
-              >
-                <Text style={[styles.modalCancelText, { fontSize: 16 * scale }]}>Close</Text>
-              </TouchableOpacity>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </Modal>
-      )}
+      {/* Modal removed — CVD type is updated only via quiz results */}
     </SafeAreaView>
   );
 };
