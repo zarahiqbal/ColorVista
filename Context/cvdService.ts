@@ -17,36 +17,28 @@ export const updateUserCVDType = async (uid: string, cvdType: string): Promise<v
   }
 
   try {
-    console.log('📝 Updating CVD type in Firebase for user:', uid);
-    console.log('CVD Type value:', cvdType);
 
     // Update in Firebase Realtime Database
     const userRef = ref(db, `users/${uid}`);
-    console.log('User ref path:', `users/${uid}`);
     
     const updateData = {
       cvdType: cvdType,
       updatedAt: new Date().toISOString()
     };
     
-    console.log('Update data:', updateData);
     await update(userRef, updateData);
-    console.log('✅ Firebase update completed');
 
     // Update in local storage
     const cachedUser = await AsyncStorage.getItem('@user');
     if (cachedUser) {
       const user = JSON.parse(cachedUser);
-      console.log('📱 Updating local storage. Previous cvdType:', user.cvdType);
       user.cvdType = cvdType;
       user.updatedAt = new Date().toISOString();
       await AsyncStorage.setItem('@user', JSON.stringify(user));
-      console.log('✅ Local storage updated. New cvdType:', user.cvdType);
     } else {
       console.log('⚠️ No cached user found in AsyncStorage');
     }
 
-    console.log('✅ CVD type updated successfully:', cvdType);
   } catch (error) {
     console.error('❌ Error updating CVD type:', error);
     throw error;
