@@ -51,7 +51,7 @@ const ProfileScreen: React.FC = () => {
   };
 
   const [username, setUsername] = React.useState(
-    isGuest ? 'Guest Explorer' : userData ? `${userData.firstName || 'User'} ${userData.lastName || 'Profile'}` : `${user?.firstName || 'Alex'} ${user?.lastName || 'Doe'}`
+    isGuest ? 'Guest Explorer' : userData ? `${userData.firstName || 'User'} ${userData.lastName || 'Profile'}` : `${user?.firstName || ''} ${user?.lastName || ''}`
   );
   const [email, setEmail] = React.useState(
     isGuest ? 'Not Linked' : userData?.email || user?.email || 'alex.doe@email.com'
