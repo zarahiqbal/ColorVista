@@ -14,10 +14,12 @@ export const useUserData = () => {
 
   useEffect(() => {
     if (!user || user.isGuest || !user.uid) {
+      console.log('useUserData: No authenticated user, skipping listener');
       setUserData(null);
       return;
     }
 
+    console.log('useUserData: Setting up real-time listener for user:', user.uid);
     setLoading(true);
     const userRef = ref(db, `users/${user.uid}`);
 
@@ -26,17 +28,23 @@ export const useUserData = () => {
       userRef,
       (snapshot) => {
         if (snapshot.exists()) {
+          console.log('📡 useUserData received update:', snapshot.val());
           setUserData(snapshot.val());
+        } else {
+          console.log('⚠️ useUserData: No user data found');
         }
         setLoading(false);
       },
       (error) => {
-        console.error('Error fetching user data:', error);
+        console.error('❌ useUserData: Error fetching user data:', error);
         setLoading(false);
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      console.log('useUserData: Cleaning up listener');
+      unsubscribe();
+    };
   }, [user]);
 
   return { userData, loading };

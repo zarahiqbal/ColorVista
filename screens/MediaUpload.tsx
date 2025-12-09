@@ -21,7 +21,7 @@ import { useTheme } from '@/Context/ThemeContext';
 const { width } = Dimensions.get('window');
 
 // REPLACE WITH YOUR COMPUTER'S LOCAL IP ADDRESS
-const SERVER_URL = 'http://192.168.1.5:5000/process-image'; 
+const SERVER_URL = 'http://10.135.64.101:5000/process-image'; 
 
 export default function MediaUpload() {
   // 2. Consume Theme Context
