@@ -50,12 +50,12 @@ const ProfileScreen: React.FC = () => {
   };
 
   const [username, setUsername] = React.useState(
-      isGuest ? 'Guest Explorer' : `${user?.firstName || 'Alex'} ${user?.lastName || 'Doe'}`
+      isGuest ? 'Guest Explorer' : `${user?.firstName || 'Zarah'} ${user?.lastName || 'Iqbal'}`
   );
   const [email, setEmail] = React.useState(
-      isGuest ? 'Not Linked' : user?.email || 'alex.doe@email.com'
+      isGuest ? 'Not Linked' : user?.email || 'zarahiiqbal@gmail.com'
   );
-  const [colorblindnessType, setColorblindnessType] = React.useState('Protanopia');
+  const [colorblindnessType, setColorblindnessType] = React.useState('Normal Vision');
   
   const [isEditingUsername, setIsEditingUsername] = React.useState(false);
   const [isEditingEmail, setIsEditingEmail] = React.useState(false);

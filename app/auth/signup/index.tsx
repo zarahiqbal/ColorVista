@@ -349,13 +349,10 @@ const Register: React.FC = () => {
 
       {/* Divider */}
       <View style={styles.dividerContainer}>
-        <View style={styles.divider} />
-        <Text style={styles.dividerText}>Or register with</Text>
-        <View style={styles.divider} />
       </View>
 
       {/* Social Register Buttons */}
-      <View style={styles.socialButtonsContainer}>
+      {/* <View style={styles.socialButtonsContainer}>
         <TouchableOpacity
           style={styles.socialButton}
           disabled={isLoading}
@@ -368,7 +365,7 @@ const Register: React.FC = () => {
         >
           <Text style={styles.socialButtonText}>Apple</Text>
         </TouchableOpacity>
-      </View>
+      </View> */}
     </ScrollView>
   );
 };

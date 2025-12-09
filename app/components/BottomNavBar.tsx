@@ -1,6 +1,5 @@
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, Platform } from 'react-native';
-import { useRouter, usePathname } from 'expo-router'; // <--- The secret sauce
+import { usePathname, useRouter } from 'expo-router'; // <--- The secret sauce
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 

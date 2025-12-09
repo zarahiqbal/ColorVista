@@ -704,7 +704,7 @@ export default function LiveScreen({
   const fontScale = getFontSizeMultiplier();
 
   // Server endpoint
-  const SERVER_FRAME_URL = 'http://192.168.1.5:5000/process-frame';
+  const SERVER_FRAME_URL = 'http://10.135.88.41:5000/process-frame';
 
   const [detectedColors, setDetectedColors] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(true);
@@ -717,7 +717,8 @@ export default function LiveScreen({
   const colorMap: Record<string, string> = {
     Red: '#FF3B30', Blue: '#007AFF', Green: '#34C759', Yellow: '#FFCC00',
     Orange: '#FF9500', Cyan: '#5AC8FA', Purple: '#AF52DE', Pink: '#FF2D55',
-    White: '#FFFFFF', Black: '#1F2937', Gray: '#8E8E93',
+    White: '#FFFFFF', Black: '#1F2937', Gray: '#8E8E93', 
+  Zap: '#FFD60A', Lime: '#32D74B', Teal: '#64D2FF', Indigo: '#5E5CE6', 
   };
 
   // --- THEME & STYLES ---
