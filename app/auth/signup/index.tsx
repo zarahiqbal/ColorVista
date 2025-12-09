@@ -1,16 +1,16 @@
+import { useAuth } from '@/Context/AuthContext';
 import { Ionicons } from '@expo/vector-icons'; // or react-native-vector-icons
 import { useNavigation } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 interface RegisterFormData {
@@ -29,6 +29,7 @@ interface SignupResponse {
 
 const Register: React.FC = () => {
   const navigation = useNavigation();
+  const { signUp } = useAuth();
   const [formData, setFormData] = useState<RegisterFormData>({
     firstName: '',
     lastName: '',
@@ -121,34 +122,21 @@ const Register: React.FC = () => {
 
     try {
       const { confirmPassword, ...registrationData } = formData;
-
-      const response = await fetch('YOUR_API_URL/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(registrationData),
+      // Use AuthContext signUp which integrates with Firebase
+      await signUp({
+        firstName: registrationData.firstName,
+        lastName: registrationData.lastName,
+        email: registrationData.email,
+        phone: registrationData.phone,
+        password: registrationData.password,
       });
 
-      const data: SignupResponse = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Registration failed');
-      }
-
-      // Registration successful
-      Alert.alert('Success', 'Registration successful! Please log in.', [
-        {
-          text: 'OK',
-          onPress: () => navigation.navigate('Login' as never),
-        },
-      ]);
+      // After successful signup the auth listener will update context
+      router.replace('/dashboard');
     } catch (error) {
       console.error('Registration error:', error);
       setApiError(
-        error instanceof Error
-          ? error.message
-          : 'Registration failed. Please try again.'
+        error instanceof Error ? error.message : 'Registration failed. Please try again.'
       );
     } finally {
       setIsLoading(false);

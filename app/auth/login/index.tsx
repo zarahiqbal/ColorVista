@@ -20,7 +20,7 @@ export default function Login() {
   const router = useRouter();
   
   // 1. GET AUTH FUNCTIONS
-  const { setUser, loginAsGuest } = useAuth();
+  const { loginAsGuest, signIn } = useAuth();
   
   const { darkMode, getFontSizeMultiplier } = useTheme();
   
@@ -41,20 +41,17 @@ export default function Login() {
 
   const handleLogin = async () => {
     setIsLoading(true);
-    // Simulate API Fetch
-    setTimeout(() => {
-        setIsLoading(false);
-        // MOCK LOGIN: Replace this with your actual API response mapping
-        setUser({
-            firstName: 'Alex',
-            lastName: 'Doe',
-            email: email,
-            role: 'user',
-            isGuest: false // Important: Real user
-        });
-        console.log("Login Success");
-        router.replace('/dashboard'); 
-    }, 1000);
+    try {
+      await signIn(email.trim(), password);
+      // onAuthStateChanged will update the context user and AsyncStorage
+      router.replace('/dashboard');
+    } catch (err: any) {
+      console.error('Login failed:', err);
+      // TODO: show user-friendly message (toast/modal)
+      // For now, log and keep user on page
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // 2. NEW GUEST HANDLER
@@ -79,8 +76,8 @@ export default function Login() {
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={[styles.title, { color: colors.text, fontSize: 28 * scale }]}>
-            Welcome Back
+          <Text style={[styles.title, { color: colors.text, fontSize: 32 * scale }]}>
+            Welcome 
           </Text>
         </View>
 

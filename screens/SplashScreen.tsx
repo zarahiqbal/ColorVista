@@ -150,7 +150,7 @@ const SplashScreen: React.FC = () => {
     // Navigate to main screen after splash
     const timer = setTimeout(() => {
       // Replace the splash with dashboard so the splash isn't on the stack
-      router.replace('/dashboard');
+      router.replace('../auth/login');
     }, 3500);
 
     return () => clearTimeout(timer);

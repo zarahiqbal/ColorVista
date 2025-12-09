@@ -7,7 +7,7 @@ import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { useTheme } from '@/Context/ThemeContext';
 
 const TOOLS_COLORS = {
-  blue: '#4A90E2',
+  sage: '#8DA399',
 };
 
 export default function BottomNavBar() {
@@ -22,7 +22,7 @@ export default function BottomNavBar() {
     navBg: darkMode ? '#1C1C1E' : '#FFFFFF',
     borderColor: darkMode ? '#2C2C2E' : '#F0F0F0',
     subText: darkMode ? '#A1A1AA' : '#9E9E9E',
-    activeText: TOOLS_COLORS.blue,
+    activeText: TOOLS_COLORS.sage,
   };
 
   // Helper: Checks if the current route matches the button
@@ -31,7 +31,7 @@ export default function BottomNavBar() {
   };
 
   const getIconColor = (routeKey: string) => 
-    isActive(routeKey) ? TOOLS_COLORS.blue : theme.subText;
+    isActive(routeKey) ? TOOLS_COLORS.sage : theme.subText;
 
   const getTextStyle = (routeKey: string) => ({ 
       fontSize: 11 * scale, 
@@ -57,6 +57,8 @@ export default function BottomNavBar() {
       >
         <FontAwesome name="user" size={24 * scale} color={getIconColor('userprofile')} />
         <Text style={getTextStyle('userprofile')}>Profile</Text>
+
+        {isActive('userprofile') && <View style={styles.activeNavDot} />}
       </TouchableOpacity>
 
       {/* HOME TAB (DASHBOARD) */}
@@ -78,6 +80,9 @@ export default function BottomNavBar() {
       >
         <Feather name="settings" size={24 * scale} color={getIconColor('settings')} />
         <Text style={getTextStyle('settings')}>Settings</Text>
+
+        {isActive('settings') && <View style={styles.activeNavDot} />}
+
       </TouchableOpacity>
       
     </View>
@@ -109,7 +114,7 @@ const styles = StyleSheet.create({
     top: -12, // Floats above the icon
     width: 40,
     height: 3,
-    backgroundColor: TOOLS_COLORS.blue,
+    backgroundColor: TOOLS_COLORS.sage,
     borderBottomLeftRadius: 4,
     borderBottomRightRadius: 4,
   },

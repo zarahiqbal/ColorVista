@@ -464,8 +464,15 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import { useAuth } from '@/Context/AuthContext';
 import { useTheme } from '@/Context/ThemeContext';
 
-// ---------------- TOOLS DATA ----------------
-const TOOLS_COLORS = {
+// ---------------- EARTH TONE PALETTE (Matching Profile) ----------------
+const palette = {
+  beigeBg: '#F6F3EE',
+  charcoal: '#2F2F2F',
+  sage: '#8DA399',
+  taupe: '#AA957B',
+  white: '#FFFFFF',
+  textLight: '#6B6661',
+  // Tool colors
   blue: '#4A90E2',
   peach: '#FFB88C',
   purple: '#A78BFA',
@@ -478,37 +485,37 @@ const toolsData = [
   {
     title: 'Live Detection',
     screen: 'live',
-    color: TOOLS_COLORS.blue,
+    color: palette.blue,
     icon: <Ionicons name="water" size={32} color="#FFFFFF" />,
   },
   {
     title: 'Media Upload',
     screen: 'mediaupload',
-    color: TOOLS_COLORS.peach,
+    color: palette.peach,
     icon: <Feather name="upload-cloud" size={32} color="#FFFFFF" />,
   },
   {
     title: 'VR Simulation',
     screen: 'vrscreen',
-    color: TOOLS_COLORS.purple,
+    color: palette.purple,
     icon: <MaterialCommunityIcons name="cube-scan" size={32} color="#FFFFFF" />,
   },
   {
     title: 'Games',
     screen: 'gamesscreen',
-    color: TOOLS_COLORS.teal,
+    color: palette.teal,
     icon: <Ionicons name="game-controller" size={32} color="#FFFFFF" />,
   },
   {
     title: 'Quiz',
     screen: 'welcome',
-    color: TOOLS_COLORS.lime,
+    color: palette.lime,
     icon: <MaterialCommunityIcons name="help-box" size={32} color="#FFFFFF" />,
   },
   {
     title: 'Enhancer',
     screen: 'enhancerscreen',
-    color: TOOLS_COLORS.orange,
+    color: palette.orange,
     icon: <MaterialCommunityIcons name="star-four-points" size={32} color="#FFFFFF" />,
   },
 ];
@@ -531,13 +538,14 @@ export default function DashboardScreen() {
   const isGuest = user?.isGuest === true;
   const scale = getFontSizeMultiplier();
 
+  // Consistent theme with Profile screen
   const theme = {
-    bg: darkMode ? '#121212' : '#FAFAFA',
-    text: darkMode ? '#FFFFFF' : '#1A1A1A',
-    subText: darkMode ? '#A1A1AA' : '#9E9E9E',
-    cardBg: darkMode ? '#1C1C1E' : '#FFFFFF',
-    borderColor: darkMode ? '#2C2C2E' : '#E5E5E5',
-    iconBg: darkMode ? '#2C2C2E' : '#FFFFFF',
+    bg: darkMode ? '#1C1C1E' : palette.beigeBg,
+    card: darkMode ? '#2C2C2E' : palette.white,
+    text: darkMode ? '#F6F3EE' : palette.charcoal,
+    subText: darkMode ? '#A1A1AA' : palette.textLight,
+    border: darkMode ? '#333' : '#E5E5E5',
+    iconBg: darkMode ? '#2C2C2E' : palette.white,
     heroBg: darkMode ? '#3E3020' : '#F5E6D3',
     heroText: darkMode ? '#E5D0B1' : '#6B5A47',
     notificationBg: darkMode ? '#2C2C2E' : '#F3F4F6',
@@ -549,41 +557,41 @@ export default function DashboardScreen() {
     const COMING_SOON_FEATURES = ['vrscreen', 'gamesscreen', 'enhancerscreen'];
 
     if (COMING_SOON_FEATURES.includes(target)) {
-        const toolTitle = toolsData.find(t => t.screen === screen)?.title || "New Feature";
-        router.push({
-            pathname: "/comingsoon",
-            params: { featureName: toolTitle }
-        });
-        return; 
+      const toolTitle = toolsData.find(t => t.screen === screen)?.title || "New Feature";
+      router.push({
+        pathname: "/comingsoon",
+        params: { featureName: toolTitle }
+      });
+      return; 
     }
 
     const routeMap: Record<string, any> = {
-        "live": "/live",
-        "mediaupload": "/mediaupload",
-        "welcome": "/welcome", 
+      "live": "/live",
+      "mediaupload": "/mediaupload",
+      "welcome": "/welcome", 
     };
     
     const route = routeMap[target];
     if (route) {
-        router.push(route);
+      router.push(route);
     } else {
-        router.push(("/" + target) as any);
+      router.push(("/" + target) as any);
     }
   };
 
   // Handlers
   const handleProfilePress = () => {
     if (isGuest) {
-        Alert.alert(
-            "Guest Account",
-            "Sign up to access your full profile and save settings.",
-            [
-                { text: "Cancel", style: "cancel" },
-                { text: "Sign Up", onPress: () => router.push('/auth/signup') }
-            ]
-        );
+      Alert.alert(
+        "Guest Account",
+        "Sign up to access your full profile and save settings.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Sign Up", onPress: () => router.push('/auth/signup') }
+        ]
+      );
     } else {
-        setShowProfileModal(true);
+      setShowProfileModal(true);
     }
   };
 
@@ -608,13 +616,15 @@ export default function DashboardScreen() {
       {/* Top Header */}
       <View style={[styles.headerContainer, { backgroundColor: theme.bg }]}>
         <TouchableOpacity 
-          style={[styles.profileIcon, { backgroundColor: theme.iconBg, borderColor: theme.borderColor }]} 
+          style={[styles.profileIcon, { backgroundColor: theme.iconBg, borderColor: theme.border }]} 
           onPress={handleProfilePress}
         >
-           <FontAwesome name="user" size={18 * scale} color={theme.text} />
+          <FontAwesome name="user" size={18 * scale} color={theme.text} />
         </TouchableOpacity>
         
-        <Text style={[styles.appName, { color: theme.text, fontSize: 30 * scale }]}>Color Vista</Text>
+        <Text style={[styles.appName, { color: theme.text, fontSize: 30 * scale }]}>
+          Color Vista
+        </Text>
         
         {/* Logic: If Guest, show empty View to maintain center alignment. If User, show button */}
         {isGuest ? (
@@ -644,11 +654,11 @@ export default function DashboardScreen() {
         />
         
         <ToolsGrid 
-            navigate={navigate} 
-            theme={theme} 
-            scale={scale} 
-            isGuest={isGuest} 
-            onLockedPress={handleLockedFeature}
+          navigate={navigate} 
+          theme={theme} 
+          scale={scale} 
+          isGuest={isGuest} 
+          onLockedPress={handleLockedFeature}
         />
       </ScrollView>
 
@@ -676,15 +686,14 @@ export default function DashboardScreen() {
   );
 }
 
-// ---------------- SUB COMPONENTS ----------------
-
-const HeroCard = ({ onGoToWelcome, theme, scale, userName }: any) => (
+// ---------------- HERO CARD ----------------
+const HeroCard = ({ theme, scale, userName }: any) => (
   <View style={[styles.heroCard, { backgroundColor: theme.heroBg }]}>
     <View style={styles.heroContent}>
       <Text style={[styles.heroTitle, { color: theme.heroText, fontSize: 26 * scale }]}>
-        Hello, <Text style={[styles.heroTitleSerif, { color: theme.heroText }]}>{userName.toUpperCase()}</Text>
+        Hello, <Text style={[styles.heroTitleSerif, { color: theme.heroText }]}>{userName}</Text>
       </Text>
-      <Text style={[styles.heroQuote, { color: theme.heroText, opacity: 0.8, fontSize: 13 * scale }]}>
+      <Text style={[styles.heroQuote, { color: theme.heroText, fontSize: 13 * scale }]}>
         "Your vision is a special perspective to see the world"
       </Text>
       
@@ -701,46 +710,47 @@ const HeroCard = ({ onGoToWelcome, theme, scale, userName }: any) => (
   </View>
 );
 
+// ---------------- TOOLS GRID ----------------
 const ToolsGrid = ({ navigate, theme, scale, isGuest, onLockedPress }: any) => {
-    const GUEST_ALLOWED_TOOLS = ['live', 'mediaupload'];
+  const GUEST_ALLOWED_TOOLS = ['live', 'mediaupload'];
 
-    return (
-      <View style={styles.gridContainer}>
-        <View style={styles.gridWrapper}>
-          {toolsData.map((tool, index) => {
-            const isLocked = isGuest && !GUEST_ALLOWED_TOOLS.includes(tool.screen);
+  return (
+    <View style={styles.gridContainer}>
+      <View style={styles.gridWrapper}>
+        {toolsData.map((tool, index) => {
+          const isLocked = isGuest && !GUEST_ALLOWED_TOOLS.includes(tool.screen);
 
-            return (
-                <View key={index} style={styles.gridItemWrapper}>
-                  <TouchableOpacity
-                    style={[
-                        styles.toolCard, 
-                        { backgroundColor: tool.color },
-                        isLocked && styles.toolCardLocked
-                    ]}
-                    onPress={() => isLocked ? onLockedPress(tool.title) : navigate(tool.screen)}
-                    activeOpacity={0.8}
-                  >
-                    {tool.icon}
-                    {isLocked && (
-                        <View style={styles.lockOverlay}>
-                            <Feather name="lock" size={24} color="#FFF" />
-                        </View>
-                    )}
-                  </TouchableOpacity>
-                  <Text style={[
-                      styles.toolLabel, 
-                      { color: theme.text, fontSize: 12 * scale },
-                      isLocked && { color: theme.subText }
-                  ]}>
-                    {tool.title}
-                  </Text>
-                </View>
-            );
-          })}
-        </View>
+          return (
+            <View key={index} style={styles.gridItemWrapper}>
+              <TouchableOpacity
+                style={[
+                  styles.toolCard, 
+                  { backgroundColor: tool.color },
+                  isLocked && styles.toolCardLocked
+                ]}
+                onPress={() => isLocked ? onLockedPress(tool.title) : navigate(tool.screen)}
+                activeOpacity={0.8}
+              >
+                {tool.icon}
+                {isLocked && (
+                  <View style={styles.lockOverlay}>
+                    <Feather name="lock" size={24} color="#FFF" />
+                  </View>
+                )}
+              </TouchableOpacity>
+              <Text style={[
+                styles.toolLabel, 
+                { color: theme.text, fontSize: 12 * scale },
+                isLocked && { color: theme.subText }
+              ]}>
+                {tool.title}
+              </Text>
+            </View>
+          );
+        })}
       </View>
-    );
+    </View>
+  );
 };
 
 // ---------------- NOTIFICATION MODAL (NEW) ----------------
@@ -814,48 +824,48 @@ const ProfileModal = ({ visible, onClose, theme, scale, user }: any) => {
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
         <Pressable 
-            style={[styles.profileModalContent, { backgroundColor: theme.cardBg, borderColor: theme.borderColor }]} 
-            onPress={(e) => e.stopPropagation()}
+          style={[styles.profileModalContent, { backgroundColor: theme.card, borderColor: theme.border }]} 
+          onPress={(e) => e.stopPropagation()}
         >
           {/* Header */}
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: theme.text, fontSize: 18 * scale }]}>
-                My Account
+              My Account
             </Text>
             <TouchableOpacity onPress={onClose} hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
-                <Feather name="x" size={22 * scale} color={theme.subText} />
+              <Feather name="x" size={22 * scale} color={theme.subText} />
             </TouchableOpacity>
           </View>
 
-          {/* First Divider */}
-          <View style={[styles.modalDivider, { backgroundColor: theme.borderColor }]} />
+          {/* Divider */}
+          <View style={[styles.modalDivider, { backgroundColor: theme.border }]} />
 
           {/* Menu Items */}
           <View style={styles.modalBody}>
             <TouchableOpacity style={styles.menuItem} onPress={handleViewProfile}>
-                <View style={styles.iconContainer}>
-                    <Feather name="user" size={20 * scale} color={theme.text} />
-                </View>
-                <Text style={[styles.menuItemText, { color: theme.text, fontSize: 16 * scale }]}>
-                    Profile
-                </Text>
+              <View style={styles.iconContainer}>
+                <Feather name="user" size={20 * scale} color={theme.text} />
+              </View>
+              <Text style={[styles.menuItemText, { color: theme.text, fontSize: 16 * scale }]}>
+                Profile
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-                style={styles.menuItem}
-                onPress={() => { onClose(); router.push('/settings'); }}
+              style={styles.menuItem}
+              onPress={() => { onClose(); router.push('/settings'); }}
             >
-                <View style={styles.iconContainer}>
-                    <Feather name="settings" size={20 * scale} color={theme.text} />
-                </View>
-                <Text style={[styles.menuItemText, { color: theme.text, fontSize: 16 * scale }]}>
-                    Settings
-                </Text>
+              <View style={styles.iconContainer}>
+                <Feather name="settings" size={20 * scale} color={theme.text} />
+              </View>
+              <Text style={[styles.menuItemText, { color: theme.text, fontSize: 16 * scale }]}>
+                Settings
+              </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Second Divider */}
-          <View style={[styles.modalDivider, { backgroundColor: theme.borderColor }]} />
+          {/* Divider */}
+          <View style={[styles.modalDivider, { backgroundColor: theme.border }]} />
 
           {/* Log Out */}
           <TouchableOpacity 
@@ -863,10 +873,10 @@ const ProfileModal = ({ visible, onClose, theme, scale, user }: any) => {
             onPress={() => { onClose(); logout(); router.replace('/auth/login'); }}
           >
             <View style={styles.iconContainer}>
-                 <Feather name="log-out" size={20 * scale} color="#EF4444" />
+              <Feather name="log-out" size={20 * scale} color="#EF4444" />
             </View>
             <Text style={[styles.menuItemText, { color: '#EF4444', fontSize: 16 * scale }]}>
-                Log Out
+              Log Out
             </Text>
           </TouchableOpacity>
         </Pressable>
@@ -889,28 +899,106 @@ const styles = StyleSheet.create({
     paddingBottom: 120 
   },
   
-  // Hero Card
-  heroCard: { borderRadius: 24, padding: 24, marginBottom: 32, minHeight: 140, justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 16, elevation: 4, overflow: 'hidden' },
-  heroContent: { zIndex: 1 },
-  heroTitle: { fontWeight: '600', marginBottom: 6, letterSpacing: 0.3 },
-  heroTitleSerif: { fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', fontWeight: '700' },
-  heroQuote: { fontStyle: 'italic', marginBottom: 18, lineHeight: 20, fontWeight: '400' },
-  inspireButton: { backgroundColor: 'rgba(0,0,0, 0.05)', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 12, alignSelf: 'flex-start', borderWidth: 1, flexDirection: 'row', alignItems: 'center' },
-  inspireButtonText: { fontWeight: '600', letterSpacing: 0.2 },
+  // Hero Card - Consistent with Profile cards
+  heroCard: { 
+    borderRadius: 16, 
+    padding: 24, 
+    marginTop: 8,
+    marginBottom: 32, 
+    minHeight: 140, 
+    justifyContent: 'center', 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 2 }, 
+    shadowOpacity: 0.05, 
+    shadowRadius: 5, 
+    elevation: 2, 
+    overflow: 'hidden' 
+  },
+  heroContent: { 
+    zIndex: 1 
+  },
+  heroTitle: { 
+    fontWeight: '600', 
+    marginBottom: 6, 
+    letterSpacing: 0.3 
+  },
+  heroTitleSerif: { 
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', 
+    fontWeight: '700' 
+  },
+  heroQuote: { 
+    fontStyle: 'italic', 
+    marginBottom: 18, 
+    lineHeight: 20, 
+    fontWeight: '400',
+    opacity: 0.8,
+  },
+  inspireButton: { 
+    backgroundColor: 'rgba(0,0,0, 0.05)', 
+    paddingVertical: 12, 
+    paddingHorizontal: 20, 
+    borderRadius: 12, 
+    alignSelf: 'flex-start', 
+    borderWidth: 1, 
+    flexDirection: 'row', 
+    alignItems: 'center' 
+  },
+  inspireButtonText: { 
+    fontWeight: '600', 
+    letterSpacing: 0.2 
+  },
 
-  // Tools Grid
-  gridContainer: { marginBottom: 20 },
-  gridWrapper: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  gridItemWrapper: { width: '30%', alignItems: 'center', marginBottom: 24 },
-  toolCard: { width: '100%', aspectRatio: 1, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
-  toolCardLocked: { opacity: 0.5 },
-  lockOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 20 },
-  toolLabel: { fontWeight: '600', textAlign: 'center', letterSpacing: 0.2 },
+  // Tools Grid - Consistent shadows and spacing
+  gridContainer: { 
+    marginBottom: 20 
+  },
+  gridWrapper: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    justifyContent: 'space-between' 
+  },
+  gridItemWrapper: { 
+    width: '30%', 
+    alignItems: 'center', 
+    marginBottom: 24 
+  },
+  toolCard: { 
+    width: '100%', 
+    aspectRatio: 1, 
+    borderRadius: 20, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginBottom: 10, 
+    shadowColor: '#000', 
+    shadowOpacity: 0.1, 
+    shadowRadius: 8, 
+    shadowOffset: { width: 0, height: 4 }, 
+    elevation: 3 
+  },
+  toolCardLocked: { 
+    opacity: 0.5 
+  },
+  lockOverlay: { 
+    position: 'absolute', 
+    top: 0, 
+    left: 0, 
+    right: 0, 
+    bottom: 0, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    backgroundColor: 'rgba(0,0,0,0.2)', 
+    borderRadius: 20 
+  },
+  toolLabel: { 
+    fontWeight: '600', 
+    textAlign: 'center', 
+    letterSpacing: 0.2 
+  },
 
   // Profile Modal
   modalOverlay: { 
     flex: 1, 
-    backgroundColor: 'rgba(0, 0, 0, 0.4)', 
+    backgroundColor: 'rgba(0, 0, 0, 0.7)', 
     justifyContent: 'flex-start', 
     alignItems: 'flex-start', 
     paddingTop: 65, 
