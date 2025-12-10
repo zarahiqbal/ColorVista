@@ -2,14 +2,14 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-    Dimensions,
-    Image,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Dimensions,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 import { useTheme } from '@/Context/ThemeContext'; // Adjust path as needed
@@ -230,9 +230,9 @@ export default function GetInspiredScreen() {
                      {['#2F2F2F', '#F6F3EE', '#8DA399'].map((c, i) => (
                         <View key={i} style={[styles.swatchLarge, { backgroundColor: c }]} />
                      ))}
-                     <TouchableOpacity style={styles.savePaletteBtn}>
-                        <Ionicons name="bookmark-outline" size={20} color="#FFF" />
-                     </TouchableOpacity>
+                     {/* <TouchableOpacity style={styles.savePaletteBtn}>
+                        {/* <Ionicons name="bookmark-outline" size={20} color="#FFF" /> */}
+                     {/* </TouchableOpacity>  */}
                   </View>
                </View>
                <MaterialIcons name="palette" size={120} color="rgba(255,255,255,0.15)" style={styles.bgIcon} />

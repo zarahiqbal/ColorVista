@@ -1,6 +1,7 @@
+import { useNavigation } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { BackHandler, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../Context/AuthContext';
 import { updateUserCVDType } from '../Context/cvdService';
 import { useTheme } from '../Context/ThemeContext';
@@ -126,6 +127,43 @@ export default function ResultScreen() {
     }
   }, [user, results]);
 
+  // Intercept hardware back (Android) and header/back navigation to go to Welcome
+  useEffect(() => {
+    const goToWelcome = () => {
+      try {
+        router.replace('/welcome');
+      } catch (e) {
+        // fallback to push
+        router.push('/welcome');
+      }
+      return true; // prevent default
+    };
+
+    // Android hardware back
+    if (Platform.OS === 'android') {
+      const sub = BackHandler.addEventListener('hardwareBackPress', goToWelcome);
+      return () => sub.remove();
+    }
+
+    return undefined;
+  }, [router]);
+
+  // Also listen for navigation 'beforeRemove' so header back presses also redirect
+  const navigation = useNavigation();
+  useEffect(() => {
+    const beforeRemove = (e: any) => {
+      e.preventDefault();
+      try {
+        router.replace('/welcome');
+      } catch (err) {
+        router.push('/welcome');
+      }
+    };
+
+    const unsubscribe = navigation.addListener('beforeRemove', beforeRemove as any);
+    return unsubscribe;
+  }, [navigation, router]);
+
   const diagnosis = getDiagnosis();
 
   return (
@@ -195,7 +233,7 @@ export default function ResultScreen() {
             {/* Try Again Button (Secondary) */}
             <TouchableOpacity 
               style={[styles.button, styles.secondaryButton, { borderColor: themeColors.border }]} 
-              onPress={() => router.replace('/difficulty')}
+              onPress={() => router.push('/difficulty')}
             >
               <Text style={[styles.buttonText, { color: themeColors.text, fontSize: 16 * fontScale }]}>Try Again</Text>
             </TouchableOpacity>

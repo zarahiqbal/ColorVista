@@ -93,8 +93,24 @@ export function generateQuiz(difficulty: Difficulty = 'easy'): QuizQuestion[] {
   const bySource = difficulty === 'easy' ? blueYellowTestsEasy : blueYellowTestsHard;
   const gsSource = difficulty === 'easy' ? grayscaleTestsEasy : grayscaleTestsHard;
 
-  const processSet = (source: typeof rgSource, type: QuizQuestion['type'], bgColor: string) => {
-    source.forEach((test) => {
+  // Total questions: 10 for easy, 15 for hard
+  const totalQuestions = difficulty === 'easy' ? 10 : 15;
+  
+  // Distribute questions across color spectrums
+  // Easy: 5 red-green, 3 blue-yellow, 2 grayscale
+  // Hard: 7 red-green, 5 blue-yellow, 3 grayscale
+  const distribution = difficulty === 'easy' 
+    ? { rg: 5, by: 3, gs: 2 }
+    : { rg: 7, by: 5, gs: 3 };
+
+  const processSet = (source: typeof rgSource, type: QuizQuestion['type'], bgColor: string, count: number) => {
+    // Repeat source if needed to have enough variations
+    const repeatedSource = [];
+    for (let i = 0; i < count; i++) {
+      repeatedSource.push(source[i % source.length]);
+    }
+
+    repeatedSource.forEach((test) => {
       // Generate a random number between 10 and 99
       const correctNumber = Math.floor(Math.random() * 89) + 10;
       
@@ -119,9 +135,9 @@ export function generateQuiz(difficulty: Difficulty = 'easy'): QuizQuestion[] {
     });
   };
 
-  processSet(rgSource, 'red-green', RG_BG);
-  processSet(bySource, 'blue-yellow', BY_BG);
-  processSet(gsSource, 'grayscale', GS_BG);
+  processSet(rgSource, 'red-green', RG_BG, distribution.rg);
+  processSet(bySource, 'blue-yellow', BY_BG, distribution.by);
+  processSet(gsSource, 'grayscale', GS_BG, distribution.gs);
 
   return shuffleArray(questions);
 }

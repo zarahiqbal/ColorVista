@@ -67,7 +67,7 @@ export default function Quiz1({ difficulty }: Quiz1Props) {
     } else {
       // Calculate results by color spectrum
       const results = calculateResults(newAnswers);
-      router.replace({
+      router.push({
         pathname: '/result',
         params: { results: JSON.stringify(results) }
       });
@@ -101,6 +101,7 @@ export default function Quiz1({ difficulty }: Quiz1Props) {
           fgColor={currentQ.correctColor}
           bgColor={currentQ.bgColor}
           size={300}
+          difficulty={difficulty}
         />
       </View>
       <Text style={[styles.question, { color: themeColors.text }]}>{currentQ.description}</Text>

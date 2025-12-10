@@ -497,13 +497,13 @@ export default function HelpScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* --- HEADER --- */}
-      <View style={[styles.header, { backgroundColor: theme.headerBg }]}>
+      {/* <View style={[styles.header, { backgroundColor: theme.headerBg }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24 * scale} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text, fontSize: 18 * scale }]}>Help & FAQs</Text>
         <View style={{ width: 24 }} /> 
-      </View>
+      </View> */}
 
       <ScrollView 
         contentContainerStyle={styles.scrollContent}

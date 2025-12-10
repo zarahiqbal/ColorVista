@@ -1,7 +1,9 @@
 import { useTheme } from '@/Context/ThemeContext'; // Ensure this path matches your project structure
+import { useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import { Brain, CheckCircle, Clock, Shield } from 'lucide-react-native';
 import { useEffect, useMemo, useRef } from 'react';
-import { Animated, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, BackHandler, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function Welcome({ onStart }: any) {
   // 1. CONSUME THEME CONTEXT
@@ -232,6 +234,41 @@ export default function Welcome({ onStart }: any) {
     createLoop(floatAnim2, -20, 2500).start();
     createLoop(floatAnim3, -12, 1800).start();
   }, []);
+
+  // Intercept back navigation from Welcome to go to Dashboard
+  const navigation = useNavigation();
+  const router = useRouter();
+  useEffect(() => {
+    const goToDashboard = () => {
+      try {
+        router.replace('/dashboard');
+      } catch (e) {
+        router.push('/dashboard');
+      }
+      return true;
+    };
+
+    if (Platform.OS === 'android') {
+      const sub = BackHandler.addEventListener('hardwareBackPress', goToDashboard);
+      return () => sub.remove();
+    }
+
+    return undefined;
+  }, [router]);
+
+  useEffect(() => {
+    const beforeRemove = (e: any) => {
+      e.preventDefault();
+      try {
+        router.replace('/dashboard');
+      } catch (err) {
+        router.push('/dashboard');
+      }
+    };
+
+    const unsubscribe = navigation.addListener('beforeRemove', beforeRemove as any);
+    return unsubscribe;
+  }, [navigation, router]);
 
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
