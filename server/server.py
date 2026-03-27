@@ -37,44 +37,49 @@ def detect_and_draw_colors(image, draw=True, center_only=False, roi_size=80):
     # Convert to HSV color space
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
-    # Define color ranges in HSV (available to both center-only and full modes)
+    # Enhanced color ranges with better accuracy
     colors = {
         "Red": [
-            (np.array([0, 50, 50]), np.array([10, 255, 255])),
-            (np.array([170, 50, 50]), np.array([180, 255, 255]))
+            (np.array([0, 100, 70]), np.array([10, 255, 255])),
+            (np.array([170, 100, 70]), np.array([180, 255, 255]))
         ],
-        "Blue": [(np.array([90, 50, 50]), np.array([130, 255, 255]))],
-        "Green": [(np.array([40, 40, 40]), np.array([90, 255, 255]))],
-        "Yellow": [(np.array([15, 50, 50]), np.array([35, 255, 255]))],
-        "Orange": [(np.array([10, 100, 20]), np.array([25, 255, 255]))],
-        "Cyan": [(np.array([80, 50, 50]), np.array([100, 255, 255]))],
-        "Purple": [(np.array([130, 50, 50]), np.array([145, 255, 255]))],
-        "Pink": [(np.array([145, 50, 50]), np.array([170, 255, 255]))],
-        "White": [(np.array([0, 0, 200]), np.array([180, 50, 255]))],
-        "Black": [(np.array([0, 0, 0]), np.array([180, 255, 30]))],
-        "Gray": [(np.array([0, 0, 50]), np.array([180, 50, 200]))]
+        "Orange": [(np.array([11, 100, 100]), np.array([25, 255, 255]))],
+        "Yellow": [(np.array([26, 80, 100]), np.array([38, 255, 255]))],
+        "Lime": [(np.array([39, 100, 100]), np.array([50, 255, 255]))],
+        "Green": [(np.array([51, 80, 50]), np.array([85, 255, 255]))],
+        "Cyan": [(np.array([86, 80, 80]), np.array([100, 255, 255]))],
+        "Blue": [(np.array([101, 100, 80]), np.array([130, 255, 255]))],
+        "Purple": [(np.array([131, 80, 80]), np.array([155, 255, 255]))],
+        "Magenta": [(np.array([156, 80, 80]), np.array([169, 255, 255]))],
+        "Pink": [(np.array([160, 30, 150]), np.array([175, 180, 255]))],
+        "Brown": [(np.array([10, 100, 20]), np.array([25, 255, 120]))],
+        "White": [(np.array([0, 0, 200]), np.array([180, 25, 255]))],
+        "Gray": [(np.array([0, 0, 50]), np.array([180, 25, 200]))],
+        "Black": [(np.array([0, 0, 0]), np.array([180, 255, 50]))]
     }
 
-    # Refined color palette for drawing - used for center-only marker
+    # Refined BGR values for drawing - more accurate and vibrant
     color_bgr = {
-        "Red": (0, 50, 255),
-        "Blue": (255, 120, 0),
-        "Green": (80, 220, 100),
-        "Yellow": (0, 220, 255),
-        "Orange": (0, 140, 255),
-        "Cyan": (255, 240, 0),
-        "Purple": (220, 100, 180),
-        "Pink": (180, 150, 255),
-        "White": (240, 240, 240),
-        "Black": (40, 40, 40),
-        "Gray": (150, 150, 150)
+        "Red": (0, 0, 255),
+        "Orange": (0, 165, 255),
+        "Yellow": (0, 255, 255),
+        "Lime": (0, 255, 0),
+        "Green": (0, 128, 0),
+        "Cyan": (255, 255, 0),
+        "Blue": (255, 0, 0),
+        "Purple": (128, 0, 128),
+        "Magenta": (255, 0, 255),
+        "Pink": (203, 192, 255),
+        "Brown": (19, 69, 139),
+        "White": (255, 255, 255),
+        "Gray": (128, 128, 128),
+        "Black": (0, 0, 0)
     }
 
-    # Prepare output image and overlay early so center-only path can draw markers
+    # Prepare output image
     output = image.copy()
-    overlay = output.copy()
 
-    # Fast center-only detection path: analyze small ROI around image center
+    # Fast center-only detection path
     if center_only:
         ch, cw = hsv.shape[:2]
         half = max(4, int(roi_size / 2))
@@ -84,7 +89,6 @@ def detect_and_draw_colors(image, draw=True, center_only=False, roi_size=80):
         x2 = min(cw, cw // 2 + half)
 
         roi_hsv = hsv[y1:y2, x1:x2]
-        roi_bgr = image[y1:y2, x1:x2]
         roi_area = roi_hsv.shape[0] * roi_hsv.shape[1]
 
         # Count mask pixels for each color
@@ -93,7 +97,6 @@ def detect_and_draw_colors(image, draw=True, center_only=False, roi_size=80):
             mask = np.zeros(roi_hsv.shape[:2], dtype="uint8")
             for (lower, upper) in ranges:
                 mask = cv2.bitwise_or(mask, cv2.inRange(roi_hsv, lower, upper))
-            # small morphology to reduce noise
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=1)
             counts[color_name] = int(cv2.countNonZero(mask))
@@ -106,36 +109,60 @@ def detect_and_draw_colors(image, draw=True, center_only=False, roi_size=80):
                 best_count = v
                 best_color = k
 
-        # Threshold: require at least 1% of ROI area or >10 pixels
-        if best_count < max(roi_area * 0.01, 10):
+        # Threshold: require at least 2% of ROI area
+        if best_count < max(roi_area * 0.02, 15):
             best_color = None
 
-        detected = []
-        if best_color:
-            detected = [best_color]
+        detected = [best_color] if best_color else []
 
-        # Draw small marker at center on output for UX
+        # Draw minimal, aesthetic marker at center
         if draw:
             center_x = (x1 + x2) // 2
             center_y = (y1 + y2) // 2
+            
             if best_color:
-                col = color_bgr.get(best_color, (0, 255, 255))
-            else:
-                col = (255, 255, 255)
-            cv2.circle(output, (center_x, center_y), max(6, int(min(w, h) * 0.02)), col, 3, lineType=cv2.LINE_AA)
-            # small semi-transparent inner fill
-            overlay = output.copy()
-            cv2.circle(overlay, (center_x, center_y), max(4, int(min(w, h) * 0.015)), col, -1, lineType=cv2.LINE_AA)
-            cv2.addWeighted(overlay, 0.6, output, 0.4, 0, output)
-            if best_color:
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                cv2.putText(output, best_color, (center_x + 10, center_y - 10), font, 0.6, (255, 255, 255), 2, lineType=cv2.LINE_AA)
+                col = color_bgr.get(best_color, (255, 255, 255))
+                # Outer circle with semi-transparent fill
+                overlay = output.copy()
+                cv2.circle(overlay, (center_x, center_y), 20, col, -1, lineType=cv2.LINE_AA)
+                cv2.addWeighted(overlay, 0.3, output, 0.7, 0, output)
+                
+                # Inner bright ring
+                cv2.circle(output, (center_x, center_y), 20, col, 3, lineType=cv2.LINE_AA)
+                
+                # Text with modern styling
+                font = cv2.FONT_HERSHEY_DUPLEX
+                text = best_color
+                font_scale = 0.5
+                thickness = 1
+                
+                (text_w, text_h), baseline = cv2.getTextSize(text, font, font_scale, thickness)
+                
+                # Position text below the circle
+                text_x = center_x - text_w // 2
+                text_y = center_y + 35
+                
+                # Ensure text stays within bounds
+                text_x = max(5, min(text_x, output.shape[1] - text_w - 5))
+                text_y = max(text_h + 5, min(text_y, output.shape[0] - 5))
+                
+                # Semi-transparent rounded background
+                padding = 6
+                bg_x1 = text_x - padding
+                bg_y1 = text_y - text_h - padding
+                bg_x2 = text_x + text_w + padding
+                bg_y2 = text_y + padding
+                
+                overlay = output.copy()
+                cv2.rectangle(overlay, (bg_x1, bg_y1), (bg_x2, bg_y2), (0, 0, 0), -1)
+                cv2.addWeighted(overlay, 0.6, output, 0.4, 0, output)
+                
+                # White text for maximum contrast
+                cv2.putText(output, text, (text_x, text_y), font, font_scale, (255, 255, 255), thickness, lineType=cv2.LINE_AA)
 
         return (output, detected) if draw else detected
     
-    # (colors, color_bgr and output/overlay already initialized above)
-
-    # Estimate background HSV
+    # Full image detection
     h, w = hsv.shape[:2]
     pad_h = max(1, int(0.05 * h))
     pad_w = max(1, int(0.05 * w))
@@ -157,16 +184,16 @@ def detect_and_draw_colors(image, draw=True, center_only=False, roi_size=80):
 
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=1)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=1)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
 
         contours, _ = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         for c in contours:
             area = cv2.contourArea(c)
-            if area > 50:
-                mask = np.zeros(hsv.shape[:2], dtype=np.uint8)
-                cv2.drawContours(mask, [c], -1, 255, -1)
-                mean_hsv = cv2.mean(hsv, mask=mask)
+            if area > 100:
+                mask_temp = np.zeros(hsv.shape[:2], dtype=np.uint8)
+                cv2.drawContours(mask_temp, [c], -1, 255, -1)
+                mean_hsv = cv2.mean(hsv, mask=mask_temp)
                 mean_h = int(mean_hsv[0])
                 mean_s = int(mean_hsv[1])
                 mean_v = int(mean_hsv[2])
@@ -174,7 +201,8 @@ def detect_and_draw_colors(image, draw=True, center_only=False, roi_size=80):
                 hue_diff = abs(mean_h - bg_h)
                 hue_diff = min(hue_diff, 180 - hue_diff)
 
-                if (hue_diff <= 12 and abs(mean_v - bg_v) <= 40) or mean_s <= 30:
+                # Improved background filtering
+                if (hue_diff <= 10 and abs(mean_s - bg_s) <= 20 and abs(mean_v - bg_v) <= 30) or mean_s <= 25:
                     continue
 
                 ((x, y), radius) = cv2.minEnclosingCircle(c)
@@ -188,7 +216,7 @@ def detect_and_draw_colors(image, draw=True, center_only=False, roi_size=80):
     img_area = image.shape[0] * image.shape[1]
     totals = {name: sum([ci["area"] for ci in clist]) for name, clist in color_contours.items()}
 
-    relative_threshold = max(0.03 * img_area, 1000)
+    relative_threshold = max(0.02 * img_area, 800)
     major_colors = [name for name, total in totals.items() if total >= relative_threshold]
 
     if not major_colors:
@@ -197,21 +225,6 @@ def detect_and_draw_colors(image, draw=True, center_only=False, roi_size=80):
 
     detected_colors = []
 
-    # Refined color palette for drawing - more vibrant and elegant
-    color_bgr = {
-        "Red": (0, 50, 255),
-        "Blue": (255, 120, 0),
-        "Green": (80, 220, 100),
-        "Yellow": (0, 220, 255),
-        "Orange": (0, 140, 255),
-        "Cyan": (255, 240, 0),
-        "Purple": (220, 100, 180),
-        "Pink": (180, 150, 255),
-        "White": (240, 240, 240),
-        "Black": (40, 40, 40),
-        "Gray": (150, 150, 150)
-    }
-
     for color_name in major_colors:
         for info in color_contours.get(color_name, []):
             area = info["area"]
@@ -219,43 +232,57 @@ def detect_and_draw_colors(image, draw=True, center_only=False, roi_size=80):
             (x, y) = info["center"]
             contour = info["contour"]
 
-            if area >= max(0.005 * img_area, 500) and radius > 5:
-                draw_color = color_bgr.get(color_name, (0, 255, 255))
+            if area >= max(0.003 * img_area, 300) and radius > 8:
+                draw_color = color_bgr.get(color_name, (255, 255, 255))
 
                 if draw:
-                    # Draw contour with thick, bold outline for maximum visibility
-                    cv2.drawContours(output, [contour], 0, draw_color, 4, lineType=cv2.LINE_AA)
+                    # Semi-transparent contour fill
+                    overlay = output.copy()
+                    cv2.drawContours(overlay, [contour], 0, draw_color, -1, lineType=cv2.LINE_AA)
+                    cv2.addWeighted(overlay, 0.15, output, 0.85, 0, output)
                     
-                    # Add extra bold outer outline for better visibility
-                    cv2.drawContours(output, [contour], 0, (255, 255, 255), 1, lineType=cv2.LINE_AA)
+                    # Bold outline
+                    cv2.drawContours(output, [contour], 0, draw_color, 3, lineType=cv2.LINE_AA)
 
-                    # Draw circle outline as backup
-                    padded_radius = max(radius + 2, int(np.sqrt(area / np.pi)) + 1)
-                    cv2.circle(output, (x, y), padded_radius, draw_color, 3, lineType=cv2.LINE_AA)
-
-                    # Add text label
+                    # Minimal text label with modern styling
                     label = color_name
-                    font = cv2.FONT_HERSHEY_SIMPLEX
-                    font_scale = max(0.4, min(0.8, padded_radius / 50.0))
-                    thickness = 2
+                    font = cv2.FONT_HERSHEY_DUPLEX
+                    font_scale = max(0.4, min(0.7, radius / 60.0))
+                    thickness = 1
                     (text_w, text_h), baseline = cv2.getTextSize(label, font, font_scale, thickness)
 
-                    # Position text above center
-                    text_x = max(5, min(int(x - text_w / 2), output.shape[1] - text_w - 5))
-                    text_y = max(text_h + 5, int(y - padded_radius - 5))
+                    # Position text at top-center of detected region
+                    text_x = x - text_w // 2
+                    text_y = y - radius - 8
 
-                    # Draw text with black background for visibility
-                    cv2.rectangle(output, (text_x - 2, text_y - text_h - 2), (text_x + text_w + 2, text_y + 2), (0, 0, 0), -1)
+                    # Keep text within image bounds
+                    text_x = max(5, min(text_x, output.shape[1] - text_w - 5))
+                    text_y = max(text_h + 5, min(text_y, output.shape[0] - 5))
+
+                    # Semi-transparent rounded background
+                    padding = 5
+                    bg_x1 = text_x - padding
+                    bg_y1 = text_y - text_h - padding
+                    bg_x2 = text_x + text_w + padding
+                    bg_y2 = text_y + padding
+                    
+                    overlay = output.copy()
+                    cv2.rectangle(overlay, (bg_x1, bg_y1), (bg_x2, bg_y2), (0, 0, 0), -1)
+                    cv2.addWeighted(overlay, 0.7, output, 0.3, 0, output)
+                    
+                    # White text for maximum visibility
                     cv2.putText(output, label, (text_x, text_y), font, font_scale, (255, 255, 255), thickness, lineType=cv2.LINE_AA)
 
                 detected_colors.append(color_name)
 
     detected_colors = list(dict.fromkeys(detected_colors))
     print(f"Detected major colors: {detected_colors if detected_colors else 'None'}")
+    
     if draw:
         return output, detected_colors
     else:
         return detected_colors
+
 
 @app.route('/process-image', methods=['POST'])
 def process_image():
@@ -347,6 +374,7 @@ def process_frame():
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
 
 if __name__ == '__main__':
     print("\n=== ColorVista Server Starting ===")

@@ -704,7 +704,7 @@ export default function LiveScreen({
   const fontScale = getFontSizeMultiplier();
 
   // Server endpoint
-  const SERVER_FRAME_URL = 'http://192.168.1.5:5000/process-frame';
+  const SERVER_FRAME_URL = 'http://192.168.100.232:5000/process-frame';
 
   const [detectedColors, setDetectedColors] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(true);
@@ -715,10 +715,41 @@ export default function LiveScreen({
 
   // Map color names returned by server to CSS color strings
   const colorMap: Record<string, string> = {
-    Red: '#FF3B30', Blue: '#007AFF', Green: '#34C759', Yellow: '#FFCC00',
-    Orange: '#FF9500', Cyan: '#5AC8FA', Purple: '#AF52DE', Pink: '#FF2D55',
-    White: '#FFFFFF', Black: '#1F2937', Gray: '#8E8E93',
-  };
+  Red: "#FF3B30",
+  Orange: "#FF9500",
+  Yellow: "#FFCC00",
+  Lime: "#32D74B",
+  Green: "#34C759",
+  Teal: "#64D2FF",
+  Cyan: "#5AC8FA",
+  Blue: "#007AFF",
+  Navy: "#001F54",
+  Indigo: "#5E5CE6",
+  Purple: "#AF52DE",
+  Violet: "#8F00FF",
+  Magenta: "#FF00FF",
+  Pink: "#FF2D55",
+  Maroon: "#800000",
+  Brown: "#A0522D",
+  Olive: "#808000",
+  Coral: "#FF7F50",
+  Salmon: "#FA8072",
+  Beige: "#F5F5DC",
+  Cream: "#FFFDD0",
+  Mint: "#98FF98",
+  Lavender: "#E6E6FA",
+  ForestGreen: "#228B22",
+  SkyBlue: "#87CEEB",
+  Turquoise: "#40E0D0",
+  Gold: "#FFD700",
+  Khaki: "#C3B091",
+  Crimson: "#DC143C",
+  Silver: "#C0C0C0",
+  Gray: "#8E8E93",
+  White: "#FFFFFF",
+  Black: "#1F2937",
+};
+
 
   // --- THEME & STYLES ---
   const styles = useMemo(() => {
@@ -1076,7 +1107,7 @@ export default function LiveScreen({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Color Analysis</Text>
-          <Text style={styles.subtitle}>Point camera at objects to detect colors</Text>
+          <Text style={styles.subtitle}>Navigate point at object to detect colors</Text>
         </View>
 
         {/* Camera Viewport */}

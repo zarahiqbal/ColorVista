@@ -77,44 +77,40 @@
 //     </ThemeProvider>
 //   );
 // }
-
-
 import { AuthProvider } from '@/Context/AuthContext';
-import { ThemeProvider, useTheme } from '@/Context/ThemeContext'; // Import useTheme
+import { ThemeProvider, useTheme } from '@/Context/ThemeContext';
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar'; // Optional: Good for controlling status bar color
+import { StatusBar } from 'expo-status-bar';
+import { View } from 'react-native';
 
-// 1. Create an inner component that holds the Stack
-// We do this so we can use the 'useTheme()' hook, which requires being INSIDE the Provider.
+// ----------------------------------------------------------
+// 1. Root Navigator (inside Providers so we can use useTheme)
+// ----------------------------------------------------------
 function RootNavigator() {
   const { darkMode } = useTheme();
 
-  // The background color for the 'canvas' behind the screens.
-  // This matches the background color used in your LiveScreen (#140a0aff)
   const backgroundColor = darkMode ? '#140a0aff' : '#F9FAFB';
 
   return (
     <>
-      {/* Optional: Ensure status bar matches theme */}
       <StatusBar style={darkMode ? 'light' : 'dark'} />
-      
+
       <Stack
         screenOptions={{
           headerShown: false,
-          animation: 'slide_from_right',
-          // THIS IS THE FIX:
-          // We set the underlying container color to match your dark theme.
-          // Now, when you swipe, the background revealed underneath is dark, not white.
-          contentStyle: { backgroundColor: backgroundColor }, 
+          animation: 'fade', // <-- FIX: No white flash on Android
+          contentStyle: {
+            backgroundColor: backgroundColor, // <-- Screen background
+          },
         }}
       >
-        {/* 1. Entry & Auth Screens */}
+        {/* Auth Screens */}
         <Stack.Screen name="index" />
         <Stack.Screen name="auth/login/index" />
         <Stack.Screen name="auth/signup/index" />
         <Stack.Screen name="splashscreen" />
 
-        {/* 2. The Main App Group */}
+        {/* Main App Group */}
         <Stack.Screen
           name="(main)"
           options={{
@@ -122,12 +118,12 @@ function RootNavigator() {
           }}
         />
 
-        {/* 3. Feature Screens */}
+        {/* Feature Screens */}
         <Stack.Screen name="live" />
         <Stack.Screen name="mediaupload" />
         <Stack.Screen name="welcome" />
 
-        {/* 4. Utility Screens */}
+        {/* Modals */}
         <Stack.Screen
           name="comingsoon"
           options={{
@@ -140,14 +136,92 @@ function RootNavigator() {
   );
 }
 
-// 2. The Main Layout Export
-// This just wraps the navigator with the providers.
+// ----------------------------------------------------------
+// 2. Root Layout (Providers + BASE BACKGROUND FIX)
+// ----------------------------------------------------------
 export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <RootNavigator />
+        {/* IMPORTANT FIX: Base layer background must match theme */}
+        <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+          <RootNavigator />
+        </View>
       </AuthProvider>
     </ThemeProvider>
   );
 }
+
+
+// import { AuthProvider } from '@/Context/AuthContext';
+// import { ThemeProvider, useTheme } from '@/Context/ThemeContext'; // Import useTheme
+// import { Stack } from 'expo-router';
+// import { StatusBar } from 'expo-status-bar'; // Optional: Good for controlling status bar color
+
+// // 1. Create an inner component that holds the Stack
+// // We do this so we can use the 'useTheme()' hook, which requires being INSIDE the Provider.
+// function RootNavigator() {
+//   const { darkMode } = useTheme();
+
+//   // The background color for the 'canvas' behind the screens.
+//   // This matches the background color used in your LiveScreen (#140a0aff)
+//   const backgroundColor = darkMode ? '#140a0aff' : '#F9FAFB';
+
+//   return (
+//     <>
+//       {/* Optional: Ensure status bar matches theme */}
+//       <StatusBar style={darkMode ? 'light' : 'dark'} />
+      
+//       <Stack
+//         screenOptions={{
+//           headerShown: false,
+//           animation: 'slide_from_right',
+//           // THIS IS THE FIX:
+//           // We set the underlying container color to match your dark theme.
+//           // Now, when you swipe, the background revealed underneath is dark, not white.
+//           contentStyle: { backgroundColor: backgroundColor }, 
+//         }}
+//       >
+//         {/* 1. Entry & Auth Screens */}
+//         <Stack.Screen name="index" />
+//         <Stack.Screen name="auth/login/index" />
+//         <Stack.Screen name="auth/signup/index" />
+//         <Stack.Screen name="splashscreen" />
+
+//         {/* 2. The Main App Group */}
+//         <Stack.Screen
+//           name="(main)"
+//           options={{
+//             animation: 'none',
+//           }}
+//         />
+
+//         {/* 3. Feature Screens */}
+//         <Stack.Screen name="live" />
+//         <Stack.Screen name="mediaupload" />
+//         <Stack.Screen name="welcome" />
+
+//         {/* 4. Utility Screens */}
+//         <Stack.Screen
+//           name="comingsoon"
+//           options={{
+//             presentation: 'modal',
+//             animation: 'slide_from_bottom',
+//           }}
+//         />
+//       </Stack>
+//     </>
+//   );
+// }
+
+// // 2. The Main Layout Export
+// // This just wraps the navigator with the providers.
+// export default function RootLayout() {
+//   return (
+//     <ThemeProvider>
+//       <AuthProvider>
+//         <RootNavigator />
+//       </AuthProvider>
+//     </ThemeProvider>
+//   );
+// }
