@@ -5,17 +5,16 @@ export default function DashboardScreen() {
   const navigate = (screen: string) => {
     // Map screen names to actual route names
     const routeMap: Record<string, any> = {
-      "livescreen": "/live",
-      "mediaupload": "/mediaupload",
-      "vrscreen": "/vrscreen",
-      "gamesscreen": "/gamesscreen",
-      "welcome": "/welcome",
-      "enhancerscreen": "/enhancerscreen",
-
+      livescreen: "/live",
+      mediaupload: "/mediaupload",
+      vrscreen: "/Vrrouter",
+      gamesscreen: "/gamesscreen",
+      welcome: "/welcome",
+      enhancerscreen: "/enhancerscreen",
     };
 
     const route = routeMap[screen.toLowerCase()];
-    
+
     if (route) {
       router.push(route);
     } else {
@@ -31,8 +30,8 @@ export default function DashboardScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       <Dashboard
-       // onGoToWelcome={() => router.push("/welcome")}
-        //navigate={navigate}
+      // onGoToWelcome={() => router.push("/welcome")}
+      //navigate={navigate}
       />
     </>
   );

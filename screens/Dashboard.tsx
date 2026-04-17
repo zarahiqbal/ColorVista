@@ -57,7 +57,7 @@ const toolsData = [
   },
   {
     title: "VR Simulation",
-    screen: "vrscreen",
+    screen: "Vrrouter",
     color: palette.purple,
     icon: <MaterialCommunityIcons name="cube-scan" size={32} color="#FFFFFF" />,
   },
@@ -152,7 +152,7 @@ export default function DashboardScreen() {
   // Navigation Logic
   const navigate = (screen: string) => {
     const target = screen.toLowerCase();
-    const COMING_SOON_FEATURES = ["vrscreen", "gamesscreen"];
+    const COMING_SOON_FEATURES = ["gamesscreen"];
 
     if (COMING_SOON_FEATURES.includes(target)) {
       const toolTitle =
@@ -168,6 +168,8 @@ export default function DashboardScreen() {
       live: "/live",
       mediaupload: "/mediaupload",
       welcome: "/welcome",
+      enhancer: "/enhancer",
+      vrscreen: "/Vrrouter",
     };
 
     const route = routeMap[target];
