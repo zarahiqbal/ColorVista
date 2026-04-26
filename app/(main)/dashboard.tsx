@@ -8,7 +8,7 @@ export default function DashboardScreen() {
       livescreen: "/live",
       mediaupload: "/mediaupload",
       vrscreen: "/Vrrouter",
-      gamesscreen: "/gamesscreen",
+      gamesscreen: "/gameui",
       welcome: "/welcome",
       enhancerscreen: "/enhancerscreen",
     };

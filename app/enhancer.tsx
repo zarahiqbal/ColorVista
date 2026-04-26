@@ -1,4 +1,4 @@
-import EnhancerScreen from "../screens/Enhancer";
+import EnhancerScreen from "../enhancer";
 
 export default function Enhancer() {
   return (

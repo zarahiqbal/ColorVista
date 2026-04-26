@@ -1,4 +1,5 @@
 {
+  "$schema": "file:///Users/apple/Documents/FYP/ColorVista/.vscode/expo-app.schema.json",
   "expo": {
     "name": "cvdquiz",
     "slug": "cvdquiz",
@@ -28,6 +29,14 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-media-library",
+        {
+          "granularPermissions": [
+            "photo"
+          ]
+        }
+      ],
       [
         "expo-splash-screen",
         {

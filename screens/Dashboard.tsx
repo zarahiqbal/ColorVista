@@ -152,7 +152,7 @@ export default function DashboardScreen() {
   // Navigation Logic
   const navigate = (screen: string) => {
     const target = screen.toLowerCase();
-    const COMING_SOON_FEATURES = ["gamesscreen"];
+    const COMING_SOON_FEATURES: string[] = [];
 
     if (COMING_SOON_FEATURES.includes(target)) {
       const toolTitle =
@@ -170,6 +170,7 @@ export default function DashboardScreen() {
       welcome: "/welcome",
       enhancer: "/enhancer",
       vrscreen: "/Vrrouter",
+      gamesscreen: "/gameui",
     };
 
     const route = routeMap[target];

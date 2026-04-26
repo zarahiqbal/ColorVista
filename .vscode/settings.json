@@ -4,5 +4,13 @@
     "source.organizeImports": "explicit",
     "source.sortMembers": "explicit"
   },
-  "java.configuration.updateBuildConfiguration": "interactive"
+  "java.configuration.updateBuildConfiguration": "interactive",
+  "json.schemas": [
+    {
+      "fileMatch": [
+        "/app.json"
+      ],
+      "url": "./.vscode/expo-app.schema.json"
+    }
+  ]
 }

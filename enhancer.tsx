@@ -1,76 +1,144 @@
-import {
-    FontAwesome5,
-    Ionicons,
-    MaterialCommunityIcons,
-} from "@expo/vector-icons";
-import Slider from "@react-native-community/slider";
+import { Ionicons } from "@expo/vector-icons";
+import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
+import * as MediaLibrary from "expo-media-library";
 import { StatusBar } from "expo-status-bar";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
-    Alert,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useUserData } from "./Context/useUserData";
 
-// Props
 interface EnhancerScreenProps {
   onSaveImage: (imageUri?: string) => void;
   onSavePreferences: () => void;
   onApplySystem: () => void;
 }
 
-// CVD Types
 type CVDType = "none" | "deuteranopia" | "protanopia" | "tritanopia";
 
-export default function EnhancerScreen({
-  onSaveImage,
-  onSavePreferences,
-  onApplySystem,
-}: EnhancerScreenProps) {
-  // Image
-  const [imageUri, setImageUri] = useState(
-    "https://picsum.photos/id/28/600/400",
-  );
+const SERVER_URL = "http://192.168.1.3:5000/process-image";
 
-  // Enhancement sliders
-  const [hueValue, setHueValue] = useState(0);
-  const [contrastValue, setContrastValue] = useState(0);
-  const [brightnessValue, setBrightnessValue] = useState(0);
-  const [saturationValue, setSaturationValue] = useState(0);
+const normalizeCvdType = (rawType?: string | null): CVDType => {
+  if (!rawType) return "none";
 
-  // Tooltip & comparison
+  const normalized = rawType.toLowerCase().trim();
+
+  if (normalized.includes("protan") && normalized.includes("deuter")) {
+    return "deuteranopia";
+  }
+
+  if (normalized.includes("protan")) return "protanopia";
+  if (normalized.includes("deuter")) return "deuteranopia";
+  if (normalized.includes("tritan")) return "tritanopia";
+
+  if (
+    normalized.includes("normal") ||
+    normalized.includes("none") ||
+    normalized.includes("no cvd")
+  ) {
+    return "none";
+  }
+
+  return "deuteranopia";
+};
+
+export default function EnhancerScreen({ onSaveImage }: EnhancerScreenProps) {
+  const { userData } = useUserData();
+
+  const [imageUri, setImageUri] = useState("https://picsum.photos/id/28/600/400");
+  const [enhancedImageUri, setEnhancedImageUri] = useState<string | null>(null);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false);
 
-  // Advanced CVD settings
-  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
-  const [cvdType, setCvdType] = useState<CVDType>("none");
+  const dbCvdType = useMemo(
+    () => normalizeCvdType(userData?.cvdType),
+    [userData?.cvdType],
+  );
 
-  const formatPercent = (value: number) =>
-    `${value >= 0 ? "+" : ""}${Math.round(value * 100)}%`;
+  const imageToDisplay =
+    showOriginal || !enhancedImageUri ? imageUri : enhancedImageUri;
 
-  // CVD Matrices
-  const cvdMatrices: Record<CVDType, number[]> = {
-    none: [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0],
-    deuteranopia: [
-      0.625, 0.7, 0, 0, 0, 0.375, 0.3, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0,
-    ],
-    protanopia: [
-      0.567, 0.433, 0, 0, 0, 0.558, 0.442, 0, 0, 0, 0, 0.242, 0.758, 0, 0, 0, 0,
-      0, 1, 0,
-    ],
-    tritanopia: [
-      0.95, 0.05, 0, 0, 0, 0, 0.433, 0.567, 0, 0, 0, 0.475, 0.525, 0, 0, 0, 0,
-      0, 1, 0,
-    ],
+  const cvdTypeDescription: Record<CVDType, string> = {
+    none: "No CVD correction",
+    deuteranopia: "Deuteranopia correction",
+    protanopia: "Protanopia correction",
+    tritanopia: "Tritanopia correction",
   };
 
-  // Function to pick image from gallery
+  const enhanceImageForUri = async (targetUri: string): Promise<string | null> => {
+    if (!targetUri || targetUri.startsWith("http")) {
+      return null;
+    }
+
+    if (dbCvdType === "none") {
+      setEnhancedImageUri(targetUri);
+      return targetUri;
+    }
+
+    try {
+      setIsEnhancing(true);
+
+      const base64 = await FileSystem.readAsStringAsync(targetUri, {
+        encoding: "base64" as any,
+      });
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+      const response = await fetch(SERVER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image: base64,
+          cvd_mode: dbCvdType,
+          mode: "full",
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Server error (${response.status}): ${errorText}`);
+      }
+
+      const data = await response.json();
+      if (!data?.processed_image) {
+        throw new Error("No processed image received from server.");
+      }
+
+      const dataUri = `data:image/jpeg;base64,${data.processed_image}`;
+      setEnhancedImageUri(dataUri);
+      return dataUri;
+    } catch (error: any) {
+      const message = error?.message || String(error);
+      const isNetworkIssue =
+        message.toLowerCase().includes("network") ||
+        message.toLowerCase().includes("abort");
+
+      Alert.alert(
+        isNetworkIssue ? "Connection Error" : "Enhancement failed",
+        isNetworkIssue
+          ? "Could not reach enhancement server. Verify SERVER_URL and make sure the backend is running."
+          : message,
+      );
+      return null;
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
+
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
@@ -82,102 +150,64 @@ export default function EnhancerScreen({
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsEditing: true,
       quality: 1,
     });
 
     if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
+      const selectedUri = result.assets[0].uri;
+      setImageUri(selectedUri);
+      setEnhancedImageUri(null);
+      await enhanceImageForUri(selectedUri);
     }
   };
 
-  const handleAction = (actionId: string) => {
-    switch (actionId) {
-      case "labels":
-        Alert.alert("Feature Label Check", "Checking labels on the image.");
-        break;
-      case "prefs":
+  const saveImageToLibrary = async () => {
+    try {
+      setIsSaving(true);
+
+      let targetUri = enhancedImageUri;
+      if (!targetUri) {
+        targetUri = await enhanceImageForUri(imageUri);
+      }
+
+      if (!targetUri) {
+        Alert.alert("No image", "Please upload an image first.");
+        return;
+      }
+
+      const { status } = await MediaLibrary.requestPermissionsAsync(true, ["photo"]);
+      if (status !== "granted") {
         Alert.alert(
-          "Preferences Configuration",
-          "Opening preferences configuration screen.",
+          "Permission required",
+          "We need photo library permission to save your image.",
         );
-        break;
-      case "applySystem":
-        Alert.alert(
-          "Apply to System",
-          "Settings applied to the entire system.",
-        );
-        break;
-      case "save":
-        onSaveImage?.(imageUri);
-        break;
-      case "savePrefs":
-        onSavePreferences();
-        break;
-      case "applySystemBtn":
-        onApplySystem();
-        break;
-      default:
-        console.warn(`Action ${actionId} not implemented.`);
+        return;
+      }
+
+      let assetUri = targetUri;
+      if (targetUri.startsWith("data:image")) {
+        const base64Code = targetUri.replace(/^data:image\/[a-zA-Z]+;base64,/, "");
+        const docDir =
+          (FileSystem as any).cacheDirectory ||
+          (FileSystem as any).documentDirectory;
+        const fileName = `${docDir}enhanced_cvd_${Date.now()}.jpg`;
+        await FileSystem.writeAsStringAsync(fileName, base64Code, {
+          encoding: "base64" as any,
+        });
+        assetUri = fileName;
+      }
+
+      await MediaLibrary.createAssetAsync(assetUri);
+      onSaveImage?.(assetUri);
+      Alert.alert("Saved", "Enhanced image downloaded to your gallery.");
+    } catch (_error) {
+      Alert.alert("Save failed", "Could not save the enhanced image.");
+    } finally {
+      setIsSaving(false);
     }
   };
-
-  // Reusable Slider Card
-  const SliderCard = ({
-    label,
-    subtext,
-    icon,
-    value,
-    setValue,
-    minValue,
-    maxValue,
-    showValueText,
-  }: any) => (
-    <View style={styles.controlCard}>
-      <View style={styles.controlHeader}>
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          {icon}
-          <Text style={styles.controlLabel}>{label}</Text>
-        </View>
-        <Text style={styles.controlValue}>{formatPercent(value)}</Text>
-      </View>
-      <Text style={styles.controlSubtext}>{subtext}</Text>
-      {showValueText && (
-        <Text style={styles.controlPercentLabel}>
-          {(value * 100).toFixed(0)}%
-        </Text>
-      )}
-      <Slider
-        style={styles.slider}
-        minimumValue={minValue}
-        maximumValue={maxValue}
-        value={value}
-        onValueChange={setValue}
-        minimumTrackTintColor="#a1584c"
-        maximumTrackTintColor="#d7d0ca"
-        thumbTintColor="#a1584c"
-      />
-    </View>
-  );
-
-  const AdvancedActionItem = ({ iconName, text, hasCite, id }: any) => (
-    <TouchableOpacity
-      style={styles.advancedActionItem}
-      onPress={() => handleAction(id)}
-    >
-      <View style={styles.advancedIconContainer}>
-        {id === "prefs" ? (
-          <FontAwesome5 name="cog" size={16} color="#43372f" />
-        ) : (
-          <Ionicons name={iconName} size={18} color="#43372f" />
-        )}
-      </View>
-      <Text style={styles.advancedActionText}>
-        {text} {hasCite && <Text style={styles.citeText}></Text>}
-      </Text>
-    </TouchableOpacity>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -188,172 +218,79 @@ export default function EnhancerScreen({
           IMAGE <Text style={styles.headerTitleEnhancer}>ENHANCER</Text>
         </Text>
 
-        {/* Image Preview */}
+        <Text style={styles.infoText}>Stored CVD type: {dbCvdType.toUpperCase()}</Text>
+        <Text style={styles.infoSubText}>
+          {isEnhancing
+            ? "Enhancing automatically based on your stored profile..."
+            : `Active correction: ${cvdTypeDescription[dbCvdType]}`}
+        </Text>
+
         <View style={styles.imageCard}>
           <View style={styles.imageWrapper}>
             <Image
-              source={{ uri: imageUri }}
+              source={{ uri: imageToDisplay }}
               style={styles.originalImage}
               resizeMode="cover"
             />
 
-            {/* Compare Button */}
             <TouchableOpacity
               style={styles.compareButton}
+              disabled={!enhancedImageUri}
               onPressIn={() => setShowOriginal(true)}
               onPressOut={() => setShowOriginal(false)}
             >
               <Text style={styles.compareButtonText}>
-                {showOriginal ? "Showing Original" : "Hold to View Original"}
+                {!enhancedImageUri
+                  ? "Upload image to compare"
+                  : showOriginal
+                    ? "Showing Original"
+                    : "Hold to View Original"}
               </Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Add from Gallery Button */}
+        <TouchableOpacity
+          style={[styles.mainActionButton, { backgroundColor: "#a1584c" }]}
+          disabled={isEnhancing}
+          onPress={pickImage}
+        >
+          {isEnhancing ? (
+            <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
+          ) : (
+            <Ionicons
+              name="image-outline"
+              size={20}
+              color="#fff"
+              style={{ marginRight: 8 }}
+            />
+          )}
+          <Text style={styles.mainActionButtonText}>
+            {isEnhancing ? "ENHANCING..." : "UPLOAD & AUTO-ENHANCE"}
+          </Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={[
             styles.mainActionButton,
-            { backgroundColor: "#a1584c", marginTop: -8, marginBottom: 24 },
+            { backgroundColor: isSaving ? "#8f8f8f" : "#262626" },
           ]}
-          onPress={pickImage}
+          disabled={isSaving || isEnhancing}
+          onPress={saveImageToLibrary}
         >
-          <Ionicons
-            name="image-outline"
-            size={20}
-            color="#fff"
-            style={{ marginRight: 8 }}
-          />
-          <Text style={styles.mainActionButtonText}>SELECT FROM GALLERY</Text>
-        </TouchableOpacity>
-
-        {/* Enhancement Sliders */}
-        <SliderCard
-          label="HUE"
-          subtext="Adjust color range."
-          icon={
-            <Ionicons name="color-palette-outline" size={24} color="#b19c8f" />
-          }
-          value={hueValue}
-          setValue={setHueValue}
-          minValue={-1}
-          maxValue={1}
-          showValueText
-        />
-        <SliderCard
-          label="CONTRAST"
-          subtext="Change intensity."
-          icon={
-            <MaterialCommunityIcons
-              name="contrast-box"
-              size={24}
-              color="#b19c8f"
-            />
-          }
-          value={contrastValue}
-          setValue={setContrastValue}
-          minValue={-1}
-          maxValue={1}
-          showValueText
-        />
-        <SliderCard
-          label="BRIGHTNESS"
-          subtext="Shift luminosity."
-          icon={<Ionicons name="sunny-outline" size={24} color="#b19c8f" />}
-          value={brightnessValue}
-          setValue={setBrightnessValue}
-          minValue={-1}
-          maxValue={1}
-          showValueText
-        />
-        <SliderCard
-          label="SATURATION"
-          subtext="Adjust color purity."
-          icon={<Ionicons name="water-outline" size={24} color="#b19c8f" />}
-          value={saturationValue}
-          setValue={setSaturationValue}
-          minValue={-1}
-          maxValue={1}
-          showValueText={false}
-        />
-
-        {/* CVD Type Selector */}
-        <View style={{ flexDirection: "row", marginVertical: 12 }}>
-          {["none", "deuteranopia", "protanopia", "tritanopia"].map((type) => (
-            <TouchableOpacity
-              key={type}
-              style={{
-                backgroundColor: cvdType === type ? "#a1584c" : "#eee",
-                padding: 8,
-                borderRadius: 8,
-                marginRight: 8,
-              }}
-              onPress={() => setCvdType(type as CVDType)}
-            >
-              <Text style={{ color: cvdType === type ? "#fff" : "#43372f" }}>
-                {type.toUpperCase()}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Advanced CVD Settings */}
-        <View style={styles.advancedSettingsCard}>
-          <TouchableOpacity
-            style={styles.advancedHeader}
-            onPress={() => setIsAdvancedOpen(!isAdvancedOpen)}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Ionicons
-                name="glasses-outline"
-                size={24}
-                color="#43372f"
-                style={{ marginRight: 8 }}
-              />
-              <Text style={styles.advancedTitle}>Advanced CVD Settings</Text>
-            </View>
+          {isSaving ? (
+            <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
+          ) : (
             <Ionicons
-              name={isAdvancedOpen ? "chevron-up" : "chevron-down"}
-              size={18}
-              color="#43372f"
+              name="download-outline"
+              size={20}
+              color="#fff"
+              style={{ marginRight: 8 }}
             />
-          </TouchableOpacity>
-          {isAdvancedOpen && (
-            <View style={styles.advancedContent}>
-              <AdvancedActionItem
-                iconName="tag-outline"
-                text="Check color feature labels."
-                hasCite={false}
-                id="labels"
-              />
-              <AdvancedActionItem
-                iconName="settings-outline"
-                text="Configure custom preferences."
-                hasCite={false}
-                id="prefs"
-              />
-              <AdvancedActionItem
-                iconName="checkmark-circle-outline"
-                text="Apply settings to the system."
-                hasCite={true}
-                id="applySystem"
-              />
-            </View>
           )}
-        </View>
-
-        {/* Action Buttons */}
-        <TouchableOpacity
-          style={styles.mainActionButton}
-          onPress={() => handleAction("save")}
-        >
-          <Ionicons
-            name="save-outline"
-            size={20}
-            color="#fff"
-            style={{ marginRight: 8 }}
-          />
-          <Text style={styles.mainActionButtonText}>SAVE ENHANCED IMAGE</Text>
+          <Text style={styles.mainActionButtonText}>
+            {isSaving ? "DOWNLOADING..." : "DOWNLOAD ENHANCED IMAGE"}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -370,10 +307,23 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     color: "#43372f",
-    marginBottom: 20,
+    marginBottom: 14,
     textAlign: "center",
   },
   headerTitleEnhancer: { color: "#a1584c" },
+  infoText: {
+    width: "100%",
+    color: "#43372f",
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  infoSubText: {
+    width: "100%",
+    color: "#6b5c53",
+    fontSize: 13,
+    marginBottom: 14,
+  },
   imageCard: {
     backgroundColor: "#fff",
     borderRadius: 20,
@@ -404,90 +354,14 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 12,
     right: 12,
-    backgroundColor: "rgba(255,255,255,0.5)",
+    backgroundColor: "rgba(255,255,255,0.65)",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
   },
   compareButtonText: { color: "#43372f", fontSize: 10, fontWeight: "bold" },
-  controlCard: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 16,
-    width: "100%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  controlHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  controlLabel: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#43372f",
-    marginLeft: 8,
-  },
-  controlValue: { fontSize: 18, color: "#b19c8f" },
-  controlSubtext: {
-    fontSize: 12,
-    color: "#b19c8f",
-    marginBottom: 8,
-    marginLeft: 32,
-  },
-  controlPercentLabel: {
-    position: "absolute",
-    bottom: 24,
-    right: 16,
-    fontSize: 12,
-    color: "#43372f",
-    opacity: 0.7,
-  },
-  slider: { width: "100%", height: 40, marginLeft: 8 },
-  advancedSettingsCard: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    width: "100%",
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    overflow: "hidden",
-  },
-  advancedHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-  },
-  advancedTitle: { fontSize: 18, color: "#43372f", fontWeight: "bold" },
-  advancedContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-  },
-  advancedActionItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  advancedIconContainer: { width: 28, alignItems: "center", marginRight: 8 },
-  advancedActionText: { flex: 1, fontSize: 14, color: "#43372f" },
-  citeText: { fontSize: 12, color: "#43372f", opacity: 0.8 },
   mainActionButton: {
     flexDirection: "row",
-    backgroundColor: "#262626",
     borderRadius: 30,
     paddingVertical: 14,
     paddingHorizontal: 20,

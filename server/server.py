@@ -11,11 +11,17 @@ except ImportError:
     missing_deps.append('numpy')
 
 import base64
+import time
 
 try:
     from flask import Flask, request, jsonify
 except ImportError:
     missing_deps.append('Flask')
+
+try:
+    from werkzeug.exceptions import ClientDisconnected
+except ImportError:
+    ClientDisconnected = Exception
 
 if missing_deps:
     msg = (f"Missing Python dependencies: {', '.join(missing_deps)}.\n"
@@ -284,6 +290,134 @@ def detect_and_draw_colors(image, draw=True, center_only=False, roi_size=80):
         return detected_colors
 
 
+def normalize_cvd_mode(raw_mode):
+    if not raw_mode:
+        return 'none'
+
+    mode = str(raw_mode).strip().lower()
+
+    if 'protan' in mode and 'deuter' in mode:
+        return 'deuteranopia'
+    if 'protan' in mode:
+        return 'protanopia'
+    if 'deuter' in mode:
+        return 'deuteranopia'
+    if 'tritan' in mode:
+        return 'tritanopia'
+    if 'normal' in mode or 'none' in mode:
+        return 'none'
+
+    # Conservative fallback for unrecognized / severe labels
+    return 'deuteranopia'
+
+
+def apply_cvd_enhancement(image_bgr, cvd_mode):
+    """
+    Apply daltonization-style enhancement to improve distinguishability
+    for a specified CVD mode.
+    """
+    mode = normalize_cvd_mode(cvd_mode)
+    if mode == 'none':
+        return image_bgr
+
+    # Convert BGR -> RGB float in [0, 1]
+    rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+
+    simulation_matrices = {
+        'protanopia': np.array([
+            [0.56667, 0.43333, 0.0],
+            [0.55833, 0.44167, 0.0],
+            [0.0, 0.24167, 0.75833],
+        ], dtype=np.float32),
+        'deuteranopia': np.array([
+            [0.625, 0.375, 0.0],
+            [0.70, 0.30, 0.0],
+            [0.0, 0.30, 0.70],
+        ], dtype=np.float32),
+        'tritanopia': np.array([
+            [0.95, 0.05, 0.0],
+            [0.0, 0.433, 0.567],
+            [0.0, 0.475, 0.525],
+        ], dtype=np.float32),
+    }
+
+    sim_matrix = simulation_matrices.get(mode)
+    if sim_matrix is None:
+        return image_bgr
+
+    # Simulate perception
+    sim_rgb = np.tensordot(rgb, sim_matrix.T, axes=1)
+
+    # Error between original and simulated
+    error = rgb - sim_rgb
+
+    # Shift chromatic error into channels likely to be perceived
+    correction = np.zeros_like(rgb)
+
+    if mode in ('protanopia', 'deuteranopia'):
+        correction[..., 1] = error[..., 0] * 0.7 + error[..., 1] * 1.0
+        correction[..., 2] = error[..., 0] * 0.7 + error[..., 2] * 1.0
+    elif mode == 'tritanopia':
+        correction[..., 0] = error[..., 0] * 1.0 + error[..., 2] * 0.7
+        correction[..., 1] = error[..., 1] * 1.0 + error[..., 2] * 0.7
+
+    enhanced_rgb = np.clip(rgb + correction, 0.0, 1.0)
+    enhanced_uint8 = (enhanced_rgb * 255.0).astype(np.uint8)
+
+    # RGB -> BGR
+    return cv2.cvtColor(enhanced_uint8, cv2.COLOR_RGB2BGR)
+
+
+def apply_cvd_enhancement_live(image_bgr, cvd_mode):
+    """
+    Low-latency CVD enhancement path for live VR processing.
+    Optimized for smaller frames and faster matrix transforms.
+    """
+    mode = normalize_cvd_mode(cvd_mode)
+    if mode == 'none':
+        return image_bgr
+
+    rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB).astype(np.float32)
+
+    simulation_matrices = {
+        'protanopia': np.array([
+            [0.56667, 0.43333, 0.0],
+            [0.55833, 0.44167, 0.0],
+            [0.0, 0.24167, 0.75833],
+        ], dtype=np.float32),
+        'deuteranopia': np.array([
+            [0.625, 0.375, 0.0],
+            [0.70, 0.30, 0.0],
+            [0.0, 0.30, 0.70],
+        ], dtype=np.float32),
+        'tritanopia': np.array([
+            [0.95, 0.05, 0.0],
+            [0.0, 0.433, 0.567],
+            [0.0, 0.475, 0.525],
+        ], dtype=np.float32),
+    }
+
+    sim_matrix = simulation_matrices.get(mode)
+    if sim_matrix is None:
+        return image_bgr
+
+    # cv2.transform is faster for per-pixel matrix operations in live loop
+    sim_rgb = cv2.transform(rgb, sim_matrix)
+    error = rgb - sim_rgb
+
+    correction = np.zeros_like(rgb)
+    boost = 1.35
+    if mode in ('protanopia', 'deuteranopia'):
+        correction[..., 1] = (error[..., 0] * 0.8 + error[..., 1]) * boost
+        correction[..., 2] = (error[..., 0] * 0.8 + error[..., 2]) * boost
+    elif mode == 'tritanopia':
+        correction[..., 0] = (error[..., 0] + error[..., 2] * 0.8) * boost
+        correction[..., 1] = (error[..., 1] + error[..., 2] * 0.8) * boost
+
+    enhanced_rgb = np.clip(rgb + correction, 0.0, 255.0).astype(np.uint8)
+    return cv2.cvtColor(enhanced_rgb, cv2.COLOR_RGB2BGR)
+
+
 @app.route('/process-image', methods=['POST'])
 def process_image():
     try:
@@ -308,14 +442,26 @@ def process_image():
             return jsonify({"error": "Invalid image data - could not decode"}), 400
 
         print(f"Processing image of size: {img.shape}")
-        processed_img, detected_colors = detect_and_draw_colors(img, draw=True)
+
+        cvd_mode = data.get('cvd_mode')
+        should_enhance = bool(cvd_mode)
+
+        if should_enhance:
+            processed_img = apply_cvd_enhancement(img, cvd_mode)
+            detected_colors = []
+        else:
+            processed_img, detected_colors = detect_and_draw_colors(img, draw=True)
 
         # Use higher quality JPEG encoding
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 95]
         _, buffer = cv2.imencode('.jpg', processed_img, encode_param)
         processed_base64 = base64.b64encode(buffer).decode('utf-8')
 
-        return jsonify({"processed_image": processed_base64, "detected_colors": detected_colors})
+        return jsonify({
+            "processed_image": processed_base64,
+            "detected_colors": detected_colors,
+            "cvd_mode": normalize_cvd_mode(cvd_mode),
+        })
 
     except Exception as e:
         print(f"Processing error: {e}")
@@ -333,11 +479,8 @@ def ping():
 def process_frame():
     try:
         # Accept JSON with base64 image, or raw bytes
-        if request.json:
-            data = request.json
-            image_data = data.get('image')
-        else:
-            image_data = None
+        data = request.get_json(silent=True) or {}
+        image_data = data.get('image')
 
         if not image_data:
             return jsonify({"error": "No image provided in request"}), 400
@@ -353,24 +496,99 @@ def process_frame():
         if img is None:
             return jsonify({"error": "Invalid image data - could not decode"}), 400
 
-        # If client requests center-only, do the faster path
-        mode = (request.json or {}).get('mode') if request.json else None
-        center_only = (mode == 'center')
+        payload = data
+        cvd_mode = payload.get('cvd_mode')
+        max_width = int(payload.get('max_width', 320) or 320)
+        jpeg_quality = int(payload.get('jpeg_quality', 40) or 40)
+        jpeg_quality = max(20, min(85, jpeg_quality))
 
-        # Process with drawing enabled to show outlines and detected colors
-        processed_img, detected_colors = detect_and_draw_colors(img, draw=True, center_only=center_only)
-        
+        if max_width > 0 and img.shape[1] > max_width:
+            scale = max_width / float(img.shape[1])
+            new_w = max(1, int(img.shape[1] * scale))
+            new_h = max(1, int(img.shape[0] * scale))
+            img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+
+        if cvd_mode and normalize_cvd_mode(cvd_mode) != 'none':
+            processed_img = apply_cvd_enhancement_live(img, cvd_mode)
+            detected_colors = []
+        else:
+            # If client requests center-only, do the faster path
+            mode = payload.get('mode')
+            center_only = (mode == 'center')
+            # Process with drawing enabled to show outlines and detected colors
+            processed_img, detected_colors = detect_and_draw_colors(img, draw=True, center_only=center_only)
+
         # Encode with lower quality for faster transmission (faster = less latency)
-        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 60]
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality]
         _, buffer = cv2.imencode('.jpg', processed_img, encode_param)
         processed_base64 = base64.b64encode(buffer).decode('utf-8')
         
         return jsonify({
             "detected_colors": detected_colors,
-            "processed_image": processed_base64
+            "processed_image": processed_base64,
+            "cvd_mode": normalize_cvd_mode(cvd_mode) if cvd_mode else 'none',
         })
+    except ClientDisconnected:
+        # Client aborted before payload fully arrived; do not treat as server failure
+        return ('', 204)
     except Exception as e:
         print(f"Frame processing error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/process-live-frame', methods=['POST'])
+def process_live_frame():
+    """
+    Dedicated low-latency endpoint for VR live enhancement.
+    Expects JSON body with base64 `image` and optional tuning fields.
+    """
+    started = time.perf_counter()
+
+    try:
+        data = request.get_json(silent=True) or {}
+        image_data = data.get('image')
+
+        if not image_data:
+            return jsonify({"error": "No image provided in request"}), 400
+
+        cvd_mode = data.get('cvd_mode', 'none')
+        max_width = int(data.get('max_width', 160) or 160)
+        jpeg_quality = int(data.get('jpeg_quality', 24) or 24)
+        jpeg_quality = max(20, min(85, jpeg_quality))
+
+        img_bytes = base64.b64decode(image_data)
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+        if img is None:
+            return jsonify({"error": "Invalid image data - could not decode"}), 400
+
+        if max_width > 0 and img.shape[1] > max_width:
+            scale = max_width / float(img.shape[1])
+            new_w = max(1, int(img.shape[1] * scale))
+            new_h = max(1, int(img.shape[0] * scale))
+            img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+
+        processed_img = apply_cvd_enhancement_live(img, cvd_mode)
+
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality]
+        _, buffer = cv2.imencode('.jpg', processed_img, encode_param)
+        processed_base64 = base64.b64encode(buffer).decode('utf-8')
+
+        elapsed_ms = int((time.perf_counter() - started) * 1000)
+
+        return jsonify({
+            "processed_image": processed_base64,
+            "cvd_mode": normalize_cvd_mode(cvd_mode),
+            "processing_ms": elapsed_ms,
+        })
+    except ClientDisconnected:
+        # Expected when client timeout cancels in-flight request
+        return ('', 204)
+    except Exception as e:
+        print(f"Live frame processing error: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
@@ -386,4 +604,4 @@ if __name__ == '__main__':
     print("Example: http://192.168.x.x:5000/process-image")
     print("==================================\n")
     
-    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False, threaded=True)
