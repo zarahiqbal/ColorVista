@@ -1,177 +1,151 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '../Context/ThemeContext';
+import IshiharaPlate from '../components/IshiharaPlate';
+import { generateQuiz, QuizQuestion } from '../constants/questions';
 
-// Define the shape of a question for TypeScript
-interface Question {
-  question: string;
-  options: {
-    A: string;
-    B: string;
-    C: string;
-    D: string;
-  };
-  answer: string;
+interface Quiz1Props {
+  difficulty: 'easy' | 'hard';
 }
 
-export default function Quiz1({ difficulty }: { difficulty: string }) {
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [current, setCurrent] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [score, setScore] = useState(0);
-  const [finished, setFinished] = useState(false);
-
-  const totalQuestions = difficulty === "easy" ? 6 : 12;
-
-  // --- Initialize Gemini SDK ---
-  // WARNING: In a production app, do not store API keyys directly in the client code.
-  // Use a backend proxy or environment variables (e.g., react-native-dotenv).
-  const API_KEY = "AIzaSyBC0v9b55J0oqNXHbaL6WT5bUL26TAk3vk"; 
-  const genAI = new GoogleGenerativeAI(API_KEY);
-
-  // --- Fetch AI Questions ---
-  const loadQuestions = async () => {
-    try {
-      const model = genAI.getGenerativeModel({ 
-        model: "gemini-2.5-flash", // Using the correct, currently available model
-        generationConfig: {
-          responseMimeType: "application/json", // Forces strict JSON response
-          temperature: 0.7,
-        }
-      });
-
-      const prompt = `Generate ${totalQuestions} multiple-choice questions about color blindness theory and facts ${difficulty} difficulty. 
-      Output strictly a JSON array where each object has: 
-      - "question": string
-      - "options": object with keys A, B, C, D
-      - "answer": string (one of "A", "B", "C", "D")`;
-
-      const result = await model.generateContent(prompt);
-      const response = result.response;
-      const text = response.text();
-
-      console.log("AI Response:", text);
-
-      // Parse the JSON
-      const parsedQuestions: Question[] = JSON.parse(text);
-      
-      setQuestions(parsedQuestions);
-      setLoading(false);
-
-    } catch (error) {
-      console.error("Gemini Fetch Error:", error);
-      Alert.alert("Error", "Failed to load quiz. Please check your internet connection or API Key.");
-      setLoading(false);
-    }
+export default function Quiz1({ difficulty }: Quiz1Props) {
+  const router = useRouter();
+  const { darkMode, getFontSizeMultiplier } = useTheme();
+  const fontScale = getFontSizeMultiplier();
+  
+  const themeColors = {
+    background: darkMode ? '#121212' : '#F5F9FF',
+    text: darkMode ? '#FFFFFF' : '#1A1A1A',
+    cardBg: darkMode ? '#1E1E1E' : '#FFFFFF',
+    subText: darkMode ? '#AAAAAA' : '#666666',
+    border: darkMode ? '#333333' : '#E0E0E0',
+    primary: '#2D5BFF',
+    danger: '#ff4444'
   };
+
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [score, setScore] = useState(0);
+  const [answers, setAnswers] = useState<{ questionId: number; correct: boolean; type: string }[]>([]);
 
   useEffect(() => {
-    loadQuestions();
-  }, []);
+    // Generate quiz based on difficulty
+    const q = generateQuiz(difficulty);
+    setQuestions(q);
+  }, [difficulty]);
 
-  // --- Handle Answer ---
-  const handleAnswer = (key: string) => {
-    if (key === questions[current].answer) {
-      setScore(score + 1);
-    }
+  if (questions.length === 0) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color={themeColors.primary} />
+        <Text style={{ marginTop: 20, color: themeColors.text }}>Generating Plates...</Text>
+      </View>
+    );
+  }
 
-    if (current + 1 < questions.length) {
-      setCurrent(current + 1);
+  const currentQ = questions[currentIndex];
+  const totalQuestions = questions.length;
+
+  const handleAnswer = (selectedNumber: string) => {
+    const isCorrect = selectedNumber === currentQ.numberShown;
+    if (isCorrect) setScore(prev => prev + 1);
+
+    // Track answer with type
+    const newAnswers = [
+      ...answers,
+      {
+        questionId: currentQ.id,
+        correct: isCorrect,
+        type: currentQ.type
+      }
+    ];
+    setAnswers(newAnswers);
+
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex(currentIndex + 1);
     } else {
-      setFinished(true);
+      // Calculate results by color spectrum
+      const results = calculateResults(newAnswers);
+      router.push({
+        pathname: '/result',
+        params: { results: JSON.stringify(results) }
+      });
     }
   };
 
-  // --- Loading Screen ---
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#1E40AF" />
-        <Text style={styles.loadingText}>Generating {difficulty} questions...</Text>
-      </View>
-    );
-  }
+  const calculateResults = (answers: { questionId: number; correct: boolean; type: string }[]) => {
+    const redGreenAnswers = answers.filter(a => a.type === 'red-green');
+    const blueYellowAnswers = answers.filter(a => a.type === 'blue-yellow');
 
-  // --- Finished Screen ---
-  if (finished) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.resultTitle}>Quiz Completed!</Text>
-        <Text style={styles.resultText}>
-          Your score: {score}/{questions.length}
-        </Text>
-      </View>
-    );
-  }
+    return {
+      redGreen: {
+        correct: redGreenAnswers.filter(a => a.correct).length,
+        total: redGreenAnswers.length
+      },
+      blueYellow: {
+        correct: blueYellowAnswers.filter(a => a.correct).length,
+        total: blueYellowAnswers.length
+      }
+    };
+  };
 
-  // Safety check if questions failed to load but loading is false
-  if (questions.length === 0) {
-    return (
-        <View style={styles.center}>
-          <Text>No questions available.</Text>
-        </View>
-    )
-  }
-
-  const q = questions[current];
-
-  // --- Quiz UI ---
   return (
-    <View style={styles.container}>
-      <Text style={styles.questionNumber}>
-        Question {current + 1} of {questions.length}
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: themeColors.background }]}> 
+      <Text style={[styles.counter, { color: themeColors.subText }]}> 
+        Plate {currentIndex + 1} of {totalQuestions}
       </Text>
-
-      <Text style={styles.question}>{q.question}</Text>
-
-      {Object.keys(q.options).map((key) => (
-        <TouchableOpacity
-          key={key}
-          style={styles.option}
-          onPress={() => handleAnswer(key)}
+      <View style={styles.plateWrapper}>
+        <IshiharaPlate 
+          number={currentQ.numberShown}
+          fgColor={currentQ.correctColor}
+          bgColor={currentQ.bgColor}
+          size={300}
+          difficulty={difficulty}
+        />
+      </View>
+      <Text style={[styles.question, { color: themeColors.text }]}>{currentQ.description}</Text>
+      <Text style={[styles.helperText, { color: themeColors.subText }]}>(Select 'Nothing' if you can't see a number)</Text>
+      <View style={styles.optionsGrid}>
+        {currentQ.options.map((opt: string, index: number) => (
+          <TouchableOpacity 
+            key={index} 
+            style={styles.optionBtn} 
+            onPress={() => handleAnswer(opt)}
+          >
+            <Text style={styles.optionText}>{opt}</Text>
+          </TouchableOpacity>
+        ))}
+        <TouchableOpacity 
+          style={[styles.optionBtn, styles.nothingBtn]} 
+          onPress={() => handleAnswer('nothing')}
         >
-          <Text style={styles.optionText}>
-            {key}. {q.options[key as keyof typeof q.options]}
-          </Text>
+          <Text style={styles.optionText}>Nothing</Text>
         </TouchableOpacity>
-      ))}
-    </View>
+      </View>
+    </ScrollView>
   );
 }
 
+
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 22, backgroundColor: "#FFFFFF" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-
-  loadingText: { marginTop: 12, fontSize: 16, color: "#475569" },
-
-  questionNumber: {
-    fontSize: 16,
-    marginBottom: 10,
-    color: "#64748B",
+  container: { flexGrow: 1, backgroundColor: '#fff', alignItems: 'center', paddingVertical: 40, paddingHorizontal: 20 },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  counter: { fontSize: 14, textTransform: 'uppercase', color: '#999', marginBottom: 20, letterSpacing: 1 },
+  plateWrapper: { marginBottom: 30 },
+  question: { fontSize: 20, fontWeight: 'bold', marginBottom: 5, textAlign: 'center', color: '#333' },
+  helperText: { fontSize: 14, color: '#777', marginBottom: 25, fontStyle: 'italic' },
+  optionsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12 },
+  optionBtn: { 
+    width: '40%', 
+    backgroundColor: '#F3F4F6', 
+    paddingVertical: 18, 
+    borderRadius: 12, 
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB'
   },
-  question: {
-    fontSize: 22,
-    fontWeight: "600",
-    marginBottom: 20,
-    color: "#0F172A",
-  },
-
-  option: {
-    padding: 14,
-    backgroundColor: "#E2E8F0",
-    borderRadius: 10,
-    marginBottom: 12,
-  },
-  optionText: {
-    fontSize: 16,
-    color: "#0F172A",
-  },
-
-  resultTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#1E3A8A",
-  },
-  resultText: { fontSize: 20, marginTop: 10 },
+  nothingBtn: { width: '85%', backgroundColor: '#FFF0F0', borderColor: '#FFCDD2' },
+  optionText: { fontSize: 18, fontWeight: '600', color: '#374151' }
 });
+
