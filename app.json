@@ -21,6 +21,9 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "REQUEST_INSTALL_PACKAGES"
+      ],
       "package": "com.anonymous.cvdquiz"
     },
     "web": {
@@ -49,7 +52,9 @@
           }
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-font",
+      "expo-camera"
     ],
     "experiments": {
       "typedRoutes": true,

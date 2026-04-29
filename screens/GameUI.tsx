@@ -137,7 +137,7 @@ export default function GameTypeUI({ onSelect }: GameUIProps) {
                   EASY
                 </Text>
                 <Text style={[styles.cardDesc, { fontSize: 14 * multiplier }]}>
-                  Bright colors and simple patterns for a relaxed start.
+                  Download and play Spectrum Shifter (Unity) on Android.
                 </Text>
               </View>
             </LinearGradient>

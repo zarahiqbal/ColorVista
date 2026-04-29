@@ -297,17 +297,17 @@ import { useAuth } from '@/Context/AuthContext';
 import { Link, Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 // Standard icon set in Expo
 import { Ionicons } from '@expo/vector-icons';
@@ -543,7 +543,7 @@ export default function Login() {
 
             <View style={styles.registerContainer}>
                 <Text style={{ color: colors.text, fontSize: 14 * scale }}>
-                  Don't have an account?{' '}
+                  Don&apos;t have an account?{' '}
                 </Text>
                 <Link href="/auth/signup" asChild>
                     <TouchableOpacity>
