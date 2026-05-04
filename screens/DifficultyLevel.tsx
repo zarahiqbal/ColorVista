@@ -1,186 +1,257 @@
-import { Brain, Target, Zap } from 'lucide-react-native';
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import BackButton from "@/components/BackButton";
+import { useTheme } from "@/Context/ThemeContext"; // Ensure this path matches your project structure
+import { Flame, Zap } from "lucide-react-native";
+import { useMemo, useState } from "react";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
+// Define the Props Interface
 interface DifficultySelectionProps {
-  onSelectDifficulty: (difficulty: 'easy' | 'hard') => void;
+  onSelectDifficulty: (difficulty: "easy" | "hard") => void;
 }
 
-export function DifficultySelection({ onSelectDifficulty }: DifficultySelectionProps) {
+export function DifficultySelection({
+  onSelectDifficulty,
+}: DifficultySelectionProps) {
+  // 1. CONSUME THEME CONTEXT
+  const { darkMode, getFontSizeMultiplier } = useTheme();
+  const scale = getFontSizeMultiplier();
+
+  // 2. DEFINE DYNAMIC STYLES & COLORS
+  const { styles, colors } = useMemo(() => {
+    // --- EARTH TONE PALETTE ---
+    const palette = {
+      beigeBg: "#F6F3EE", // Main Screen Background
+      charcoal: "#2F2F2F", // Text & Buttons
+      sage: "#8DA399", // Easy Mode Card
+      sageDark: "#6B7B7B", // Easy Mode Icon Circle
+      taupe: "#AA957B", // Hard Mode Card
+      taupeDark: "#8B7B6B", // Hard Mode Icon Circle
+      white: "#FFFFFF",
+      surfaceDark: "#1C1C1E",
+    };
+
+    const dynamicColors = {
+      background: darkMode ? palette.surfaceDark : palette.beigeBg,
+      text: palette.charcoal,
+      btnActive: palette.charcoal,
+      btnInactive: "#9CA3AF",
+      btnText: "#FFFFFF",
+      // Specific Card Colors
+      easyCardBg: palette.sage,
+      hardCardBg: palette.taupe,
+      // Icon Circle Colors
+      easyIconBg: palette.sageDark,
+      hardIconBg: palette.taupeDark,
+      // Ring border matches background to create "cutout" effect
+      ringBorder: darkMode ? palette.surfaceDark : palette.beigeBg,
+      activeBorder: palette.charcoal,
+    };
+
+    const styleSheet = StyleSheet.create({
+      container: {
+        flex: 1,
+        backgroundColor: dynamicColors.background,
+      },
+      scrollContent: {
+        paddingBottom: 40,
+        paddingTop: 40,
+      },
+      title: {
+        fontSize: 26 * scale,
+        fontWeight: "800",
+        color: darkMode ? "#F6F3EE" : dynamicColors.text,
+        textAlign: "center",
+        marginBottom: 40,
+        letterSpacing: -0.5,
+      },
+      // Wrapper for spacing the floating icon
+      cardWrapper: {
+        marginBottom: 40,
+        paddingTop: 30,
+        marginHorizontal: 24,
+      },
+      difficultyCard: {
+        borderRadius: 24,
+        padding: 24,
+        paddingTop: 40,
+        borderWidth: 4,
+        borderColor: "transparent", // Default border
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 6,
+        alignItems: "center",
+      },
+      // Specific Card Styles
+      easyCard: { backgroundColor: dynamicColors.easyCardBg },
+      hardCard: { backgroundColor: dynamicColors.hardCardBg },
+
+      selectedCard: {
+        borderColor: dynamicColors.activeBorder,
+        transform: [{ scale: 1.02 }],
+        shadowOpacity: 0.3,
+      },
+
+      // Floating Icon Styles
+      cardIconTop: {
+        position: "absolute",
+        top: -30,
+        left: "50%",
+        marginLeft: -34, // Half of 68px width
+        zIndex: 10,
+      },
+      iconCircle: {
+        width: 68,
+        height: 68,
+        borderRadius: 34,
+        justifyContent: "center",
+        alignItems: "center",
+        borderWidth: 5,
+        borderColor: dynamicColors.ringBorder,
+      },
+
+      cardTitle: {
+        fontSize: 22 * scale,
+        fontWeight: "800",
+        color: palette.charcoal,
+        marginBottom: 6,
+        textAlign: "center",
+      },
+      cardDescription: {
+        fontSize: 15 * scale,
+        color: palette.charcoal,
+        opacity: 0.8,
+        textAlign: "center",
+        fontWeight: "600",
+      },
+
+      // Button Styles
+      continueButton: {
+        backgroundColor: dynamicColors.btnActive,
+        borderRadius: 50,
+        paddingVertical: 20,
+        marginHorizontal: 24,
+        marginTop: 20,
+        alignItems: "center",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        elevation: 6,
+      },
+      continueButtonDisabled: {
+        backgroundColor: dynamicColors.btnInactive,
+        opacity: 0.7,
+        elevation: 0,
+        shadowOpacity: 0,
+      },
+      continueButtonText: {
+        color: dynamicColors.btnText,
+        fontSize: 18 * scale,
+        fontWeight: "700",
+        letterSpacing: 0.5,
+      },
+    });
+
+    return { styles: styleSheet, colors: dynamicColors };
+  }, [darkMode, scale]);
+
+  // 3. STATE
+  const [selectedDifficulty, setSelectedDifficulty] = useState<
+    "easy" | "hard" | null
+  >(null);
+
+  // 4. HANDLERS
+  const handleSelectDifficulty = (difficulty: "easy" | "hard") => {
+    setSelectedDifficulty(difficulty);
+  };
+
+  const handleContinue = () => {
+    if (selectedDifficulty) {
+      onSelectDifficulty(selectedDifficulty);
+    }
+  };
+
   return (
-    <ScrollView>
     <View style={styles.container}>
-      <View style={styles.card}>
-        <View style={styles.header}>
-          <View style={styles.iconCircle}>
-            <Target color="white" size={32} />
-          </View>
-          <Text style={styles.title}>Select Difficulty Level</Text>
-          <Text style={styles.subtitle}>Choose the level that best suits your testing needs</Text>
-        </View>
+      <BackButton />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.title}>Choose Your Test Level</Text>
 
-        <View style={styles.buttonContainer}>
-          {/* Easy Mode */}
-          <Pressable
-            onPress={() => onSelectDifficulty('easy')}
-            style={({ pressed }) => [
-              styles.option,
-              styles.easyOption,
-              pressed && styles.optionPressed,
+        {/* Easy Mode Card */}
+        <View style={styles.cardWrapper}>
+          <TouchableOpacity
+            style={[
+              styles.difficultyCard,
+              styles.easyCard,
+              selectedDifficulty === "easy" && styles.selectedCard,
             ]}
+            onPress={() => handleSelectDifficulty("easy")}
+            activeOpacity={0.9}
           >
-            <View style={styles.optionContent}>
-              <View style={[styles.optionIcon, { backgroundColor: '#2AA198' }]}>
-                <Zap color="white" size={32} />
-              </View>
-              <Text style={styles.optionTitle}>Easy Mode</Text>
-              <Text style={styles.optionDesc}>Perfect for beginners or quick screening</Text>
-              <View style={styles.optionList}>
-                <Text style={styles.listItem}>• Fewer questions (6 total)</Text>
-                <Text style={styles.listItem}>• More distinct color differences</Text>
-                <Text style={styles.listItem}>• Simpler color patterns</Text>
-                <Text style={styles.listItem}>• Takes about 1–2 minutes</Text>
+            <View style={styles.cardIconTop}>
+              <View
+                style={[
+                  styles.iconCircle,
+                  { backgroundColor: colors.easyIconBg },
+                ]}
+              >
+                <Zap color="#FFF" size={32} fill="#FFF" />
               </View>
             </View>
-          </Pressable>
+            <Text style={styles.cardTitle}>Easy Mode</Text>
+            <Text style={styles.cardDescription}>Perfect for beginners.</Text>
+          </TouchableOpacity>
+        </View>
 
-          {/* Hard Mode */}
-          <Pressable
-            onPress={() => onSelectDifficulty('hard')}
-            style={({ pressed }) => [
-              styles.option,
-              styles.hardOption,
-              pressed && styles.optionPressed,
+        {/* Hard Mode Card */}
+        <View style={styles.cardWrapper}>
+          <TouchableOpacity
+            style={[
+              styles.difficultyCard,
+              styles.hardCard,
+              selectedDifficulty === "hard" && styles.selectedCard,
             ]}
+            onPress={() => handleSelectDifficulty("hard")}
+            activeOpacity={0.9}
           >
-            <View style={styles.optionContent}>
-              <View style={[styles.optionIcon, { backgroundColor: '#E9B44C' }]}>
-                <Brain color="white" size={32} />
-              </View>
-              <Text style={styles.optionTitle}>Hard Mode</Text>
-              <Text style={styles.optionDesc}>Comprehensive testing for detailed analysis</Text>
-              <View style={styles.optionList}>
-                <Text style={styles.listItem}>• More questions (12 total)</Text>
-                <Text style={styles.listItem}>• Subtle color differences</Text>
-                <Text style={styles.listItem}>• Complex color patterns</Text>
-                <Text style={styles.listItem}>• Takes about 3–4 minutes</Text>
+            <View style={styles.cardIconTop}>
+              <View
+                style={[
+                  styles.iconCircle,
+                  { backgroundColor: colors.hardIconBg },
+                ]}
+              >
+                <Flame color="#FFF" size={32} fill="#FFF" />
               </View>
             </View>
-          </Pressable>
+            <Text style={styles.cardTitle}>Hard Mode</Text>
+            <Text style={styles.cardDescription}>Comprehensive analysis.</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.tipBox}>
-          <Text style={styles.tipText}>
-            <Text style={styles.bold}>Tip:</Text> Start with Easy mode if you're not sure.
-            You can always retake the test on Hard mode for more detailed results.
-          </Text>
-        </View>
-      </View>
-    </View></ScrollView>
+        {/* Continue Button */}
+        <TouchableOpacity
+          style={[
+            styles.continueButton,
+            !selectedDifficulty && styles.continueButtonDisabled,
+          ]}
+          onPress={handleContinue}
+          disabled={!selectedDifficulty}
+        >
+          <Text style={styles.continueButtonText}>Continue Test</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-    padding: 2,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 2,
-    elevation: 4,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  iconCircle: {
-    backgroundColor: '#475569',
-    borderRadius: 40,
-    width: 70,
-    height: 70,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#64748B',
-    textAlign: 'center',
-  },
-  buttonContainer: {
-    gap: 16,
-  },
-  option: {
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 2,
-    elevation: 2,
-  },
-  optionPressed: {
-    transform: [{ scale: 0.97 }],
-  },
-  easyOption: {
-    backgroundColor: '#F0FDF9',
-    borderColor: '#2AA198',
-  },
-  hardOption: {
-    backgroundColor: '#FFFBEB',
-    borderColor: '#E9B44C',
-  },
-  optionContent: {
-    alignItems: 'center',
-  },
-  optionIcon: {
-    borderRadius: 40,
-    width: 64,
-    height: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  optionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 8,
-  },
-  optionDesc: {
-    fontSize: 14,
-    color: '#475569',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  optionList: {
-    alignSelf: 'flex-start',
-  },
-  listItem: {
-    fontSize: 13,
-    color: '#475569',
-    marginBottom: 4,
-  },
-  tipBox: {
-    backgroundColor: '#E0F2FE',
-    borderColor: '#BAE6FD',
-    borderWidth: 2,
-    borderRadius: 12,
-    padding: 10,
-    marginTop: 16,
-  },
-  tipText: {
-    fontSize: 13,
-    color: '#334155',
-    textAlign: 'center',
-  },
-  bold: {
-    fontWeight: '700',
-  },
-});

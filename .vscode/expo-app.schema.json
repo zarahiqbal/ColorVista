@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://colorvista.local/schemas/expo-app.schema.json",
+  "title": "Local Expo App Config Schema (workspace override)",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "expo": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "newArchEnabled": { "type": "boolean" },
+        "android": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "edgeToEdgeEnabled": { "type": "boolean" }
+          }
+        }
+      }
+    }
+  }
+}
