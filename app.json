@@ -1,5 +1,68 @@
+// {
+//   "$schema": "file:///Users/apple/Documents/FYP/ColorVista/.vscode/expo-app.schema.json",
+//   "expo": {
+//     "name": "cvdquiz",
+//     "slug": "cvdquiz",
+//     "version": "1.0.0",
+//     "orientation": "portrait",
+//     "icon": "./assets/images/icon.png",
+//     "scheme": "cvdquiz",
+//     "userInterfaceStyle": "automatic",
+//     "newArchEnabled": true,
+//     "ios": {
+//       "supportsTablet": true
+//     },
+//     "android": {
+//       "adaptiveIcon": {
+//         "backgroundColor": "#E6F4FE",
+//         "foregroundImage": "./assets/images/android-icon-foreground.png",
+//         "backgroundImage": "./assets/images/android-icon-background.png",
+//         "monochromeImage": "./assets/images/android-icon-monochrome.png"
+//       },
+//       "edgeToEdgeEnabled": true,
+//       "predictiveBackGestureEnabled": false,
+//       "permissions": [
+//         "REQUEST_INSTALL_PACKAGES"
+//       ],
+//       "package": "com.anonymous.cvdquiz"
+//     },
+//     "web": {
+//       "output": "static",
+//       "favicon": "./assets/images/favicon.png"
+//     },
+//     "plugins": [
+//       "expo-router",
+//       [
+//         "expo-media-library",
+//         {
+//           "granularPermissions": [
+//             "photo"
+//           ]
+//         }
+//       ],
+//       [
+//         "expo-splash-screen",
+//         {
+//           "image": "./assets/images/splash-icon.png",
+//           "imageWidth": 200,
+//           "resizeMode": "contain",
+//           "backgroundColor": "#ffffff",
+//           "dark": {
+//             "backgroundColor": "#000000"
+//           }
+//         }
+//       ],
+//       "expo-web-browser",
+//       "expo-font",
+//       "expo-camera"
+//     ],
+//     "experiments": {
+//       "typedRoutes": true,
+//       "reactCompiler": true
+//     }
+//   }
+// }
 {
-  "$schema": "file:///Users/apple/Documents/FYP/ColorVista/.vscode/expo-app.schema.json",
   "expo": {
     "name": "cvdquiz",
     "slug": "cvdquiz",
@@ -10,7 +73,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Allow ColorVista to access your photos to enhance them.",
+        "NSPhotoLibraryAddUsageDescription": "Allow ColorVista to save enhanced images to your gallery."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -20,24 +87,21 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
       "permissions": [
-        "REQUEST_INSTALL_PACKAGES"
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_EXTERNAL_STORAGE",
+        "MEDIA_LIBRARY"
       ],
       "package": "com.anonymous.cvdquiz"
-    },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-media-library",
         {
-          "granularPermissions": [
-            "photo"
-          ]
+          "photosPermission": "Allow ColorVista to access your photos.",
+          "savePhotosPermission": "Allow ColorVista to save photos.",
+          "isAccessMediaLocationEnabled": true
         }
       ],
       [
@@ -46,10 +110,7 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
+          "backgroundColor": "#ffffff"
         }
       ],
       "expo-web-browser",

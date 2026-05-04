@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { useUserData } from "../Context/useUserData";
+import BackButton from "../components/BackButton";
 
 type CVDType = "none" | "deuteranopia" | "protanopia" | "tritanopia";
 
@@ -16,11 +17,17 @@ const normalizeCvdType = (rawType?: string | null): CVDType => {
   if (!rawType) return "none";
 
   const normalized = rawType.toLowerCase().trim();
-  if (normalized.includes("protan") && normalized.includes("deuter")) return "deuteranopia";
+  if (normalized.includes("protan") && normalized.includes("deuter"))
+    return "deuteranopia";
   if (normalized.includes("protan")) return "protanopia";
   if (normalized.includes("deuter")) return "deuteranopia";
   if (normalized.includes("tritan")) return "tritanopia";
-  if (normalized.includes("normal") || normalized.includes("none") || normalized.includes("no cvd")) return "none";
+  if (
+    normalized.includes("normal") ||
+    normalized.includes("none") ||
+    normalized.includes("no cvd")
+  )
+    return "none";
 
   return "deuteranopia";
 };
@@ -36,7 +43,6 @@ export default function VRFullScreenCamera({ navigation }: any) {
   // Cloud processing path intentionally disabled for VR mode.
   // Previous API path (for reference):
   // POST /process-live-frame with per-frame camera captures.
-
 
   const effectiveCvdType = useMemo(
     () => normalizeCvdType(userData?.cvdType),
@@ -114,6 +120,7 @@ export default function VRFullScreenCamera({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <BackButton />
       <StatusBar hidden />
 
       {/* CAMERA */}
@@ -139,7 +146,9 @@ export default function VRFullScreenCamera({ navigation }: any) {
       <View style={styles.topControls}>
         <View style={styles.statusRow}>
           <View style={styles.statusPill}>
-            <Text style={styles.text}>CVD: {effectiveCvdType.toUpperCase()}</Text>
+            <Text style={styles.text}>
+              CVD: {effectiveCvdType.toUpperCase()}
+            </Text>
           </View>
 
           <View style={styles.statusPill}>
@@ -150,11 +159,19 @@ export default function VRFullScreenCamera({ navigation }: any) {
         </View>
 
         <View style={styles.actionsRow}>
-          <TouchableOpacity style={styles.controlBtnCompact} onPress={toggleStreaming}>
-            <Text style={styles.text}>{streamingEnabled ? "Enhance On" : "Enhance Off"}</Text>
+          <TouchableOpacity
+            style={styles.controlBtnCompact}
+            onPress={toggleStreaming}
+          >
+            <Text style={styles.text}>
+              {streamingEnabled ? "Enhance On" : "Enhance Off"}
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.controlBtnCompact} onPress={toggleTorch}>
+          <TouchableOpacity
+            style={styles.controlBtnCompact}
+            onPress={toggleTorch}
+          >
             <Text style={styles.text}>{torch ? "Torch On" : "Torch Off"}</Text>
           </TouchableOpacity>
         </View>

@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 // Import the theme hook
 import { useTheme } from "../Context/ThemeContext";
+import BackButton from '../components/BackButton';
 
 const { width } = Dimensions.get("window");
 
@@ -79,22 +80,7 @@ export default function GameTypeUI({ onSelect }: GameUIProps) {
       />
 
       <SafeAreaView style={styles.content}>
-        <View style={styles.topNav}>
-          <TouchableOpacity
-            style={[
-              styles.backButton,
-              { backgroundColor: themeStyles.backBtnBg },
-            ]}
-            onPress={() => router.replace("/dashboard")}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name="chevron-back"
-              size={24}
-              color={themeStyles.backBtnIcon}
-            />
-          </TouchableOpacity>
-        </View>
+        <BackButton />
 
         <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
           <View

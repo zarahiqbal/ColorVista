@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { useTheme } from '@/Context/ThemeContext'; // Adjust path as needed
+import BackButton from '../components/BackButton';
 
 const { width } = Dimensions.get('window');
 
@@ -166,6 +167,7 @@ export default function GetInspiredScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
+      <BackButton />
       
       {/* HEADER */}
       <View style={styles.header}>

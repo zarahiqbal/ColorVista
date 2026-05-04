@@ -1,4 +1,4 @@
-import { router, useRouter } from "expo-router";
+import { router, Stack, useRouter } from "expo-router";
 import { useState } from "react";
 import {
   Alert,
@@ -212,6 +212,7 @@ export default function DashboardScreen() {
       style={[styles.safeArea, { backgroundColor: theme.bg }]}
       edges={["top", "left", "right"]}
     >
+      <Stack.Screen options={{ gestureEnabled: false }} />
       <StatusBar
         barStyle={darkMode ? "light-content" : "dark-content"}
         backgroundColor={theme.bg}

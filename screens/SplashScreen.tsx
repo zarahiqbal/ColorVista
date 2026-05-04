@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import React, { useEffect, useRef } from 'react';
+import { useRouter } from "expo-router";
+import React, { useEffect, useRef } from "react";
 import {
   Animated,
   Dimensions,
@@ -10,9 +10,9 @@ import {
   TextStyle,
   View,
   ViewStyle,
-} from 'react-native';
+} from "react-native";
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 
 interface Styles {
   container: ViewStyle;
@@ -33,14 +33,14 @@ interface Styles {
 
 const SplashScreen: React.FC = () => {
   const router = useRouter();
-  
+
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.3)).current;
   const logoRotate = useRef(new Animated.Value(0)).current;
   const textSlideAnim = useRef(new Animated.Value(50)).current;
   const loadingProgress = useRef(new Animated.Value(0)).current;
-  
+
   // Particle animations
   const particle1 = useRef(new Animated.Value(0)).current;
   const particle2 = useRef(new Animated.Value(0)).current;
@@ -132,7 +132,7 @@ const SplashScreen: React.FC = () => {
               useNativeDriver: true,
             }),
           ]),
-        ])
+        ]),
       ).start();
     };
 
@@ -150,7 +150,7 @@ const SplashScreen: React.FC = () => {
     // Navigate to main screen after splash
     const timer = setTimeout(() => {
       // Replace the splash with dashboard so the splash isn't on the stack
-      router.replace('../auth/login');
+      router.replace("../auth/login");
     }, 3500);
 
     return () => clearTimeout(timer);
@@ -158,7 +158,7 @@ const SplashScreen: React.FC = () => {
 
   const logoRotation = logoRotate.interpolate({
     inputRange: [0, 1],
-    outputRange: ['-10deg', '0deg'],
+    outputRange: ["-10deg", "0deg"],
   });
 
   const getParticleStyle = (animValue: Animated.Value, delay: number) => ({
@@ -184,7 +184,7 @@ const SplashScreen: React.FC = () => {
 
   const loadingWidth = loadingProgress.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
+    outputRange: ["0%", "100%"],
   });
 
   return (
@@ -197,7 +197,7 @@ const SplashScreen: React.FC = () => {
             opacity: fadeAnim,
             top: height * 0.1,
             left: -width * 0.2,
-            backgroundColor: 'rgba(59, 183, 179, 0.1)',
+            backgroundColor: "rgba(59, 183, 179, 0.1)",
           },
         ]}
       />
@@ -208,7 +208,7 @@ const SplashScreen: React.FC = () => {
             opacity: fadeAnim,
             bottom: height * 0.15,
             right: -width * 0.15,
-            backgroundColor: 'rgba(244, 179, 80, 0.1)',
+            backgroundColor: "rgba(244, 179, 80, 0.1)",
           },
         ]}
       />
@@ -218,28 +218,28 @@ const SplashScreen: React.FC = () => {
         <Animated.View
           style={[
             styles.particle,
-            { backgroundColor: '#3BB7B3', top: '20%', left: '15%' },
+            { backgroundColor: "#3BB7B3", top: "20%", left: "15%" },
             getParticleStyle(particle1, 0),
           ]}
         />
         <Animated.View
           style={[
             styles.particle,
-            { backgroundColor: '#5BC7DE', top: '30%', right: '20%' },
+            { backgroundColor: "#5BC7DE", top: "30%", right: "20%" },
             getParticleStyle(particle2, 200),
           ]}
         />
         <Animated.View
           style={[
             styles.particle,
-            { backgroundColor: '#F4B350', bottom: '35%', left: '25%' },
+            { backgroundColor: "#F4B350", bottom: "35%", left: "25%" },
             getParticleStyle(particle3, 400),
           ]}
         />
         <Animated.View
           style={[
             styles.particle,
-            { backgroundColor: '#E8D983', bottom: '25%', right: '15%' },
+            { backgroundColor: "#E8D983", bottom: "25%", right: "15%" },
             getParticleStyle(particle4, 600),
           ]}
         />
@@ -251,15 +251,12 @@ const SplashScreen: React.FC = () => {
           styles.logoContainer,
           {
             opacity: fadeAnim,
-            transform: [
-              { scale: scaleAnim },
-              { rotate: logoRotation },
-            ],
+            transform: [{ scale: scaleAnim }, { rotate: logoRotation }],
           },
         ]}
       >
         <Image
-          source={require('../assets/images/logo.png')}
+          source={require("../assets/images/logo.png")}
           style={styles.logo}
           resizeMode="contain"
         />
@@ -283,10 +280,7 @@ const SplashScreen: React.FC = () => {
       <Animated.View style={[styles.loadingContainer, { opacity: fadeAnim }]}>
         <View style={styles.loadingBar}>
           <Animated.View
-            style={[
-              styles.loadingFill,
-              { width: loadingWidth },
-            ]}
+            style={[styles.loadingFill, { width: loadingWidth }]}
           />
         </View>
       </Animated.View>
@@ -297,24 +291,24 @@ const SplashScreen: React.FC = () => {
 const styles = StyleSheet.create<Styles>({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#F9FAFB",
+    alignItems: "center",
+    justifyContent: "center",
   },
   backgroundCircle: {
-    position: 'absolute',
+    position: "absolute",
     width: width * 0.8,
     height: width * 0.8,
     borderRadius: (width * 0.8) / 2,
   },
   gradientOverlay: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
+    position: "absolute",
+    width: "100%",
+    height: "100%",
   },
   logoContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 30,
   },
   logo: {
@@ -322,57 +316,57 @@ const styles = StyleSheet.create<Styles>({
     height: 200,
   },
   appName: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 8,
   },
   colorText: {
     fontSize: 48,
-    fontWeight: '700',
-    color: '#5BC7DE',
+    fontWeight: "700",
+    color: "#5BC7DE",
     letterSpacing: -1,
   },
   vistaText: {
     fontSize: 48,
-    fontWeight: '700',
-    color: '#E8D983',
+    fontWeight: "700",
+    color: "#E8D983",
     letterSpacing: -1,
   },
   tagline: {
     fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    fontWeight: '500',
+    color: "#6B7280",
+    textAlign: "center",
+    fontWeight: "500",
     letterSpacing: 0.5,
   },
   particlesContainer: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
+    position: "absolute",
+    width: "100%",
+    height: "100%",
   },
   particle: {
-    position: 'absolute',
+    position: "absolute",
     width: 12,
     height: 12,
     borderRadius: 6,
   },
   loadingContainer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 80,
     width: width * 0.6,
-    alignItems: 'center',
+    alignItems: "center",
   },
   loadingBar: {
-    width: '100%',
+    width: "100%",
     height: 4,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: "#E5E7EB",
     borderRadius: 2,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   loadingFill: {
-    height: '100%',
-    backgroundColor: '#14B8A6',
+    height: "100%",
+    backgroundColor: "#14B8A6",
     borderRadius: 2,
   },
 });
