@@ -2,14 +2,14 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  Dimensions,
-  Image,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Dimensions,
+    Image,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 import { useTheme } from '@/Context/ThemeContext'; // Adjust path as needed
@@ -321,8 +321,10 @@ export default function GetInspiredScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
+    paddingTop: 56,
+    paddingBottom: 20,
+    paddingLeft: 56,
+    paddingRight: 24,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

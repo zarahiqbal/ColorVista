@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
@@ -13,12 +14,36 @@ export const useUserData = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
+
+    const hydrateFromCache = async () => {
+      try {
+        const cached = await AsyncStorage.getItem('@userData');
+        if (cached && mounted) {
+          setUserData(JSON.parse(cached));
+        }
+      } catch (error) {
+        // ignore cache errors
+      }
+    };
+
+    hydrateFromCache();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!user || user.isGuest || !user.uid) {
       setUserData(null);
+      AsyncStorage.removeItem('@userData').catch(() => undefined);
+      setLoading(false);
       return;
     }
 
     setLoading(true);
+    setUserData((prev: any) => prev ?? user);
     const userRef = ref(db, `users/${user.uid}`);
 
     // Real-time listener
@@ -26,7 +51,11 @@ export const useUserData = () => {
       userRef,
       (snapshot) => {
         if (snapshot.exists()) {
-          setUserData(snapshot.val());
+          const data = snapshot.val();
+          setUserData(data);
+          AsyncStorage.setItem('@userData', JSON.stringify(data)).catch(
+            () => undefined,
+          );
         } else {
           console.log('⚠️ useUserData: No user data found');
         }

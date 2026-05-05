@@ -730,6 +730,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
   },
   scrollContent: {
+    paddingTop: 56,
     paddingBottom: 60,
   },
   searchContainer: {

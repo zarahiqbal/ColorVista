@@ -392,22 +392,29 @@
 // });
 import { RootStackParamList } from "@/app/vrrouter";
 import BackButton from "@/components/BackButton";
-import { useTheme } from "@/Context/ThemeContext";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useRef, useState } from "react";
 import {
-  Animated,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    CvdSelection,
+    getAllowedSimulations,
+} from "@/constants/cvdUtils";
+import { useAuth } from "@/Context/AuthContext";
+import { useTheme } from "@/Context/ThemeContext";
+import { useUserData } from "@/Context/useUserData";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useRouter } from "expo-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+    Animated,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 type Props = NativeStackScreenProps<RootStackParamList, "VRSimulation">;
-type SimulationType = "Protanopia" | "Deuteranopia" | "Tritanopia";
+type SimulationType = CvdSelection;
 
 const CVD_DETAILS: Record<
   SimulationType,
@@ -427,6 +434,11 @@ const CVD_DETAILS: Record<
     description:
       "Blues appear greenish and yellows pinkish. Blue-yellow discrimination is impaired.",
     spectrum: "Short wavelength cones are absent.",
+  },
+  Combined: {
+    description:
+      "A blended simulation for users with multiple CVD types. Toggle individual filters for precision.",
+    spectrum: "Multiple cone responses are affected.",
   },
 };
 
@@ -458,20 +470,48 @@ const SPECTRUM_COLORS: Record<SimulationType, string[]> = {
     "#ff3300",
     "#990000",
   ],
+  Combined: [
+    "#4b0082",
+    "#0055ff",
+    "#00c2ff",
+    "#38a169",
+    "#b7791f",
+    "#d53f8c",
+    "#718096",
+  ],
 };
 
 export default function VRScreen({ navigation }: Props) {
-  const { darkMode, getFontSizeMultiplier, colorBlindMode } = useTheme();
-
-  // ONLY allow the stored mode. If None, default to Deuteranopia but keep it locked.
-  const initialMode =
-    colorBlindMode === "None"
-      ? "Deuteranopia"
-      : (colorBlindMode as SimulationType);
-  const [activeTab] = useState<SimulationType>(initialMode);
+  const { darkMode, getFontSizeMultiplier } = useTheme();
+  const { user } = useAuth();
+  const { userData } = useUserData();
+  const router = useRouter();
+  const cvdType = userData?.cvdType || user?.cvdType;
+  const { isNormal, types, allowCombined } = getAllowedSimulations(cvdType);
+  const availableTabs = useMemo<SimulationType[]>(() => {
+    const baseTabs = types as SimulationType[];
+    return allowCombined
+      ? ([...baseTabs, "Combined"] as SimulationType[])
+      : baseTabs;
+  }, [allowCombined, types]);
+  const initialTab: SimulationType = allowCombined
+    ? "Combined"
+    : ((types[0] ?? "Deuteranopia") as SimulationType);
+  const [activeTab, setActiveTab] = useState<SimulationType>(initialTab);
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const fontScale = getFontSizeMultiplier() || 1;
+
+  useEffect(() => {
+    if (isNormal) return;
+    if (!allowCombined) {
+  setActiveTab((types[0] ?? "Deuteranopia") as SimulationType);
+      return;
+    }
+    setActiveTab((prev) =>
+      availableTabs.includes(prev) ? prev : "Combined",
+    );
+  }, [allowCombined, availableTabs, isNormal, types]);
 
   const handleEnterVR = () => {
     Animated.sequence([
@@ -500,6 +540,44 @@ export default function VRScreen({ navigation }: Props) {
   };
 
   const cvd = CVD_DETAILS[activeTab];
+
+  if (isNormal) {
+    return (
+      <SafeAreaView
+        style={[styles.safe, { backgroundColor: themeColors.background }]}
+      >
+        <StatusBar barStyle={darkMode ? "light-content" : "dark-content"} />
+        <View style={styles.header}>
+          <BackButton />
+          <Text style={[styles.screenTitle, { color: themeColors.text }]}
+          >
+            VR Simulation
+          </Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={[styles.lockedCard, { backgroundColor: themeColors.card }]}
+        >
+          <Text style={[styles.lockedTitle, { color: themeColors.text }]}
+          >
+            Unlock VR Simulation
+          </Text>
+          <Text style={[styles.lockedText, { color: themeColors.subText }]}
+          >
+            Take the quiz to detect your CVD type before using VR filters.
+          </Text>
+          <TouchableOpacity
+            style={[styles.primaryBtn, { backgroundColor: themeColors.accent }]}
+            onPress={() => router.push("/welcome")}
+          >
+            <Text style={[styles.primaryBtnText, { color: "#FFF" }]}
+            >
+              Take Quiz
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView
@@ -566,46 +644,50 @@ export default function VRScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* LOCKED SELECTION VIEW */}
+        {/* SELECTION VIEW */}
         <View
           style={[styles.controlCard, { backgroundColor: themeColors.card }]}
         >
-          <View style={styles.tabRow}>
-            {(
-              ["Protanopia", "Deuteranopia", "Tritanopia"] as SimulationType[]
-            ).map((tab) => {
-              const isActive = activeTab === tab;
-              return (
-                <View
-                  key={tab}
-                  style={[
-                    styles.tabButton,
-                    { borderColor: themeColors.border },
-                    isActive && {
-                      backgroundColor: themeColors.accent,
-                      borderColor: themeColors.accent,
-                    },
-                  ]}
-                >
-                  <Text
+          {allowCombined ? (
+            <View style={styles.tabRow}>
+              {availableTabs.map((tab) => {
+                const isActive = activeTab === tab;
+                return (
+                  <TouchableOpacity
+                    key={tab}
                     style={[
-                      styles.tabLabel,
-                      {
-                        color: isActive
-                          ? darkMode
-                            ? "#FFF"
-                            : "#FFF"
-                          : themeColors.subText,
-                        opacity: isActive ? 1 : 0.4,
+                      styles.tabButton,
+                      { borderColor: themeColors.border },
+                      isActive && {
+                        backgroundColor: themeColors.accent,
+                        borderColor: themeColors.accent,
                       },
                     ]}
+                    onPress={() => setActiveTab(tab as SimulationType)}
+                    activeOpacity={0.8}
                   >
-                    {tab}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
+                    <Text
+                      style={[
+                        styles.tabLabel,
+                        {
+                          color: isActive ? "#FFF" : themeColors.subText,
+                        },
+                      ]}
+                    >
+                      {tab}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={styles.lockedSelection}>
+              <Text style={[styles.lockedText, { color: themeColors.subText }]}
+              >
+                Simulation locked to {activeTab}
+              </Text>
+            </View>
+          )}
 
           <Animated.View
             style={{ transform: [{ scale: scaleAnim }], marginTop: 20 }}
@@ -639,15 +721,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingTop: 56,
+    paddingBottom: 10,
+    paddingLeft: 56,
+    paddingRight: 16,
   },
   screenTitle: {
     fontSize: 20,
     fontWeight: "900",
     textTransform: "uppercase",
     letterSpacing: 1,
-    marginTop: 20,
+    marginTop: 0,
+    textAlign: "center",
   },
   scrollContent: {
     padding: 20,
@@ -715,6 +800,25 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 24,
   },
+  lockedCard: {
+    marginHorizontal: 20,
+    marginTop: 24,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
+  },
+  lockedTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  lockedText: {
+    fontSize: 13,
+    textAlign: "center",
+    marginBottom: 16,
+    lineHeight: 18,
+  },
   label: {
     fontWeight: "800",
     marginBottom: 16,
@@ -723,9 +827,12 @@ const styles = StyleSheet.create({
   tabRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 10,
   },
   tabButton: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: "45%",
     marginHorizontal: 3,
     paddingVertical: 14,
     borderRadius: 12,
@@ -736,6 +843,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "800",
     // textTransform: "uppercase",
+  },
+  lockedSelection: {
+    paddingVertical: 4,
+    alignItems: "center",
   },
   infoNote: {
     marginTop: 15,

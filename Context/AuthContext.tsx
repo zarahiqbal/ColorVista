@@ -282,12 +282,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
+      setIsLoading(true);
       const credential = await signInWithEmailAndPassword(auth, email, password);
-      // profile will be loaded by onAuthStateChanged listener; return for convenience
-      return;
+
+      const userRef = ref(db, `users/${credential.user.uid}`);
+      const snapshot = await get(userRef);
+      let profile: User;
+
+      if (snapshot.exists()) {
+        profile = snapshot.val() as User;
+        profile.uid = credential.user.uid;
+      } else {
+        const names = (credential.user.displayName || '').split(' ');
+        profile = {
+          uid: credential.user.uid,
+          firstName: names[0] || '',
+          lastName: names.slice(1).join(' ') || '',
+          email: credential.user.email || email,
+          role: 'user',
+          isGuest: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        await set(userRef, profile);
+      }
+
+      setUser(profile);
+      await saveUser(profile);
     } catch (err) {
       console.error('Sign in error:', err);
       throw err;
+    } finally {
+      setIsLoading(false);
     }
   };
 

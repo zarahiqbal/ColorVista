@@ -3,6 +3,7 @@ import { ThemeProvider, useTheme } from "@/Context/ThemeContext";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 // ----------------------------------------------------------
 // 1. Root Navigator (inside Providers so we can use useTheme)
@@ -64,10 +65,12 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        {/* IMPORTANT FIX: Base layer background must match theme */}
-        <View style={{ flex: 1, backgroundColor: "#F9FAFB" }}>
-          <RootNavigator />
-        </View>
+        <SafeAreaProvider>
+          {/* IMPORTANT FIX: Base layer background must match theme */}
+          <View style={{ flex: 1, backgroundColor: "#F9FAFB" }}>
+            <RootNavigator />
+          </View>
+        </SafeAreaProvider>
       </AuthProvider>
     </ThemeProvider>
   );

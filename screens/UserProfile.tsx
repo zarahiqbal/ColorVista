@@ -704,7 +704,7 @@ const ProfileScreen: React.FC = () => {
     isGuest ? "Not Linked" : userData?.phone || user?.phone || "Not provided",
   );
   const [colorblindnessType, setColorblindnessType] = React.useState(
-    userData?.cvdType || "Normal Vision",
+    userData?.cvdType || user?.cvdType || "Normal Vision",
   );
 
   const [isEditingUsername, setIsEditingUsername] = React.useState(false);
@@ -732,8 +732,10 @@ const ProfileScreen: React.FC = () => {
   React.useEffect(() => {
     if (userData?.cvdType) {
       setColorblindnessType(userData.cvdType);
+    } else if (user?.cvdType) {
+      setColorblindnessType(user.cvdType);
     }
-  }, [userData?.cvdType]);
+  }, [userData?.cvdType, user?.cvdType]);
 
   const handleGuestAction = (actionName: string) => {
     Alert.alert(
@@ -1245,6 +1247,37 @@ const ProfileScreen: React.FC = () => {
                 ]}
               >
                 {phone}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Color Vision Type Card */}
+        {!isGuest && (
+          <View style={[styles.card, { backgroundColor: theme.card }]}>
+            <View style={styles.cardIcon}>
+              <Ionicons
+                name="eye-outline"
+                size={20 * scale}
+                color={theme.subText}
+              />
+            </View>
+            <View style={styles.cardLeft}>
+              <Text
+                style={[
+                  styles.label,
+                  { fontSize: 12 * scale, color: theme.subText },
+                ]}
+              >
+                COLOR VISION TYPE
+              </Text>
+              <Text
+                style={[
+                  styles.value,
+                  { color: theme.text, fontSize: 16 * scale },
+                ]}
+              >
+                {colorblindnessType}
               </Text>
             </View>
           </View>

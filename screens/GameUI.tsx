@@ -1,6 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
 import { useEffect, useRef } from "react";
 import {
     Animated,
@@ -12,6 +10,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 // Import the theme hook
+import { useAuth } from "@/Context/AuthContext";
+import { useUserData } from "@/Context/useUserData";
+import { isNormalVision } from "@/constants/cvdUtils";
+import { useRouter } from "expo-router";
 import { useTheme } from "../Context/ThemeContext";
 import BackButton from '../components/BackButton';
 
@@ -24,6 +26,11 @@ interface GameUIProps {
 export default function GameTypeUI({ onSelect }: GameUIProps) {
   // 1. Consume Theme Context
   const { darkMode, getFontSizeMultiplier } = useTheme();
+  const { user } = useAuth();
+  const { userData } = useUserData();
+  const router = useRouter();
+  const cvdType = userData?.cvdType || user?.cvdType;
+  const isNormal = isNormalVision(cvdType);
   const multiplier = getFontSizeMultiplier();
 
   const floatAnim = useRef(new Animated.Value(0)).current;
@@ -71,6 +78,37 @@ export default function GameTypeUI({ onSelect }: GameUIProps) {
       ? "rgba(255, 255, 255, 0.1)"
       : "rgba(255, 255, 255, 0.4)",
   };
+
+  if (isNormal) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={themeStyles.backgroundColors}
+          style={StyleSheet.absoluteFill}
+        />
+        <SafeAreaView style={styles.content}>
+          <BackButton />
+          <View style={[styles.lockedCard, { backgroundColor: "rgba(0,0,0,0.25)" }]}
+          >
+            <Text style={[styles.lockedTitle, { color: themeStyles.textColor }]}
+            >
+              Unlock Games
+            </Text>
+            <Text style={[styles.lockedText, { color: themeStyles.textColor }]}
+            >
+              Take the quiz to detect your CVD type before playing.
+            </Text>
+            <TouchableOpacity
+              style={styles.lockedButton}
+              onPress={() => router.push("/welcome")}
+            >
+              <Text style={styles.lockedButtonText}>Take Quiz</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -123,7 +161,7 @@ export default function GameTypeUI({ onSelect }: GameUIProps) {
                   EASY
                 </Text>
                 <Text style={[styles.cardDesc, { fontSize: 14 * multiplier }]}>
-                  Download and play Spectrum Shifter (Unity) on Android.
+                  Spot the odd shape in Color Detective (Skia).
                 </Text>
               </View>
             </LinearGradient>
@@ -214,4 +252,33 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   cardDesc: { color: "rgba(255,255,255,0.9)", lineHeight: 20 },
+  lockedCard: {
+    marginTop: 80,
+    borderRadius: 24,
+    padding: 24,
+    alignItems: "center",
+  },
+  lockedTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  lockedText: {
+    fontSize: 13,
+    textAlign: "center",
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  lockedButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  lockedButtonText: {
+    color: "#FFF",
+    fontWeight: "700",
+    letterSpacing: 0.4,
+  },
 });

@@ -36,7 +36,7 @@ export default function LiveScreen({
   const fontScale = getFontSizeMultiplier();
 
   // Server endpoint
-  const SERVER_FRAME_URL = "http://172.20.10.3:5000/process-frame";
+  const SERVER_FRAME_URL = "http://192.168.1.4:5000/process-frame";
 
   const [detectedColors, setDetectedColors] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(true);
@@ -131,7 +131,8 @@ export default function LiveScreen({
         fontFamily: "System", // San Francisco on iOS
       },
       header: {
-        paddingVertical: 30,
+        paddingTop: 64,
+        paddingBottom: 20,
         paddingHorizontal: 24,
         alignItems: "center",
       },
@@ -480,8 +481,8 @@ export default function LiveScreen({
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+      <BackButton />
       <View style={styles.container}>
-        <BackButton />
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Color Analysis</Text>

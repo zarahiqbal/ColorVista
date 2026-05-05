@@ -4,14 +4,11 @@ import GameTypeUI from "../screens/GameUI";
 export default function GameRouter() {
   const handleSelect = (difficulty: "easy" | "hard") => {
     if (difficulty === "easy") {
-      router.push("/unity-game" as never);
+      router.push("/color-detective" as never);
       return;
     }
 
-    router.push({
-      pathname: "/quiz",
-      params: { difficulty: "hard" },
-    });
+    router.push("/signal-rush" as never);
   };
 
   return <GameTypeUI onSelect={handleSelect} />;

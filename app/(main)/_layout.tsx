@@ -1,13 +1,23 @@
-import { Slot } from 'expo-router';
-import { View, StyleSheet } from 'react-native';
+import { useTheme } from '@/Context/ThemeContext';
+import { Stack } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
 import BottomNavBar from "../components/BottomNavBar"; // Ensure path is correct
 
 export default function MainLayout() {
+  const { darkMode } = useTheme();
+  const backgroundColor = darkMode ? '#1C1C1E' : '#F6F3EE';
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor }]}>
       {/* 1. The Screen Content (Dashboard, Profile, or Settings) */}
       <View style={styles.content}>
-        <Slot /> 
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: 'none',
+            contentStyle: { backgroundColor },
+          }}
+        />
       </View>
 
       {/* 2. The Persistent Bottom Bar */}

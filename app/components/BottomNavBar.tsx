@@ -42,9 +42,10 @@ export default function BottomNavBar() {
   });
 
   // Navigation Handler
-  const handleNav = (route: string) => {
+  const handleNav = (route: string, routeKey: string) => {
+    if (isActive(routeKey)) return;
     // replace() prevents the back button history from getting messy
-    router.replace(route as any); 
+    router.replace(route as any);
   };
 
   return (
@@ -53,7 +54,7 @@ export default function BottomNavBar() {
       {/* PROFILE TAB */}
       <TouchableOpacity 
         style={styles.navItem} 
-        onPress={() => handleNav('/userprofile')}
+        onPress={() => handleNav('/userprofile', 'userprofile')}
       >
         <FontAwesome name="user" size={24 * scale} color={getIconColor('userprofile')} />
         <Text style={getTextStyle('userprofile')}>Profile</Text>
@@ -64,7 +65,7 @@ export default function BottomNavBar() {
       {/* HOME TAB (DASHBOARD) */}
       <TouchableOpacity 
         style={styles.navItem} 
-        onPress={() => handleNav('/dashboard')}
+        onPress={() => handleNav('/dashboard', 'dashboard')}
       >
         <FontAwesome name="home" size={24 * scale} color={getIconColor('dashboard')} />
         <Text style={getTextStyle('dashboard')}>Home</Text>
@@ -76,7 +77,7 @@ export default function BottomNavBar() {
       {/* SETTINGS TAB */}
       <TouchableOpacity 
         style={styles.navItem} 
-        onPress={() => handleNav('/settings')}
+        onPress={() => handleNav('/settings', 'settings')}
       >
         <Feather name="settings" size={24 * scale} color={getIconColor('settings')} />
         <Text style={getTextStyle('settings')}>Settings</Text>

@@ -44,3 +44,6 @@ app-example
 
 #virtual environment
 .venv/
+
+# Log files
+eas.json

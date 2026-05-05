@@ -337,10 +337,18 @@
 //   },
 // });
 import BackButton from "@/components/BackButton";
+import {
+  CvdSelection,
+  formatCvdLabel,
+  getAllowedSimulations,
+} from "@/constants/cvdUtils";
+import { useAuth } from "@/Context/AuthContext";
+import { useUserData } from "@/Context/useUserData";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Dimensions,
@@ -368,7 +376,20 @@ export default function EnhancerScreen({
   onApplySystem,
 }: EnhancerScreenProps) {
   const { darkMode, getFontSizeMultiplier } = useTheme();
+  const { user } = useAuth();
+  const { userData } = useUserData();
+  const router = useRouter();
   const scale = getFontSizeMultiplier();
+
+  const cvdType = userData?.cvdType || user?.cvdType;
+  const { isNormal, types, allowCombined } = getAllowedSimulations(cvdType);
+  const availableTabs = useMemo<CvdSelection[]>(() => {
+    const baseTabs = types as CvdSelection[];
+    return allowCombined ? ([...baseTabs, "Combined"] as CvdSelection[]) : baseTabs;
+  }, [allowCombined, types]);
+  const [activeMode, setActiveMode] = useState<CvdSelection>(
+    allowCombined ? "Combined" : ((types[0] ?? "Deuteranopia") as CvdSelection),
+  );
 
   const theme = {
     bg: darkMode ? "#1C1C1A" : "#EDEAE3",
@@ -396,6 +417,17 @@ export default function EnhancerScreen({
       (error) => console.error("Initial size error:", error),
     );
   }, []);
+
+  useEffect(() => {
+    if (isNormal) return;
+    if (!allowCombined) {
+      setActiveMode((types[0] ?? "Deuteranopia") as CvdSelection);
+      return;
+    }
+    setActiveMode((prev) =>
+      availableTabs.includes(prev) ? prev : "Combined",
+    );
+  }, [allowCombined, availableTabs, isNormal, types]);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -428,6 +460,37 @@ export default function EnhancerScreen({
     if (action === "apply") onApplySystem();
   };
 
+  if (isNormal) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}
+      >
+        <BackButton />
+        <StatusBar style={darkMode ? "light" : "dark"} />
+        <View style={[styles.lockedCard, { backgroundColor: theme.card }]}
+        >
+          <Text style={[styles.lockedTitle, { color: theme.textPrimary }]}
+          >
+            Unlock Image Enhancer
+          </Text>
+          <Text style={[styles.lockedText, { color: theme.textSecondary }]}
+          >
+            Take the quiz to detect your CVD type before using the enhancer.
+          </Text>
+          <TouchableOpacity
+            style={[styles.primaryButton, { backgroundColor: theme.accent }]}
+            onPress={() => router.push("/welcome")}
+            activeOpacity={0.85}
+          >
+            <Text style={[styles.actionButtonText, { fontSize: 15 * scale }]}
+            >
+              Take Quiz
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
       <BackButton />
@@ -453,9 +516,44 @@ export default function EnhancerScreen({
               { color: theme.textSecondary, fontSize: 14 * scale },
             ]}
           >
-            Stored CVD type: TRITANOPIA
+            Stored CVD type: {formatCvdLabel(cvdType)}
           </Text>
         </View>
+
+        {allowCombined ? (
+          <View style={styles.selectionRow}>
+            {availableTabs.map((tab) => {
+              const isActive = activeMode === tab;
+              return (
+                <TouchableOpacity
+                  key={tab}
+                  style={[
+                    styles.selectionPill,
+                    isActive && { backgroundColor: theme.accent },
+                  ]}
+                  onPress={() => setActiveMode(tab)}
+                  activeOpacity={0.85}
+                >
+                  <Text
+                    style={[
+                      styles.selectionText,
+                      { color: isActive ? theme.white : theme.textSecondary },
+                    ]}
+                  >
+                    {tab}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={styles.lockedSelection}>
+            <Text style={[styles.lockedText, { color: theme.textSecondary }]}
+            >
+              Enhancement locked to {activeMode}
+            </Text>
+          </View>
+        )}
 
         {/* Main Card with the Image */}
         <View style={[styles.imageCard, { backgroundColor: theme.card }]}>
@@ -502,7 +600,7 @@ export default function EnhancerScreen({
                 { color: theme.textSecondary, fontSize: 13 * scale },
               ]}
             >
-              Active correction: Tritanopia
+              Active correction: {activeMode}
             </Text>
           </View>
         </View>
@@ -568,6 +666,56 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     marginTop: 4,
     fontWeight: "600",
+  },
+  selectionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 10,
+    marginBottom: 20,
+  },
+  selectionPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "transparent",
+    backgroundColor: "rgba(0,0,0,0.08)",
+  },
+  selectionText: {
+    fontWeight: "700",
+    fontSize: 12,
+    letterSpacing: 0.4,
+  },
+  lockedSelection: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  lockedCard: {
+    marginHorizontal: 20,
+    marginTop: 40,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
+  },
+  lockedTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  lockedText: {
+    fontSize: 13,
+    textAlign: "center",
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  primaryButton: {
+    borderRadius: 15,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    width: "100%",
+    alignItems: "center",
   },
   imageCard: {
     borderRadius: 24,

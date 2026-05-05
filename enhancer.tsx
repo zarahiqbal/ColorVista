@@ -764,7 +764,7 @@ interface EnhancerScreenProps {
 }
 
 type CVDType = "none" | "deuteranopia" | "protanopia" | "tritanopia";
-const SERVER_URL = "http://172.20.10.3:5000/process-image";
+const SERVER_URL = "http://192.168.1.4:5000/process-image";
 
 export default function EnhancerScreen({ onSaveImage }: EnhancerScreenProps) {
   const { userData } = useUserData();
@@ -896,9 +896,7 @@ export default function EnhancerScreen({ onSaveImage }: EnhancerScreenProps) {
       <StatusBar style={darkMode ? "light" : "dark"} />
 
       {/* --- BACK BUTTON --- */}
-      <View style={styles.backButtonWrapper}>
-        <BackButton />
-      </View>
+      <BackButton />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -1030,12 +1028,6 @@ export default function EnhancerScreen({ onSaveImage }: EnhancerScreenProps) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  backButtonWrapper: {
-    position: "absolute",
-    top: 10, // Adjust if your BackButton already has top padding
-    left: 20,
-    zIndex: 10,
-  },
   scrollContent: {
     flexGrow: 1,
     justifyContent: "center",

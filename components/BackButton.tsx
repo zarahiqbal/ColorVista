@@ -60,16 +60,19 @@
 import { useTheme } from "@/Context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { StyleSheet, TouchableOpacity } from "react-native";
+import { StyleProp, StyleSheet, TouchableOpacity, ViewStyle } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface BackButtonProps {
   onPress?: () => void;
+  style?: StyleProp<ViewStyle>;
 }
 
-export default function BackButton({ onPress }: BackButtonProps) {
+export default function BackButton({ onPress, style }: BackButtonProps) {
   const router = useRouter();
   const { darkMode, getFontSizeMultiplier } = useTheme();
   const scale = getFontSizeMultiplier();
+  const insets = useSafeAreaInsets();
 
   const theme = {
     // Semi-transparent backgrounds to mimic the UI in your image
@@ -87,9 +90,19 @@ export default function BackButton({ onPress }: BackButtonProps) {
 
   return (
     <TouchableOpacity
-      style={[styles.backButton, { backgroundColor: theme.iconBg }]}
+      style={[
+        styles.backButton,
+        {
+          backgroundColor: theme.iconBg,
+          top: insets.top + 8,
+        },
+        style,
+      ]}
       onPress={handlePress}
       activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel="Go back"
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
     >
       <Ionicons name="chevron-back" size={20 * scale} color={theme.icon} />
     </TouchableOpacity>
@@ -103,7 +116,8 @@ const styles = StyleSheet.create({
     borderRadius: 20, // Perfect circle (width / 2)
     alignItems: "center", // Centered horizontally
     justifyContent: "center", // Centered vertically
-    marginLeft: 16,
-    marginTop: 16,
+    position: "absolute",
+    left: 16,
+    zIndex: 20,
   },
 });

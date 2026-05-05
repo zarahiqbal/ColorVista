@@ -1,17 +1,17 @@
 import { router, Stack, useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  Alert,
-  FlatList,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -24,6 +24,8 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 // Theme & Auth
 import { useAuth } from "@/Context/AuthContext";
 import { useTheme } from "@/Context/ThemeContext";
+import { useUserData } from "@/Context/useUserData";
+import { isNormalVision } from "@/constants/cvdUtils";
 
 // ---------------- EARTH TONE PALETTE ----------------
 const palette = {
@@ -133,8 +135,11 @@ export default function DashboardScreen() {
 
   const { darkMode, getFontSizeMultiplier } = useTheme();
   const { user } = useAuth();
+  const { userData } = useUserData();
 
   const isGuest = user?.isGuest === true;
+  const cvdType = userData?.cvdType || user?.cvdType;
+  const isNormalUser = !isGuest && isNormalVision(cvdType);
   const scale = getFontSizeMultiplier();
 
   const theme = {
@@ -196,7 +201,19 @@ export default function DashboardScreen() {
     }
   };
 
-  const handleLockedFeature = (featureName: string) => {
+  const handleLockedFeature = (featureName: string, reason: "guest" | "normal") => {
+    if (reason === "normal") {
+      Alert.alert(
+        "Feature Locked",
+        `Complete the quiz to unlock ${featureName} and personalize your CVD tools.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Take Quiz", onPress: () => router.push("/welcome") },
+        ],
+      );
+      return;
+    }
+
     Alert.alert(
       "Feature Locked",
       `Sign up to access ${featureName} and save your progress!`,
@@ -276,6 +293,7 @@ export default function DashboardScreen() {
           theme={theme}
           scale={scale}
           isGuest={isGuest}
+          isNormalUser={isNormalUser}
           onLockedPress={handleLockedFeature}
         />
       </ScrollView>
@@ -354,15 +372,27 @@ const HeroCard = ({ theme, scale, userName }: any) => (
 );
 
 // ---------------- TOOLS GRID ----------------
-const ToolsGrid = ({ navigate, theme, scale, isGuest, onLockedPress }: any) => {
-  const GUEST_ALLOWED_TOOLS = ["live", "mediaupload"];
+const ToolsGrid = ({
+  navigate,
+  theme,
+  scale,
+  isGuest,
+  isNormalUser,
+  onLockedPress,
+}: any) => {
+  const GUEST_ALLOWED_TOOLS = ["live", "mediaupload", "welcome"];
+  const NORMAL_ALLOWED_TOOLS = ["live", "mediaupload", "welcome"];
 
   return (
     <View style={styles.gridContainer}>
       <View style={styles.gridWrapper}>
         {toolsData.map((tool, index) => {
-          const isLocked =
-            isGuest && !GUEST_ALLOWED_TOOLS.includes(tool.screen);
+          const toolKey = tool.screen.toLowerCase();
+          const isGuestLocked = isGuest && !GUEST_ALLOWED_TOOLS.includes(toolKey);
+          const isNormalLocked =
+            isNormalUser && !NORMAL_ALLOWED_TOOLS.includes(toolKey);
+          const isLocked = isGuestLocked || isNormalLocked;
+          const lockReason = isGuestLocked ? "guest" : "normal";
 
           return (
             <View key={index} style={styles.gridItemWrapper}>
@@ -373,7 +403,9 @@ const ToolsGrid = ({ navigate, theme, scale, isGuest, onLockedPress }: any) => {
                   isLocked && styles.toolCardLocked,
                 ]}
                 onPress={() =>
-                  isLocked ? onLockedPress(tool.title) : navigate(tool.screen)
+                  isLocked
+                    ? onLockedPress(tool.title, lockReason)
+                    : navigate(tool.screen)
                 }
                 activeOpacity={0.8}
               >
