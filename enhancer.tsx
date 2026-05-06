@@ -757,7 +757,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 // Context & Custom Components
 import { useTheme } from "./Context/ThemeContext";
 import { useUserData } from "./Context/useUserData";
-import BackButton from "./components/BackButton";
 
 interface EnhancerScreenProps {
   onSaveImage: (imageUri?: string) => void;
@@ -896,7 +895,6 @@ export default function EnhancerScreen({ onSaveImage }: EnhancerScreenProps) {
       <StatusBar style={darkMode ? "light" : "dark"} />
 
       {/* --- BACK BUTTON --- */}
-      <BackButton />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}

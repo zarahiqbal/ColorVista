@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Allow ColorVista to access your photos to enhance them.",
-        "NSPhotoLibraryAddUsageDescription": "Allow ColorVista to save enhanced images to your gallery."
+        "NSPhotoLibraryAddUsageDescription": "Allow ColorVista to save enhanced images to your gallery.",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.anonymous.cvdquiz"
     },
@@ -70,8 +71,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "a7f9f004-1ac1-4f1d-b7ec-cd21030dd6ef"
+        "projectId": "8dffe99a-9783-4d44-822e-f66705a9830a"
       }
-    }
+    },
+    "owner": "zarahiqbal"
   }
 }

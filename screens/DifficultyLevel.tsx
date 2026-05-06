@@ -1,4 +1,3 @@
-import BackButton from "@/components/BackButton";
 import { useTheme } from "@/Context/ThemeContext"; // Ensure this path matches your project structure
 import { Flame, Zap } from "lucide-react-native";
 import { useMemo, useState } from "react";
@@ -67,6 +66,7 @@ export function DifficultySelection({
         fontWeight: "800",
         color: darkMode ? "#F6F3EE" : dynamicColors.text,
         textAlign: "center",
+        marginTop: 60,
         marginBottom: 40,
         letterSpacing: -0.5,
       },
@@ -181,7 +181,6 @@ export function DifficultySelection({
 
   return (
     <View style={styles.container}>
-      <BackButton />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}

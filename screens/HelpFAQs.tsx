@@ -385,7 +385,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 // 1. IMPORT THEME HOOK
-import BackButton from "@/components/BackButton";
 import { useTheme } from "../Context/ThemeContext";
 
 // Enable LayoutAnimation for Android
@@ -525,7 +524,6 @@ export default function HelpScreen() {
       edges={["top", "left", "right"]}
     >
       <Stack.Screen options={{ headerShown: false }} />
-      <BackButton />
 
       {/* --- HEADER --- */}
       {/* <View style={[styles.header, { backgroundColor: theme.headerBg }]}>
@@ -721,10 +719,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 15,
   },
-  backButton: {
-    padding: 4,
-    marginLeft: -4,
-  },
+  
   headerTitle: {
     fontWeight: "600",
     fontFamily: Platform.OS === "ios" ? "System" : "Roboto",

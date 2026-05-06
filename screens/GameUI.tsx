@@ -1,12 +1,12 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useRef } from "react";
 import {
-    Animated,
-    Dimensions,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  Dimensions,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 // Import the theme hook
@@ -15,7 +15,6 @@ import { useUserData } from "@/Context/useUserData";
 import { isNormalVision } from "@/constants/cvdUtils";
 import { useRouter } from "expo-router";
 import { useTheme } from "../Context/ThemeContext";
-import BackButton from '../components/BackButton';
 
 const { width } = Dimensions.get("window");
 
@@ -87,15 +86,15 @@ export default function GameTypeUI({ onSelect }: GameUIProps) {
           style={StyleSheet.absoluteFill}
         />
         <SafeAreaView style={styles.content}>
-          <BackButton />
-          <View style={[styles.lockedCard, { backgroundColor: "rgba(0,0,0,0.25)" }]}
+          <View
+            style={[styles.lockedCard, { backgroundColor: "rgba(0,0,0,0.25)" }]}
           >
-            <Text style={[styles.lockedTitle, { color: themeStyles.textColor }]}
+            <Text
+              style={[styles.lockedTitle, { color: themeStyles.textColor }]}
             >
               Unlock Games
             </Text>
-            <Text style={[styles.lockedText, { color: themeStyles.textColor }]}
-            >
+            <Text style={[styles.lockedText, { color: themeStyles.textColor }]}>
               Take the quiz to detect your CVD type before playing.
             </Text>
             <TouchableOpacity
@@ -118,8 +117,6 @@ export default function GameTypeUI({ onSelect }: GameUIProps) {
       />
 
       <SafeAreaView style={styles.content}>
-        <BackButton />
-
         <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
           <View
             style={[
@@ -203,15 +200,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 10,
   },
-  backButton: {
-    width: 45,
-    height: 45,
-    borderRadius: 15,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
+
   header: { alignItems: "center", marginBottom: 50 },
   heroCircle: {
     width: 160,

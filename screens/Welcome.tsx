@@ -458,9 +458,8 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
-import BackButton from "../components/BackButton";
 
 export default function Welcome({ onStart }: any) {
   const { darkMode, getFontSizeMultiplier } = useTheme();
@@ -501,7 +500,7 @@ export default function Welcome({ onStart }: any) {
           backgroundColor: colors.card,
           borderTopLeftRadius: 32,
           borderTopRightRadius: 32,
-          marginTop: 20,
+          marginTop: 60,
           padding: 28,
           flex: 1,
           minHeight: "100%",
@@ -511,6 +510,7 @@ export default function Welcome({ onStart }: any) {
           fontSize: 28 * scale,
           fontWeight: "800",
           color: colors.text,
+          marginTop: 15,
           marginBottom: 24,
           textAlign: "center",
         },
@@ -697,7 +697,6 @@ export default function Welcome({ onStart }: any) {
     >
       <View style={styles.s.card}>
         <View style={styles.s.header}>
-          <BackButton />
           <Text style={styles.s.title}>Color Vision Test</Text>
           <View style={styles.s.illustrationContainer}>
             <View style={styles.s.illustrationCircle}>

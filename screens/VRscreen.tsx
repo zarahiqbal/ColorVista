@@ -391,11 +391,7 @@
 //   },
 // });
 import { RootStackParamList } from "@/app/vrrouter";
-import BackButton from "@/components/BackButton";
-import {
-    CvdSelection,
-    getAllowedSimulations,
-} from "@/constants/cvdUtils";
+import { CvdSelection, getAllowedSimulations } from "@/constants/cvdUtils";
 import { useAuth } from "@/Context/AuthContext";
 import { useTheme } from "@/Context/ThemeContext";
 import { useUserData } from "@/Context/useUserData";
@@ -403,14 +399,14 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-    Animated,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 type Props = NativeStackScreenProps<RootStackParamList, "VRSimulation">;
@@ -505,12 +501,10 @@ export default function VRScreen({ navigation }: Props) {
   useEffect(() => {
     if (isNormal) return;
     if (!allowCombined) {
-  setActiveTab((types[0] ?? "Deuteranopia") as SimulationType);
+      setActiveTab((types[0] ?? "Deuteranopia") as SimulationType);
       return;
     }
-    setActiveTab((prev) =>
-      availableTabs.includes(prev) ? prev : "Combined",
-    );
+    setActiveTab((prev) => (availableTabs.includes(prev) ? prev : "Combined"));
   }, [allowCombined, availableTabs, isNormal, types]);
 
   const handleEnterVR = () => {
@@ -548,29 +542,25 @@ export default function VRScreen({ navigation }: Props) {
       >
         <StatusBar barStyle={darkMode ? "light-content" : "dark-content"} />
         <View style={styles.header}>
-          <BackButton />
-          <Text style={[styles.screenTitle, { color: themeColors.text }]}
-          >
+          <Text style={[styles.screenTitle, { color: themeColors.text }]}>
             VR Simulation
           </Text>
           <View style={{ width: 40 }} />
         </View>
-        <View style={[styles.lockedCard, { backgroundColor: themeColors.card }]}
+        <View
+          style={[styles.lockedCard, { backgroundColor: themeColors.card }]}
         >
-          <Text style={[styles.lockedTitle, { color: themeColors.text }]}
-          >
+          <Text style={[styles.lockedTitle, { color: themeColors.text }]}>
             Unlock VR Simulation
           </Text>
-          <Text style={[styles.lockedText, { color: themeColors.subText }]}
-          >
+          <Text style={[styles.lockedText, { color: themeColors.subText }]}>
             Take the quiz to detect your CVD type before using VR filters.
           </Text>
           <TouchableOpacity
             style={[styles.primaryBtn, { backgroundColor: themeColors.accent }]}
             onPress={() => router.push("/welcome")}
           >
-            <Text style={[styles.primaryBtnText, { color: "#FFF" }]}
-            >
+            <Text style={[styles.primaryBtnText, { color: "#FFF" }]}>
               Take Quiz
             </Text>
           </TouchableOpacity>
@@ -586,7 +576,6 @@ export default function VRScreen({ navigation }: Props) {
       <StatusBar barStyle={darkMode ? "light-content" : "dark-content"} />
 
       <View style={styles.header}>
-        <BackButton />
         <Text style={[styles.screenTitle, { color: themeColors.text }]}>
           VR Simulation
         </Text>
@@ -682,8 +671,7 @@ export default function VRScreen({ navigation }: Props) {
             </View>
           ) : (
             <View style={styles.lockedSelection}>
-              <Text style={[styles.lockedText, { color: themeColors.subText }]}
-              >
+              <Text style={[styles.lockedText, { color: themeColors.subText }]}>
                 Simulation locked to {activeTab}
               </Text>
             </View>
@@ -721,10 +709,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 56,
-    paddingBottom: 10,
+    // paddingTop: 56,
+    // paddingBottom: 10,
     paddingLeft: 56,
     paddingRight: 16,
+    alignContent: "center",
+    textAlign: "center",
+
+    
   },
   screenTitle: {
     fontSize: 20,
@@ -733,6 +725,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginTop: 0,
     textAlign: "center",
+    justifyContent: "center",
+    alignContent: "center",
   },
   scrollContent: {
     padding: 20,

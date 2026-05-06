@@ -1,18 +1,18 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-    Dimensions,
-    GestureResponderEvent,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  GestureResponderEvent,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import BackButton from "../components/BackButton";
 import {
-    createDetectiveRound,
-    DetectiveObject,
+  createDetectiveRound,
+  DetectiveObject,
 } from "../constants/colorDetective";
 import { useAuth } from "../Context/AuthContext";
 import { useTheme } from "../Context/ThemeContext";
@@ -30,29 +30,17 @@ const skiaModule = (() => {
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const CVD_MATRICES: Record<string, number[]> = {
-  normal: [
-    1, 0, 0, 0, 0,
-    0, 1, 0, 0, 0,
-    0, 0, 1, 0, 0,
-    0, 0, 0, 1, 0,
-  ],
+  normal: [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0],
   protanopia: [
-    0.567, 0.433, 0, 0, 0,
-    0.558, 0.442, 0, 0, 0,
-    0, 0.242, 0.758, 0, 0,
-    0, 0, 0, 1, 0,
+    0.567, 0.433, 0, 0, 0, 0.558, 0.442, 0, 0, 0, 0, 0.242, 0.758, 0, 0, 0, 0,
+    0, 1, 0,
   ],
   deuteranopia: [
-    0.625, 0.375, 0, 0, 0,
-    0.7, 0.3, 0, 0, 0,
-    0, 0.3, 0.7, 0, 0,
-    0, 0, 0, 1, 0,
+    0.625, 0.375, 0, 0, 0, 0.7, 0.3, 0, 0, 0, 0, 0.3, 0.7, 0, 0, 0, 0, 0, 1, 0,
   ],
   tritanopia: [
-    0.95, 0.05, 0, 0, 0,
-    0, 0.433, 0.567, 0, 0,
-    0, 0.475, 0.525, 0, 0,
-    0, 0, 0, 1, 0,
+    0.95, 0.05, 0, 0, 0, 0, 0.433, 0.567, 0, 0, 0, 0.475, 0.525, 0, 0, 0, 0, 0,
+    1, 0,
   ],
 };
 
@@ -94,18 +82,24 @@ export default function ColorDetective() {
 
   if (!skiaModule) {
     return (
-      <View style={[styles.container, { backgroundColor: darkMode ? "#121212" : "#F7F2EB" }]}>
+      <View
+        style={[
+          styles.container,
+          { backgroundColor: darkMode ? "#121212" : "#F7F2EB" },
+        ]}
+      >
         <SafeAreaView style={styles.safeArea}>
           <BackButton />
-          <Text style={[styles.title, { color: darkMode ? "#F8FAFC" : "#1F2937" }]}
+          <Text
+            style={[styles.title, { color: darkMode ? "#F8FAFC" : "#1F2937" }]}
           >
             Color Detective
           </Text>
           <View style={styles.gameOverCard}>
             <Text style={styles.gameOverTitle}>Skia unavailable</Text>
             <Text style={styles.gameOverText}>
-              This mini game needs the Skia native module. Use a development build
-              (not Expo Go) to play Color Detective.
+              This mini game needs the Skia native module. Use a development
+              build (not Expo Go) to play Color Detective.
             </Text>
           </View>
         </SafeAreaView>
@@ -113,9 +107,13 @@ export default function ColorDetective() {
     );
   }
 
-  const { Canvas, Group, Line, Path, Rect, Skia } = skiaModule as typeof import("@shopify/react-native-skia");
+  const { Canvas, Group, Line, Path, Rect, Skia } =
+    skiaModule as typeof import("@shopify/react-native-skia");
 
-  const colorFilter = useMemo(() => Skia.ColorFilter.MakeMatrix(matrix), [matrix, Skia]);
+  const colorFilter = useMemo(
+    () => Skia.ColorFilter.MakeMatrix(matrix),
+    [matrix, Skia],
+  );
   const filterPaint = useMemo(() => {
     const paint = Skia.Paint();
     paint.setColorFilter(colorFilter);
@@ -366,15 +364,26 @@ export default function ColorDetective() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+    <View
+      style={[styles.container, { backgroundColor: themeColors.background }]}
+    >
       <SafeAreaView style={styles.safeArea}>
         <BackButton />
         <View style={styles.headerRow}>
-          <Text style={[styles.title, { color: themeColors.text, fontSize: 24 * scale }]}>
+          <Text
+            style={[
+              styles.title,
+              { color: themeColors.text, fontSize: 24 * scale },
+            ]}
+          >
             Color Detective
           </Text>
-          <View style={[styles.timerPill, { backgroundColor: themeColors.surface }]}>
-            <Text style={[styles.timerLabel, { color: themeColors.subtext }]}>TIME</Text>
+          <View
+            style={[styles.timerPill, { backgroundColor: themeColors.surface }]}
+          >
+            <Text style={[styles.timerLabel, { color: themeColors.subtext }]}>
+              TIME
+            </Text>
             <Text style={[styles.timerValue, { color: themeColors.text }]}>
               {timeLeft.toFixed(1)}s
             </Text>
@@ -382,25 +391,51 @@ export default function ColorDetective() {
         </View>
 
         <View style={styles.statsRow}>
-          <View style={[styles.statMini, { backgroundColor: themeColors.surface }]}>
-            <Text style={[styles.statLabel, { color: themeColors.subtext }]}>Score</Text>
-            <Text style={[styles.statValue, { color: themeColors.text }]}>{score}</Text>
+          <View
+            style={[styles.statMini, { backgroundColor: themeColors.surface }]}
+          >
+            <Text style={[styles.statLabel, { color: themeColors.subtext }]}>
+              Score
+            </Text>
+            <Text style={[styles.statValue, { color: themeColors.text }]}>
+              {score}
+            </Text>
           </View>
-          <View style={[styles.statMini, { backgroundColor: themeColors.surface }]}>
-            <Text style={[styles.statLabel, { color: themeColors.subtext }]}>Level</Text>
-            <Text style={[styles.statValue, { color: themeColors.text }]}>{level}</Text>
+          <View
+            style={[styles.statMini, { backgroundColor: themeColors.surface }]}
+          >
+            <Text style={[styles.statLabel, { color: themeColors.subtext }]}>
+              Level
+            </Text>
+            <Text style={[styles.statValue, { color: themeColors.text }]}>
+              {level}
+            </Text>
           </View>
-          <View style={[styles.statMini, { backgroundColor: themeColors.surface }]}>
-            <Text style={[styles.statLabel, { color: themeColors.subtext }]}>Multi</Text>
-            <Text style={[styles.statValue, { color: themeColors.text }]}>x{multiplier}</Text>
+          <View
+            style={[styles.statMini, { backgroundColor: themeColors.surface }]}
+          >
+            <Text style={[styles.statLabel, { color: themeColors.subtext }]}>
+              Multi
+            </Text>
+            <Text style={[styles.statValue, { color: themeColors.text }]}>
+              x{multiplier}
+            </Text>
           </View>
-          <View style={[styles.statMini, { backgroundColor: themeColors.surface }]}>
-            <Text style={[styles.statLabel, { color: themeColors.subtext }]}>Streak</Text>
-            <Text style={[styles.statValue, { color: themeColors.text }]}>{streak}</Text>
+          <View
+            style={[styles.statMini, { backgroundColor: themeColors.surface }]}
+          >
+            <Text style={[styles.statLabel, { color: themeColors.subtext }]}>
+              Streak
+            </Text>
+            <Text style={[styles.statValue, { color: themeColors.text }]}>
+              {streak}
+            </Text>
           </View>
         </View>
 
-        <View style={[styles.targetCard, { backgroundColor: themeColors.surface }]}>
+        <View
+          style={[styles.targetCard, { backgroundColor: themeColors.surface }]}
+        >
           <Text style={[styles.targetLabel, { color: themeColors.subtext }]}>
             Tap the odd one out
           </Text>
@@ -415,7 +450,8 @@ export default function ColorDetective() {
         </View>
 
         <View style={styles.timerWrap}>
-          <View style={[styles.timerTrack, { backgroundColor: "rgba(0,0,0,0.08)" }]}
+          <View
+            style={[styles.timerTrack, { backgroundColor: "rgba(0,0,0,0.08)" }]}
           >
             <View
               style={[
@@ -429,7 +465,8 @@ export default function ColorDetective() {
           </View>
         </View>
 
-        <View style={[styles.canvasWrap, { backgroundColor: themeColors.surface }]}
+        <View
+          style={[styles.canvasWrap, { backgroundColor: themeColors.surface }]}
         >
           <View
             style={{ width: canvasWidth, height: canvasHeight }}
@@ -446,22 +483,28 @@ export default function ColorDetective() {
 
         {isGameOver && (
           <View style={styles.gameOverOverlay}>
-            <View style={[styles.gameOverCard, { backgroundColor: themeColors.surface }]}
+            <View
+              style={[
+                styles.gameOverCard,
+                { backgroundColor: themeColors.surface },
+              ]}
             >
-              <Text style={[styles.gameOverTitle, { color: themeColors.text }]}
-              >
+              <Text style={[styles.gameOverTitle, { color: themeColors.text }]}>
                 Time's up!
               </Text>
-              <Text style={[styles.gameOverText, { color: themeColors.subtext }]}
+              <Text
+                style={[styles.gameOverText, { color: themeColors.subtext }]}
               >
                 Final Score: {score}
               </Text>
               <TouchableOpacity
-                style={[styles.restartButton, { backgroundColor: themeColors.accent }]}
+                style={[
+                  styles.restartButton,
+                  { backgroundColor: themeColors.accent },
+                ]}
                 onPress={restartGame}
               >
-                <Text style={[styles.restartText, { color: themeColors.text }]}
-                >
+                <Text style={[styles.restartText, { color: themeColors.text }]}>
                   Play Again
                 </Text>
               </TouchableOpacity>

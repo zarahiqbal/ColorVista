@@ -9,7 +9,6 @@ import {
   View,
 } from "react-native";
 import { useUserData } from "../Context/useUserData";
-import BackButton from "../components/BackButton";
 
 type CVDType = "none" | "deuteranopia" | "protanopia" | "tritanopia";
 
@@ -120,7 +119,6 @@ export default function VRFullScreenCamera({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <BackButton />
       <StatusBar hidden />
 
       {/* CAMERA */}

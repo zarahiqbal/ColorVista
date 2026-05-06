@@ -488,7 +488,6 @@
 //     </SafeAreaView>
 //   );
 // }
-import BackButton from "@/components/BackButton";
 import { Ionicons } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
@@ -795,7 +794,6 @@ export default function MediaUpload() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <BackButton />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Upload Media</Text>
         <Text style={styles.headerSubtitle}>Analyze existing photos</Text>

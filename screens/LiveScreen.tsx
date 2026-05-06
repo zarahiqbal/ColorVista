@@ -1,5 +1,4 @@
 //ye opper wala Mudassir ka code. i added theme below
-import BackButton from "@/components/BackButton";
 import { CameraType, CameraView, PermissionResponse } from "expo-camera";
 import { AlertCircle, CameraOff, ScanLine, Zap } from "lucide-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -481,7 +480,6 @@ export default function LiveScreen({
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
-      <BackButton />
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>

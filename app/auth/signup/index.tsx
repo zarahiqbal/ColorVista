@@ -534,31 +534,38 @@
 
 // export default Register;
 
-import { useAuth } from '@/Context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { useAuth } from "@/Context/AuthContext";
+import { useTheme } from "@/Context/ThemeContext";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import React, { useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
-} from 'react-native';
+    ActivityIndicator,
+    FlatList,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from "react-native";
 
 // --- 1. COUNTRY DATA CONFIGURATION ---
 const COUNTRIES = [
-  { code: 'US', dial_code: '+1',  limit: 10, flag: '🇺🇸', name: 'United States' },
-  { code: 'PK', dial_code: '+92', limit: 10, flag: '🇵🇰', name: 'Pakistan' },
-  { code: 'UK', dial_code: '+44', limit: 10, flag: '🇬🇧', name: 'United Kingdom' },
-  { code: 'CA', dial_code: '+1',  limit: 10, flag: '🇨🇦', name: 'Canada' },
-  { code: 'AU', dial_code: '+61', limit: 9,  flag: '🇦🇺', name: 'Australia' },
+  { code: "US", dial_code: "+1", limit: 10, flag: "🇺🇸", name: "United States" },
+  { code: "PK", dial_code: "+92", limit: 10, flag: "🇵🇰", name: "Pakistan" },
+  {
+    code: "UK",
+    dial_code: "+44",
+    limit: 10,
+    flag: "🇬🇧",
+    name: "United Kingdom",
+  },
+  { code: "CA", dial_code: "+1", limit: 10, flag: "🇨🇦", name: "Canada" },
+  { code: "AU", dial_code: "+61", limit: 9, flag: "🇦🇺", name: "Australia" },
 ];
 
 interface RegisterFormData {
@@ -566,108 +573,134 @@ interface RegisterFormData {
   lastName: string;
   role: string;
   email: string;
-  phone: string; 
+  phone: string;
   password: string;
   confirmPassword: string;
 }
 
 const Register: React.FC = () => {
   const { signUp } = useAuth();
-  
+  const { darkMode, getFontSizeMultiplier } = useTheme();
+
   // 2. STATE FOR COUNTRY SELECTION
   const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]); // Default US
   const [isCountryPickerVisible, setCountryPickerVisible] = useState(false);
 
   const [formData, setFormData] = useState<RegisterFormData>({
-    firstName: '',
-    lastName: '',
-    role: 'user',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: '',
+    firstName: "",
+    lastName: "",
+    role: "user",
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
   });
 
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] =
+    useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errors, setErrors] = useState<Partial<RegisterFormData>>({});
-  const [apiError, setApiError] = useState<string>('');
+  const [apiError, setApiError] = useState<string>("");
   const [acceptTerms, setAcceptTerms] = useState<boolean>(false);
+
+  const scale = getFontSizeMultiplier();
+  const colors = {
+    bg: darkMode ? "#000000" : "#FFFFFF",
+    text: darkMode ? "#FFFFFF" : "#000000",
+    inputBg: darkMode ? "#1C1C1E" : "#FFFFFF",
+    border: darkMode ? "#333333" : "#ccc",
+    placeholder: darkMode ? "#666" : "#999",
+    button: darkMode ? "#FFF" : "#000",
+    buttonText: darkMode ? "#000" : "#FFF",
+    error: "#FF3B30",
+    checkboxActive: darkMode ? "#FFF" : "#000",
+  };
 
   const handleInputChange = (name: keyof RegisterFormData, value: string) => {
     // Special handling for Phone to only allow numbers
-    if (name === 'phone') {
-        const numericValue = value.replace(/[^0-9]/g, ''); // Strip non-numbers
-        setFormData(prev => ({ ...prev, [name]: numericValue }));
+    if (name === "phone") {
+      const numericValue = value.replace(/[^0-9]/g, ""); // Strip non-numbers
+      setFormData((prev) => ({ ...prev, [name]: numericValue }));
     } else {
-        setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
-    
-    setApiError(''); 
+
+    setApiError("");
 
     // --- Real-time Validation ---
-    let fieldError = '';
+    let fieldError = "";
 
     // Name Validation
-    if (name === 'firstName' || name === 'lastName') {
-      const nameRegex = /^[a-zA-Z\s\-]*$/; 
+    if (name === "firstName" || name === "lastName") {
+      const nameRegex = /^[a-zA-Z\s\-]*$/;
       if (!nameRegex.test(value)) {
-        fieldError = 'Only letters allowed';
+        fieldError = "Only letters allowed";
       }
     }
 
     // Email Validation
-    if (name === 'email') {
-      const forbiddenCharRegex = /[^a-zA-Z0-9@._\-\+]/; 
+    if (name === "email") {
+      const forbiddenCharRegex = /[^a-zA-Z0-9@._\-\+]/;
       if (forbiddenCharRegex.test(value)) {
-        fieldError = 'Email contains invalid characters';
+        fieldError = "Email contains invalid characters";
       }
     }
 
     // 3. PHONE VALIDATION (Dynamic based on selected country)
-    if (name === 'phone') {
-        // Remove non-digits just in case
-        const cleanNumber = value.replace(/[^0-9]/g, '');
-        
-        // Check strict length
-        if (cleanNumber.length > 0 && cleanNumber.length !== selectedCountry.limit) {
-            // We only show error if they are done typing (approximated here) 
-            // or if we want strict feedback:
-            if (cleanNumber.length > selectedCountry.limit) {
-                 fieldError = `Max ${selectedCountry.limit} digits allowed`;
-            }
+    if (name === "phone") {
+      // Remove non-digits just in case
+      const cleanNumber = value.replace(/[^0-9]/g, "");
+
+      // Check strict length
+      if (
+        cleanNumber.length > 0 &&
+        cleanNumber.length !== selectedCountry.limit
+      ) {
+        // We only show error if they are done typing (approximated here)
+        // or if we want strict feedback:
+        if (cleanNumber.length > selectedCountry.limit) {
+          fieldError = `Max ${selectedCountry.limit} digits allowed`;
         }
+      }
     }
 
-    setErrors(prev => ({ ...prev, [name]: fieldError }));
+    setErrors((prev) => ({ ...prev, [name]: fieldError }));
   };
 
   const validateForm = (): boolean => {
     const newErrors: Partial<RegisterFormData> = {};
 
-    if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
-    else if (!/^[a-zA-Z\s\-]+$/.test(formData.firstName)) newErrors.firstName = 'Only letters allowed';
+    if (!formData.firstName.trim())
+      newErrors.firstName = "First name is required";
+    else if (!/^[a-zA-Z\s\-]+$/.test(formData.firstName))
+      newErrors.firstName = "Only letters allowed";
 
-    if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
-    else if (!/^[a-zA-Z\s\-]+$/.test(formData.lastName)) newErrors.lastName = 'Only letters allowed';
+    if (!formData.lastName.trim()) newErrors.lastName = "Last name is required";
+    else if (!/^[a-zA-Z\s\-]+$/.test(formData.lastName))
+      newErrors.lastName = "Only letters allowed";
 
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Invalid email address';
+    if (!formData.email.trim()) newErrors.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(formData.email))
+      newErrors.email = "Invalid email address";
 
     // 4. STRICT PHONE VALIDATION
     if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
+      newErrors.phone = "Phone number is required";
     } else if (formData.phone.length !== selectedCountry.limit) {
       newErrors.phone = `Phone number must be exactly ${selectedCountry.limit} digits for ${selectedCountry.code}`;
     }
 
-    if (!formData.password) newErrors.password = 'Password is required';
-    else if (formData.password.length < 8) newErrors.password = 'Min 8 characters';
-    else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) newErrors.password = 'Must have 1 uppercase, 1 lowercase, 1 number';
+    if (!formData.password) newErrors.password = "Password is required";
+    else if (formData.password.length < 8)
+      newErrors.password = "Min 8 characters";
+    else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password))
+      newErrors.password = "Must have 1 uppercase, 1 lowercase, 1 number";
 
-    if (!formData.confirmPassword) newErrors.confirmPassword = 'Confirm password is required';
-    else if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
+    if (!formData.confirmPassword)
+      newErrors.confirmPassword = "Confirm password is required";
+    else if (formData.password !== formData.confirmPassword)
+      newErrors.confirmPassword = "Passwords do not match";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -676,12 +709,12 @@ const Register: React.FC = () => {
   const handleSubmit = async () => {
     if (!validateForm()) return;
     if (!acceptTerms) {
-       setApiError('Please accept the terms and conditions');
-       return;
+      setApiError("Please accept the terms and conditions");
+      return;
     }
 
     setIsLoading(true);
-    setApiError('');
+    setApiError("");
 
     try {
       // 5. COMBINE CODE AND NUMBER
@@ -693,44 +726,59 @@ const Register: React.FC = () => {
         phone: fullPhoneNumber, // Send the combined E.164 number
       });
 
-      router.replace('/dashboard');
+      router.replace("/dashboard");
     } catch (error) {
-      console.error('Registration error:', error);
-      setApiError(error instanceof Error ? error.message : 'Registration failed.');
+      console.error("Registration error:", error);
+      setApiError(
+        error instanceof Error ? error.message : "Registration failed.",
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   // Helper to render country item in modal
-  const renderCountryItem = ({ item }: { item: typeof COUNTRIES[0] }) => (
-    <TouchableOpacity 
-      style={styles.countryItem} 
+  const renderCountryItem = ({ item }: { item: (typeof COUNTRIES)[0] }) => (
+    <TouchableOpacity
+      style={styles.countryItem}
       onPress={() => {
         setSelectedCountry(item);
         setCountryPickerVisible(false);
         // Clear phone error when country changes
-        setErrors(prev => ({ ...prev, phone: '' }));
+        setErrors((prev) => ({ ...prev, phone: "" }));
         // Optional: truncate phone if existing number is too long for new country
         if (formData.phone.length > item.limit) {
-            handleInputChange('phone', formData.phone.substring(0, item.limit));
+          handleInputChange("phone", formData.phone.substring(0, item.limit));
         }
       }}
     >
       <Text style={styles.countryFlag}>{item.flag}</Text>
-      <Text style={styles.countryName}>{item.name} ({item.dial_code})</Text>
+      <Text style={styles.countryName}>
+        {item.name} ({item.dial_code})
+      </Text>
     </TouchableOpacity>
   );
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.bg }]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView contentContainerStyle={styles.contentContainer}>
         <View style={styles.header}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join us today and get started</Text>
+          <Text
+            style={[styles.title, { color: colors.text, fontSize: 32 * scale }]}
+          >
+            Create Account
+          </Text>
+          <Text
+            style={[
+              styles.subtitle,
+              { color: colors.text, fontSize: 16 * scale },
+            ]}
+          >
+            Join us today and get started
+          </Text>
         </View>
 
         {apiError ? (
@@ -743,161 +791,388 @@ const Register: React.FC = () => {
           {/* Name Fields */}
           <View style={styles.rowContainer}>
             <View style={styles.halfWidth}>
-              <Text style={styles.label}>First Name <Text style={styles.asterisk}>*</Text></Text>
-              <View style={[styles.inputContainer, errors.firstName ? styles.inputError : null]}>
-                <Ionicons name="person-outline" size={20} color="#9CA3AF" style={styles.icon} />
+              <Text
+                style={[
+                  styles.label,
+                  { color: colors.text, fontSize: 14 * scale },
+                ]}
+              >
+                First Name <Text style={styles.asterisk}>*</Text>
+              </Text>
+              <View
+                style={[
+                  styles.inputContainer,
+                  errors.firstName ? styles.inputError : null,
+                  {
+                    backgroundColor: colors.inputBg,
+                    borderColor: errors.firstName
+                      ? colors.error
+                      : colors.border,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="person-outline"
+                  size={20}
+                  color={colors.placeholder}
+                  style={styles.icon}
+                />
                 <TextInput
                   value={formData.firstName}
-                  onChangeText={(text) => handleInputChange('firstName', text)}
-                  style={styles.input}
+                  onChangeText={(text) => handleInputChange("firstName", text)}
+                  style={[
+                    styles.input,
+                    { color: colors.text, fontSize: 16 * scale },
+                  ]}
                   placeholder="First name"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={colors.placeholder}
                   editable={!isLoading}
                 />
               </View>
-              {errors.firstName && <Text style={styles.fieldError}>{errors.firstName}</Text>}
+              {errors.firstName && (
+                <Text style={[styles.fieldError, { fontSize: 12 * scale }]}>
+                  {errors.firstName}
+                </Text>
+              )}
             </View>
 
             <View style={styles.halfWidth}>
-              <Text style={styles.label}>Last Name <Text style={styles.asterisk}>*</Text></Text>
-              <View style={[styles.inputContainer, errors.lastName ? styles.inputError : null]}>
-                <Ionicons name="person-outline" size={20} color="#9CA3AF" style={styles.icon} />
+              <Text
+                style={[
+                  styles.label,
+                  { color: colors.text, fontSize: 14 * scale },
+                ]}
+              >
+                Last Name <Text style={styles.asterisk}>*</Text>
+              </Text>
+              <View
+                style={[
+                  styles.inputContainer,
+                  errors.lastName ? styles.inputError : null,
+                  {
+                    backgroundColor: colors.inputBg,
+                    borderColor: errors.lastName ? colors.error : colors.border,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="person-outline"
+                  size={20}
+                  color={colors.placeholder}
+                  style={styles.icon}
+                />
                 <TextInput
                   value={formData.lastName}
-                  onChangeText={(text) => handleInputChange('lastName', text)}
-                  style={styles.input}
+                  onChangeText={(text) => handleInputChange("lastName", text)}
+                  style={[
+                    styles.input,
+                    { color: colors.text, fontSize: 16 * scale },
+                  ]}
                   placeholder="Last name"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={colors.placeholder}
                   editable={!isLoading}
                 />
               </View>
-              {errors.lastName && <Text style={styles.fieldError}>{errors.lastName}</Text>}
+              {errors.lastName && (
+                <Text style={[styles.fieldError, { fontSize: 12 * scale }]}>
+                  {errors.lastName}
+                </Text>
+              )}
             </View>
           </View>
 
           {/* Email Field */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Email Address <Text style={styles.asterisk}>*</Text></Text>
-            <View style={[styles.inputContainer, errors.email ? styles.inputError : null]}>
-              <Ionicons name="mail-outline" size={20} color="#9CA3AF" style={styles.icon} />
+            <Text
+              style={[
+                styles.label,
+                { color: colors.text, fontSize: 14 * scale },
+              ]}
+            >
+              Email Address <Text style={styles.asterisk}>*</Text>
+            </Text>
+            <View
+              style={[
+                styles.inputContainer,
+                errors.email ? styles.inputError : null,
+                {
+                  backgroundColor: colors.inputBg,
+                  borderColor: errors.email ? colors.error : colors.border,
+                },
+              ]}
+            >
+              <Ionicons
+                name="mail-outline"
+                size={20}
+                color={colors.placeholder}
+                style={styles.icon}
+              />
               <TextInput
                 value={formData.email}
-                onChangeText={(text) => handleInputChange('email', text)}
-                style={styles.input}
+                onChangeText={(text) => handleInputChange("email", text)}
+                style={[
+                  styles.input,
+                  { color: colors.text, fontSize: 16 * scale },
+                ]}
                 placeholder="Enter your email"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.placeholder}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 editable={!isLoading}
               />
             </View>
-            {errors.email && <Text style={styles.fieldError}>{errors.email}</Text>}
+            {errors.email && (
+              <Text style={[styles.fieldError, { fontSize: 12 * scale }]}>
+                {errors.email}
+              </Text>
+            )}
           </View>
 
           {/* 6. MODIFIED PHONE FIELD WITH DROPDOWN */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Phone Number <Text style={styles.asterisk}>*</Text></Text>
-            
-            <View style={[styles.phoneRowContainer, errors.phone ? styles.inputError : null]}>
-                {/* Country Code Selector */}
-                <TouchableOpacity 
-                    style={styles.countryCodeSelector}
-                    onPress={() => setCountryPickerVisible(true)}
-                    disabled={isLoading}
-                >
-                    <Text style={styles.flagText}>{selectedCountry.flag}</Text>
-                    <Text style={styles.dialCodeText}>{selectedCountry.dial_code}</Text>
-                    <Ionicons name="chevron-down" size={12} color="#000" />
-                </TouchableOpacity>
+            <Text
+              style={[
+                styles.label,
+                { color: colors.text, fontSize: 14 * scale },
+              ]}
+            >
+              Phone Number <Text style={styles.asterisk}>*</Text>
+            </Text>
 
-                <View style={styles.verticalDivider} />
+            <View
+              style={[
+                styles.phoneRowContainer,
+                errors.phone ? styles.inputError : null,
+                {
+                  backgroundColor: colors.inputBg,
+                  borderColor: errors.phone ? colors.error : colors.border,
+                },
+              ]}
+            >
+              {/* Country Code Selector */}
+              <TouchableOpacity
+                style={styles.countryCodeSelector}
+                onPress={() => setCountryPickerVisible(true)}
+                disabled={isLoading}
+              >
+                <Text style={styles.flagText}>{selectedCountry.flag}</Text>
+                <Text style={styles.dialCodeText}>
+                  {selectedCountry.dial_code}
+                </Text>
+                <Ionicons name="chevron-down" size={12} color={colors.text} />
+              </TouchableOpacity>
 
-                {/* Input Field */}
-                <TextInput
-                    value={formData.phone}
-                    onChangeText={(text) => handleInputChange('phone', text)}
-                    style={styles.phoneInput}
-                    placeholder={`123456789 (Max ${selectedCountry.limit})`}
-                    placeholderTextColor="#9CA3AF"
-                    keyboardType="number-pad"
-                    editable={!isLoading}
-                    maxLength={selectedCountry.limit} // 7. ENFORCE FIXED LENGTH
-                />
+              <View style={styles.verticalDivider} />
+
+              {/* Input Field */}
+              <TextInput
+                value={formData.phone}
+                onChangeText={(text) => handleInputChange("phone", text)}
+                style={[
+                  styles.phoneInput,
+                  { color: colors.text, fontSize: 16 * scale },
+                ]}
+                placeholder={`123456789 (Max ${selectedCountry.limit})`}
+                placeholderTextColor={colors.placeholder}
+                keyboardType="number-pad"
+                editable={!isLoading}
+                maxLength={selectedCountry.limit} // 7. ENFORCE FIXED LENGTH
+              />
             </View>
-            {errors.phone && <Text style={styles.fieldError}>{errors.phone}</Text>}
+            {errors.phone && (
+              <Text style={[styles.fieldError, { fontSize: 12 * scale }]}>
+                {errors.phone}
+              </Text>
+            )}
           </View>
 
           {/* Password Fields */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Password <Text style={styles.asterisk}>*</Text></Text>
-            <View style={[styles.inputContainer, errors.password ? styles.inputError : null]}>
-              <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" style={styles.icon} />
+            <Text
+              style={[
+                styles.label,
+                { color: colors.text, fontSize: 14 * scale },
+              ]}
+            >
+              Password <Text style={styles.asterisk}>*</Text>
+            </Text>
+            <View
+              style={[
+                styles.inputContainer,
+                errors.password ? styles.inputError : null,
+                {
+                  backgroundColor: colors.inputBg,
+                  borderColor: errors.password ? colors.error : colors.border,
+                },
+              ]}
+            >
+              <Ionicons
+                name="lock-closed-outline"
+                size={20}
+                color={colors.placeholder}
+                style={styles.icon}
+              />
               <TextInput
                 value={formData.password}
-                onChangeText={(text) => handleInputChange('password', text)}
-                style={[styles.input, styles.inputWithButton]}
+                onChangeText={(text) => handleInputChange("password", text)}
+                style={[
+                  styles.input,
+                  styles.inputWithButton,
+                  { color: colors.text, fontSize: 16 * scale },
+                ]}
                 placeholder="Create password"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.placeholder}
                 secureTextEntry={!showPassword}
                 editable={!isLoading}
               />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
-                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9CA3AF" />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeButton}
+              >
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color={colors.placeholder}
+                />
               </TouchableOpacity>
             </View>
-            {errors.password && <Text style={styles.fieldError}>{errors.password}</Text>}
+            {errors.password && (
+              <Text style={[styles.fieldError, { fontSize: 12 * scale }]}>
+                {errors.password}
+              </Text>
+            )}
           </View>
 
           <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Confirm Password <Text style={styles.asterisk}>*</Text></Text>
-            <View style={[styles.inputContainer, errors.confirmPassword ? styles.inputError : null]}>
-              <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" style={styles.icon} />
+            <Text
+              style={[
+                styles.label,
+                { color: colors.text, fontSize: 14 * scale },
+              ]}
+            >
+              Confirm Password <Text style={styles.asterisk}>*</Text>
+            </Text>
+            <View
+              style={[
+                styles.inputContainer,
+                errors.confirmPassword ? styles.inputError : null,
+                {
+                  backgroundColor: colors.inputBg,
+                  borderColor: errors.confirmPassword
+                    ? colors.error
+                    : colors.border,
+                },
+              ]}
+            >
+              <Ionicons
+                name="lock-closed-outline"
+                size={20}
+                color={colors.placeholder}
+                style={styles.icon}
+              />
               <TextInput
                 value={formData.confirmPassword}
-                onChangeText={(text) => handleInputChange('confirmPassword', text)}
-                style={[styles.input, styles.inputWithButton]}
+                onChangeText={(text) =>
+                  handleInputChange("confirmPassword", text)
+                }
+                style={[
+                  styles.input,
+                  styles.inputWithButton,
+                  { color: colors.text, fontSize: 16 * scale },
+                ]}
                 placeholder="Confirm password"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.placeholder}
                 secureTextEntry={!showConfirmPassword}
                 editable={!isLoading}
               />
-              <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeButton}>
-                <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9CA3AF" />
+              <TouchableOpacity
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={styles.eyeButton}
+              >
+                <Ionicons
+                  name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color={colors.placeholder}
+                />
               </TouchableOpacity>
             </View>
-            {errors.confirmPassword && <Text style={styles.fieldError}>{errors.confirmPassword}</Text>}
+            {errors.confirmPassword && (
+              <Text style={[styles.fieldError, { fontSize: 12 * scale }]}>
+                {errors.confirmPassword}
+              </Text>
+            )}
           </View>
 
           {/* Terms */}
-          <TouchableOpacity style={styles.checkboxContainer} onPress={() => setAcceptTerms(!acceptTerms)}>
-            <View style={[styles.checkbox, acceptTerms && styles.checkboxChecked]}>
-              {acceptTerms && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+          <TouchableOpacity
+            style={styles.checkboxContainer}
+            onPress={() => setAcceptTerms(!acceptTerms)}
+          >
+            <View
+              style={[styles.checkbox, acceptTerms && styles.checkboxChecked]}
+            >
+              {acceptTerms && (
+                <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+              )}
             </View>
             <Text style={styles.checkboxLabel}>
-              I agree to the <Text style={styles.link}>Terms</Text> and <Text style={styles.link}>Privacy Policy</Text>
+              I agree to the <Text style={styles.link}>Terms</Text> and{" "}
+              <Text style={styles.link}>Privacy Policy</Text>
             </Text>
           </TouchableOpacity>
 
           {/* Submit */}
           <TouchableOpacity
-            style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
+            style={[
+              styles.submitButton,
+              isLoading && styles.submitButtonDisabled,
+              { backgroundColor: colors.button },
+            ]}
             onPress={handleSubmit}
             disabled={isLoading}
           >
             {isLoading ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator color="#FFFFFF" size="small" />
-                <Text style={styles.submitButtonText}>Creating...</Text>
+                <ActivityIndicator color={colors.buttonText} size="small" />
+                <Text
+                  style={[
+                    styles.submitButtonText,
+                    { color: colors.buttonText, fontSize: 16 * scale },
+                  ]}
+                >
+                  Creating...
+                </Text>
               </View>
             ) : (
-              <Text style={styles.submitButtonText}>Create Account</Text>
+              <Text
+                style={[
+                  styles.submitButtonText,
+                  { color: colors.buttonText, fontSize: 16 * scale },
+                ]}
+              >
+                Create Account
+              </Text>
             )}
           </TouchableOpacity>
 
           <View style={styles.loginContainer}>
-            <Text style={styles.loginText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => router.push('/auth/login')}>
-              <Text style={styles.loginLink}>Sign in here</Text>
+            <Text
+              style={[
+                styles.loginText,
+                { color: colors.text, fontSize: 14 * scale },
+              ]}
+            >
+              Already have an account?{" "}
+            </Text>
+            <TouchableOpacity onPress={() => router.push("/auth/login")}>
+              <Text
+                style={[
+                  styles.loginLink,
+                  { color: colors.button, fontSize: 14 * scale },
+                ]}
+              >
+                Sign in here
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -911,80 +1186,165 @@ const Register: React.FC = () => {
         onRequestClose={() => setCountryPickerVisible(false)}
       >
         <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Select Country</Text>
-                    <TouchableOpacity onPress={() => setCountryPickerVisible(false)}>
-                        <Ionicons name="close" size={24} color="#000" />
-                    </TouchableOpacity>
-                </View>
-                <FlatList
-                    data={COUNTRIES}
-                    keyExtractor={(item) => item.code}
-                    renderItem={renderCountryItem}
-                />
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Country</Text>
+              <TouchableOpacity onPress={() => setCountryPickerVisible(false)}>
+                <Ionicons name="close" size={24} color="#000" />
+              </TouchableOpacity>
             </View>
+            <FlatList
+              data={COUNTRIES}
+              keyExtractor={(item) => item.code}
+              renderItem={renderCountryItem}
+            />
+          </View>
         </View>
       </Modal>
-
     </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: "#FFFFFF" },
   contentContainer: { paddingHorizontal: 24, paddingVertical: 40, flexGrow: 1 },
-  header: { alignItems: 'center', marginBottom: 32 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#000000', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#6B7280' },
-  errorContainer: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: 8, padding: 12, marginBottom: 16 },
-  errorText: { fontSize: 14, color: '#DC2626' },
-  form: { width: '100%' },
+  header: { alignItems: "center", marginBottom: 32 },
+  title: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#000000",
+    marginBottom: 8,
+  },
+  subtitle: { fontSize: 16, color: "#6B7280" },
+  errorContainer: {
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  errorText: { fontSize: 14, color: "#DC2626" },
+  form: { width: "100%" },
   fieldContainer: { marginBottom: 16 },
-  rowContainer: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+  rowContainer: { flexDirection: "row", gap: 12, marginBottom: 16 },
   halfWidth: { flex: 1 },
-  label: { fontSize: 14, fontWeight: '500', color: '#000000', marginBottom: 8 },
-  asterisk: { color: '#EF4444', fontWeight: 'bold' },
-  
+  label: { fontSize: 14, fontWeight: "500", color: "#000000", marginBottom: 8 },
+  asterisk: { color: "#EF4444", fontWeight: "bold" },
+
   // Standard Inputs
-  inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 2, borderColor: '#D1D5DB', borderRadius: 8, paddingHorizontal: 12, backgroundColor: '#FFFFFF' },
-  inputError: { borderColor: '#EF4444' },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "#FFFFFF",
+  },
+  inputError: { borderColor: "#EF4444" },
   icon: { marginRight: 8 },
-  input: { flex: 1, paddingVertical: 12, fontSize: 16, color: '#000000' },
+  input: { flex: 1, paddingVertical: 12, fontSize: 16, color: "#000000" },
   inputWithButton: { paddingRight: 40 },
-  eyeButton: { position: 'absolute', right: 12, padding: 4 },
-  fieldError: { fontSize: 12, color: '#EF4444', marginTop: 4 },
+  eyeButton: { position: "absolute", right: 12, padding: 4 },
+  fieldError: { fontSize: 12, color: "#EF4444", marginTop: 4 },
 
   // Phone Specific Styles
-  phoneRowContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 2, borderColor: '#D1D5DB', borderRadius: 8, backgroundColor: '#FFFFFF', overflow: 'hidden' },
-  countryCodeSelector: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, backgroundColor: '#F3F4F6' },
+  phoneRowContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
+    overflow: "hidden",
+  },
+  countryCodeSelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: "#F3F4F6",
+  },
   flagText: { fontSize: 20, marginRight: 6 },
-  dialCodeText: { fontSize: 16, fontWeight: '500', marginRight: 4 },
-  verticalDivider: { width: 1, height: '100%', backgroundColor: '#D1D5DB' },
-  phoneInput: { flex: 1, paddingHorizontal: 12, paddingVertical: 12, fontSize: 16, color: '#000000' },
+  dialCodeText: { fontSize: 16, fontWeight: "500", marginRight: 4 },
+  verticalDivider: { width: 1, height: "100%", backgroundColor: "#D1D5DB" },
+  phoneInput: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: "#000000",
+  },
 
   // Checkbox & Buttons
-  checkboxContainer: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 24 },
-  checkbox: { width: 20, height: 20, borderWidth: 2, borderColor: '#D1D5DB', borderRadius: 4, marginRight: 8, marginTop: 2, alignItems: 'center', justifyContent: 'center' },
-  checkboxChecked: { backgroundColor: '#000000', borderColor: '#000000' },
-  checkboxLabel: { flex: 1, fontSize: 14, color: '#6B7280' },
-  link: { color: '#000000', fontWeight: '500' },
-  submitButton: { backgroundColor: '#000000', borderRadius: 8, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  checkboxContainer: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 24,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    borderRadius: 4,
+    marginRight: 8,
+    marginTop: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxChecked: { backgroundColor: "#000000", borderColor: "#000000" },
+  checkboxLabel: { flex: 1, fontSize: 14, color: "#6B7280" },
+  link: { color: "#000000", fontWeight: "500" },
+  submitButton: {
+    backgroundColor: "#000000",
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
   submitButtonDisabled: { opacity: 0.5 },
-  submitButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '500' },
-  loadingContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  loginContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  loginText: { fontSize: 14, color: '#6B7280' },
-  loginLink: { fontSize: 14, color: '#000000', fontWeight: '500' },
+  submitButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "500" },
+  loadingContainer: { flexDirection: "row", alignItems: "center", gap: 8 },
+  loginContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loginText: { fontSize: 14, color: "#6B7280" },
+  loginLink: { fontSize: 14, color: "#000000", fontWeight: "500" },
 
   // Modal Styles
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '50%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 18, fontWeight: 'bold' },
-  countryItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#FFF",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: "50%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalTitle: { fontSize: 18, fontWeight: "bold" },
+  countryItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
   countryFlag: { fontSize: 24, marginRight: 16 },
-  countryName: { fontSize: 16, color: '#000' },
+  countryName: { fontSize: 16, color: "#000" },
 });
 
 export default Register;
@@ -1016,7 +1376,7 @@ export default Register;
 
 // const Register: React.FC = () => {
 //   const { signUp } = useAuth();
-  
+
 //   const [formData, setFormData] = useState<RegisterFormData>({
 //     firstName: '',
 //     lastName: '',
@@ -1036,14 +1396,14 @@ export default Register;
 
 //   const handleInputChange = (name: keyof RegisterFormData, value: string) => {
 //     setFormData(prev => ({ ...prev, [name]: value }));
-//     setApiError(''); 
+//     setApiError('');
 
 //     // --- Real-time Validation Logic ---
 //     let fieldError = '';
 
 //     // 1. Name Validation (Letters only)
 //     if (name === 'firstName' || name === 'lastName') {
-//       const nameRegex = /^[a-zA-Z\s\-]*$/; 
+//       const nameRegex = /^[a-zA-Z\s\-]*$/;
 //       if (!nameRegex.test(value)) {
 //         fieldError = 'Only letters allowed';
 //       }
@@ -1051,7 +1411,7 @@ export default Register;
 
 //     // 2. Email Validation (Forbidden chars)
 //     if (name === 'email') {
-//       const forbiddenCharRegex = /[^a-zA-Z0-9@._\-\+]/; 
+//       const forbiddenCharRegex = /[^a-zA-Z0-9@._\-\+]/;
 //       if (forbiddenCharRegex.test(value)) {
 //         fieldError = 'Email contains invalid characters (e.g. spaces)';
 //       }
@@ -1068,7 +1428,7 @@ export default Register;
 
 //     setErrors(prev => ({
 //       ...prev,
-//       [name]: fieldError 
+//       [name]: fieldError
 //     }));
 //   };
 
@@ -1126,7 +1486,7 @@ export default Register;
 
 //   const handleSubmit = async () => {
 //     if (!validateForm()) return;
-    
+
 //     if (!acceptTerms) {
 //        setApiError('Please accept the terms and conditions');
 //        return;
@@ -1157,8 +1517,8 @@ export default Register;
 //   };
 
 //   return (
-//     <KeyboardAvoidingView 
-//       style={styles.container} 
+//     <KeyboardAvoidingView
+//       style={styles.container}
 //       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
 //     >
 //       <ScrollView contentContainerStyle={styles.contentContainer}>
@@ -1254,7 +1614,7 @@ export default Register;
 //                 keyboardType="phone-pad"
 //                 editable={!isLoading}
 //                 // 4. LIMIT INPUT LENGTH (E.164 max is 15 digits)
-//                 maxLength={15} 
+//                 maxLength={15}
 //               />
 //             </View>
 //             {errors.phone ? <Text style={styles.fieldError}>{errors.phone}</Text> : null}
@@ -1429,7 +1789,7 @@ export default Register;
 //     marginBottom: 8,
 //   },
 //   asterisk: {
-//     color: '#EF4444', 
+//     color: '#EF4444',
 //     fontWeight: 'bold',
 //   },
 //   inputContainer: {

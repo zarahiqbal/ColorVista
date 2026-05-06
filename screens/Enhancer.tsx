@@ -336,7 +336,6 @@
 //     marginRight: 28,
 //   },
 // });
-import BackButton from "@/components/BackButton";
 import {
   CvdSelection,
   formatCvdLabel,
@@ -385,7 +384,9 @@ export default function EnhancerScreen({
   const { isNormal, types, allowCombined } = getAllowedSimulations(cvdType);
   const availableTabs = useMemo<CvdSelection[]>(() => {
     const baseTabs = types as CvdSelection[];
-    return allowCombined ? ([...baseTabs, "Combined"] as CvdSelection[]) : baseTabs;
+    return allowCombined
+      ? ([...baseTabs, "Combined"] as CvdSelection[])
+      : baseTabs;
   }, [allowCombined, types]);
   const [activeMode, setActiveMode] = useState<CvdSelection>(
     allowCombined ? "Combined" : ((types[0] ?? "Deuteranopia") as CvdSelection),
@@ -424,9 +425,7 @@ export default function EnhancerScreen({
       setActiveMode((types[0] ?? "Deuteranopia") as CvdSelection);
       return;
     }
-    setActiveMode((prev) =>
-      availableTabs.includes(prev) ? prev : "Combined",
-    );
+    setActiveMode((prev) => (availableTabs.includes(prev) ? prev : "Combined"));
   }, [allowCombined, availableTabs, isNormal, types]);
 
   const pickImage = async () => {
@@ -462,18 +461,13 @@ export default function EnhancerScreen({
 
   if (isNormal) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}
-      >
-        <BackButton />
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
         <StatusBar style={darkMode ? "light" : "dark"} />
-        <View style={[styles.lockedCard, { backgroundColor: theme.card }]}
-        >
-          <Text style={[styles.lockedTitle, { color: theme.textPrimary }]}
-          >
+        <View style={[styles.lockedCard, { backgroundColor: theme.card }]}>
+          <Text style={[styles.lockedTitle, { color: theme.textPrimary }]}>
             Unlock Image Enhancer
           </Text>
-          <Text style={[styles.lockedText, { color: theme.textSecondary }]}
-          >
+          <Text style={[styles.lockedText, { color: theme.textSecondary }]}>
             Take the quiz to detect your CVD type before using the enhancer.
           </Text>
           <TouchableOpacity
@@ -481,8 +475,7 @@ export default function EnhancerScreen({
             onPress={() => router.push("/welcome")}
             activeOpacity={0.85}
           >
-            <Text style={[styles.actionButtonText, { fontSize: 15 * scale }]}
-            >
+            <Text style={[styles.actionButtonText, { fontSize: 15 * scale }]}>
               Take Quiz
             </Text>
           </TouchableOpacity>
@@ -493,7 +486,6 @@ export default function EnhancerScreen({
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
-      <BackButton />
       <StatusBar style={darkMode ? "light" : "dark"} />
 
       <ScrollView
@@ -548,8 +540,7 @@ export default function EnhancerScreen({
           </View>
         ) : (
           <View style={styles.lockedSelection}>
-            <Text style={[styles.lockedText, { color: theme.textSecondary }]}
-            >
+            <Text style={[styles.lockedText, { color: theme.textSecondary }]}>
               Enhancement locked to {activeMode}
             </Text>
           </View>
