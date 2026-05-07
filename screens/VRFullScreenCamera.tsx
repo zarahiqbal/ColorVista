@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -31,22 +32,29 @@ const normalizeCvdType = (rawType?: string | null): CVDType => {
   return "deuteranopia";
 };
 
-export default function VRFullScreenCamera({ navigation }: any) {
+import { useRoute } from '@react-navigation/native';
+
+export default function VRFullScreenCamera() {
+  const route = useRoute();
   const [permission, requestPermission] = useCameraPermissions();
   const { userData } = useUserData();
 
   const [facing, setFacing] = useState<"front" | "back">("back");
   const [torch, setTorch] = useState(false);
-  const [streamingEnabled, setStreamingEnabled] = useState(true);
-  const [fps, setFps] = useState(0);
+  const streamingEnabled = true;
   // Cloud processing path intentionally disabled for VR mode.
   // Previous API path (for reference):
   // POST /process-live-frame with per-frame camera captures.
 
-  const effectiveCvdType = useMemo(
-    () => normalizeCvdType(userData?.cvdType),
-    [userData?.cvdType],
-  );
+  const effectiveCvdType = useMemo(() => {
+    // First prefer explicit simulation passed via navigation param
+    const navSim = (route as any)?.params?.simulation as string | undefined;
+    if (navSim) {
+      // map incoming names to normalized internal types
+      return normalizeCvdType(navSim);
+    }
+    return normalizeCvdType(userData?.cvdType);
+  }, [userData?.cvdType, (route as any)?.params?.simulation]);
 
   useEffect(() => {
     if (!permission?.granted) {
@@ -54,28 +62,9 @@ export default function VRFullScreenCamera({ navigation }: any) {
     }
   }, [permission?.granted, requestPermission]);
 
-  useEffect(() => {
-    if (!permission?.granted) {
-      setFps(0);
-      return;
-    }
-
-    // Instant mode aims to stay at camera frame rate.
-    setFps(streamingEnabled ? 60 : 0);
-  }, [permission?.granted, streamingEnabled]);
-
-  const toggleCamera = () => {
-    setFacing((prev) => (prev === "back" ? "front" : "back"));
-    setTorch(false); // turn off torch when switching
-  };
-
   const toggleTorch = () => {
     if (facing === "front") return; // torch doesn't work on front camera
     setTorch((prev) => !prev);
-  };
-
-  const toggleStreaming = () => {
-    setStreamingEnabled((prev) => !prev);
   };
 
   const getInstantOverlayStyle = () => {
@@ -142,51 +131,21 @@ export default function VRFullScreenCamera({ navigation }: any) {
 
       {/* TOP CONTROLS */}
       <View style={styles.topControls}>
-        <View style={styles.statusRow}>
-          <View style={styles.statusPill}>
-            <Text style={styles.text}>
-              CVD: {effectiveCvdType.toUpperCase()}
-            </Text>
-          </View>
-
-          <View style={styles.statusPill}>
-            <Text style={styles.text} numberOfLines={1}>
-              {fps} FPS · Instant mode active
-            </Text>
-          </View>
-        </View>
+        <View style={styles.statusRow} />
 
         <View style={styles.actionsRow}>
           <TouchableOpacity
             style={styles.controlBtnCompact}
-            onPress={toggleStreaming}
-          >
-            <Text style={styles.text}>
-              {streamingEnabled ? "Enhance On" : "Enhance Off"}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.controlBtnCompact}
             onPress={toggleTorch}
+            accessibilityLabel={torch ? "Turn torch off" : "Turn torch on"}
           >
-            <Text style={styles.text}>{torch ? "Torch On" : "Torch Off"}</Text>
+            <Ionicons
+              name={torch ? "flash" : "flash-outline"}
+              size={18}
+              color="#fff"
+            />
           </TouchableOpacity>
         </View>
-      </View>
-
-      {/* BOTTOM CONTROLS */}
-      <View style={styles.bottomControls}>
-        <TouchableOpacity style={styles.controlBtn} onPress={toggleCamera}>
-          <Text style={styles.text}>Flip</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.controlBtn}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.text}>Back</Text>
-        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -232,20 +191,6 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
     justifyContent: "flex-start",
-  },
-
-  bottomControls: {
-    position: "absolute",
-    bottom: 50,
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-
-  controlBtn: {
-    backgroundColor: "rgba(0,0,0,0.6)",
-    padding: 12,
-    borderRadius: 10,
   },
 
   controlBtnCompact: {

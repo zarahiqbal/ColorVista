@@ -4,7 +4,7 @@ import VRscreen from "../screens/VRscreen";
 
 export type RootStackParamList = {
   VRSimulation: undefined;
-  VRFullScreenCamera: undefined;
+  VRFullScreenCamera: { simulation?: string } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();

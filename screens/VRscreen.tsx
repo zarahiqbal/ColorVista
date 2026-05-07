@@ -391,7 +391,7 @@
 //   },
 // });
 import { RootStackParamList } from "@/app/vrrouter";
-import { CvdSelection, getAllowedSimulations } from "@/constants/cvdUtils";
+import { CvdSimulation, getAllowedSimulations } from "@/constants/cvdUtils";
 import { useAuth } from "@/Context/AuthContext";
 import { useTheme } from "@/Context/ThemeContext";
 import { useUserData } from "@/Context/useUserData";
@@ -410,7 +410,7 @@ import {
 } from "react-native";
 
 type Props = NativeStackScreenProps<RootStackParamList, "VRSimulation">;
-type SimulationType = CvdSelection;
+type SimulationType = CvdSimulation;
 
 const CVD_DETAILS: Record<
   SimulationType,
@@ -430,11 +430,6 @@ const CVD_DETAILS: Record<
     description:
       "Blues appear greenish and yellows pinkish. Blue-yellow discrimination is impaired.",
     spectrum: "Short wavelength cones are absent.",
-  },
-  Combined: {
-    description:
-      "A blended simulation for users with multiple CVD types. Toggle individual filters for precision.",
-    spectrum: "Multiple cone responses are affected.",
   },
 };
 
@@ -466,15 +461,6 @@ const SPECTRUM_COLORS: Record<SimulationType, string[]> = {
     "#ff3300",
     "#990000",
   ],
-  Combined: [
-    "#4b0082",
-    "#0055ff",
-    "#00c2ff",
-    "#38a169",
-    "#b7791f",
-    "#d53f8c",
-    "#718096",
-  ],
 };
 
 export default function VRScreen({ navigation }: Props) {
@@ -483,16 +469,13 @@ export default function VRScreen({ navigation }: Props) {
   const { userData } = useUserData();
   const router = useRouter();
   const cvdType = userData?.cvdType || user?.cvdType;
-  const { isNormal, types, allowCombined } = getAllowedSimulations(cvdType);
-  const availableTabs = useMemo<SimulationType[]>(() => {
-    const baseTabs = types as SimulationType[];
-    return allowCombined
-      ? ([...baseTabs, "Combined"] as SimulationType[])
-      : baseTabs;
-  }, [allowCombined, types]);
-  const initialTab: SimulationType = allowCombined
-    ? "Combined"
-    : ((types[0] ?? "Deuteranopia") as SimulationType);
+  const { isNormal, types } = getAllowedSimulations(cvdType);
+  const availableTabs = useMemo<SimulationType[]>(
+    () => (types as SimulationType[]),
+    [types],
+  );
+  const initialTab: SimulationType =
+    (types[0] ?? "Deuteranopia") as SimulationType;
   const [activeTab, setActiveTab] = useState<SimulationType>(initialTab);
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -500,12 +483,12 @@ export default function VRScreen({ navigation }: Props) {
 
   useEffect(() => {
     if (isNormal) return;
-    if (!allowCombined) {
-      setActiveTab((types[0] ?? "Deuteranopia") as SimulationType);
-      return;
-    }
-    setActiveTab((prev) => (availableTabs.includes(prev) ? prev : "Combined"));
-  }, [allowCombined, availableTabs, isNormal, types]);
+    setActiveTab((prev) =>
+      availableTabs.includes(prev)
+        ? prev
+        : ((types[0] ?? "Deuteranopia") as SimulationType),
+    );
+  }, [availableTabs, isNormal, types]);
 
   const handleEnterVR = () => {
     Animated.sequence([
@@ -520,7 +503,7 @@ export default function VRScreen({ navigation }: Props) {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      navigation.navigate("VRFullScreenCamera");
+      navigation.navigate("VRFullScreenCamera", { simulation: activeTab });
     });
   };
 
@@ -637,45 +620,40 @@ export default function VRScreen({ navigation }: Props) {
         <View
           style={[styles.controlCard, { backgroundColor: themeColors.card }]}
         >
-          {allowCombined ? (
-            <View style={styles.tabRow}>
-              {availableTabs.map((tab) => {
-                const isActive = activeTab === tab;
-                return (
-                  <TouchableOpacity
-                    key={tab}
+          <Text style={[styles.label, { color: themeColors.text }]}>
+            Selected simulation: {activeTab}
+          </Text>
+          <View style={styles.tabRow}>
+            {availableTabs.map((tab) => {
+              const isActive = activeTab === tab;
+              return (
+                <TouchableOpacity
+                  key={tab}
+                  style={[
+                    styles.tabButton,
+                    { borderColor: themeColors.border },
+                    isActive && {
+                      backgroundColor: themeColors.accent,
+                      borderColor: themeColors.accent,
+                    },
+                  ]}
+                  onPress={() => setActiveTab(tab as SimulationType)}
+                  activeOpacity={0.8}
+                >
+                  <Text
                     style={[
-                      styles.tabButton,
-                      { borderColor: themeColors.border },
-                      isActive && {
-                        backgroundColor: themeColors.accent,
-                        borderColor: themeColors.accent,
+                      styles.tabLabel,
+                      {
+                        color: isActive ? "#FFF" : themeColors.subText,
                       },
                     ]}
-                    onPress={() => setActiveTab(tab as SimulationType)}
-                    activeOpacity={0.8}
                   >
-                    <Text
-                      style={[
-                        styles.tabLabel,
-                        {
-                          color: isActive ? "#FFF" : themeColors.subText,
-                        },
-                      ]}
-                    >
-                      {tab}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          ) : (
-            <View style={styles.lockedSelection}>
-              <Text style={[styles.lockedText, { color: themeColors.subText }]}>
-                Simulation locked to {activeTab}
-              </Text>
-            </View>
-          )}
+                    {tab}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
           <Animated.View
             style={{ transform: [{ scale: scaleAnim }], marginTop: 20 }}

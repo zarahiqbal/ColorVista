@@ -124,6 +124,19 @@ export default function DashboardScreen() {
   const router = useRouter();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [lockModal, setLockModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    actionLabel: string;
+    actionRoute: string;
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+    actionLabel: "",
+    actionRoute: "",
+  });
   const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
 
   const { darkMode, getFontSizeMultiplier } = useTheme();
@@ -147,6 +160,7 @@ export default function DashboardScreen() {
     heroQuote: darkMode ? "rgba(255,255,255,0.7)" : "#8E8E93",
     inspireActionBg: darkMode ? palette.white : palette.espresso,
     inspireActionText: darkMode ? palette.espresso : palette.white,
+    white: palette.white,
   };
 
   const navigate = (screen: string) => {
@@ -167,19 +181,15 @@ export default function DashboardScreen() {
     reason: "guest" | "normal",
   ) => {
     const isNormal = reason === "normal";
-    Alert.alert(
-      "Feature Locked",
-      isNormal
+    setLockModal({
+      visible: true,
+      title: "Feature Locked",
+      message: isNormal
         ? `Complete the quiz to unlock ${featureName}.`
         : `Sign up to access ${featureName}!`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: isNormal ? "Take Quiz" : "Sign Up",
-          onPress: () => router.push(isNormal ? "/welcome" : "/auth/signup"),
-        },
-      ],
-    );
+      actionLabel: isNormal ? "Take Quiz" : "Sign Up",
+      actionRoute: isNormal ? "/welcome" : "/auth/signup",
+    });
   };
 
   const handleProfilePress = () => {
@@ -315,6 +325,65 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+
+      <Modal
+        visible={lockModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setLockModal((prev) => ({ ...prev, visible: false }))
+        }
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          onPress={() => setLockModal((prev) => ({ ...prev, visible: false }))}
+          activeOpacity={1}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            style={[styles.lockModalContent, { backgroundColor: theme.card }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={[styles.modalTitle, { color: theme.text }]}
+            >
+              {lockModal.title}
+            </Text>
+            <Text style={[styles.lockModalText, { color: theme.subText }]}
+            >
+              {lockModal.message}
+            </Text>
+            <View style={styles.lockModalActions}>
+              <TouchableOpacity
+                style={[styles.lockSecondaryButton, { borderColor: theme.border }]}
+                onPress={() =>
+                  setLockModal((prev) => ({ ...prev, visible: false }))
+                }
+              >
+                <Text style={[styles.lockSecondaryText, { color: theme.text }]}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.lockActionButton, { backgroundColor: theme.espresso }]}
+                onPress={() => {
+                  setLockModal((prev) => ({ ...prev, visible: false }));
+                  router.push(lockModal.actionRoute as any);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.lockActionText,
+                    { color: darkMode ? palette.charcoal : theme.white },
+                  ]}
+                >
+                  {lockModal.actionLabel}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
 
       {!isGuest && (
@@ -481,14 +550,14 @@ const ToolsGrid = ({
   isNormalUser,
   onLockedPress,
 }: any) => {
-  const GUEST_ALLOWED = ["live", "mediaupload", "welcome"];
+  const GUEST_ALLOWED = ["live", "mediaupload"];
+  const NORMAL_ALLOWED = ["live", "mediaupload", "welcome"];
 
   const renderCard = (tool: (typeof toolsData)[0], customStyle?: any) => {
+    const toolKey = tool.screen.toLowerCase();
     const isLocked =
-      (isGuest && !GUEST_ALLOWED.includes(tool.screen.toLowerCase())) ||
-      (isNormalUser &&
-        tool.screen.toLowerCase() !== "welcome" &&
-        tool.screen.toLowerCase() !== "live");
+      (isGuest && !GUEST_ALLOWED.includes(toolKey)) ||
+      (isNormalUser && !NORMAL_ALLOWED.includes(toolKey));
 
     return (
       <TouchableOpacity
@@ -756,6 +825,45 @@ const styles = StyleSheet.create({
     borderBottomColor: "#eee",
   },
   closeBtn: { marginTop: 20, alignSelf: "center" },
+  lockModalContent: {
+    width: "85%",
+    padding: 24,
+    borderRadius: 24,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  lockModalText: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  lockModalActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  lockSecondaryButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: "center",
+  },
+  lockSecondaryText: {
+    fontWeight: "600",
+  },
+  lockActionButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  lockActionText: {
+    fontWeight: "700",
+    color: "white",
+  },
 });
 // import { router, Stack, useRouter } from "expo-router";
 // import { useState } from "react";
