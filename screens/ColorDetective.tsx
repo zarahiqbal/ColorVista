@@ -9,7 +9,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import BackButton from "../components/BackButton";
 import {
   createDetectiveRound,
   DetectiveObject,
@@ -89,7 +88,6 @@ export default function ColorDetective() {
         ]}
       >
         <SafeAreaView style={styles.safeArea}>
-          <BackButton />
           <Text
             style={[styles.title, { color: darkMode ? "#F8FAFC" : "#1F2937" }]}
           >
@@ -368,7 +366,6 @@ export default function ColorDetective() {
       style={[styles.container, { backgroundColor: themeColors.background }]}
     >
       <SafeAreaView style={styles.safeArea}>
-        <BackButton />
         <View style={styles.headerRow}>
           <Text
             style={[

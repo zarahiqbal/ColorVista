@@ -7,10 +7,10 @@
     "icon": "./assets/images/logo.png",
     "scheme": "cvdquiz",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
+        "NSCameraUsageDescription": "Allow ColorVista to use your camera for profile photos and image capture.",
         "NSPhotoLibraryUsageDescription": "Allow ColorVista to access your photos to enhance them.",
         "NSPhotoLibraryAddUsageDescription": "Allow ColorVista to save enhanced images to your gallery.",
         "ITSAppUsesNonExemptEncryption": false
@@ -24,7 +24,6 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "permissions": [
         "WRITE_EXTERNAL_STORAGE",
         "READ_EXTERNAL_STORAGE",
