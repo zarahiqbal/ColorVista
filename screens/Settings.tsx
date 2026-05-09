@@ -194,7 +194,7 @@ export default function SettingsPage() {
           </View>
 
           {/* Color Blind Mode Dropdown */}
-          {!isGuest && (
+          {/* {!isGuest && (
             <>
               <View
                 style={[styles.separator, { backgroundColor: theme.border }]}
@@ -281,7 +281,7 @@ export default function SettingsPage() {
             </>
           )}
 
-          <View style={[styles.separator, { backgroundColor: theme.border }]} />
+          <View style={[styles.separator, { backgroundColor: theme.border }]} /> */}
 
           {/* Font Size */}
           <View style={styles.columnRow}>
@@ -358,7 +358,7 @@ export default function SettingsPage() {
         </View>
 
         {/* --- SECTION 2: USER ACTIVITY --- */}
-        {!isGuest && (
+        {/* {!isGuest && (
           <>
             <Text
               style={[
@@ -420,7 +420,7 @@ export default function SettingsPage() {
               </View>
             </View>
           </>
-        )}
+        )} */}
 
         {/* --- SECTION 3: OTHER OPTIONS --- */}
         <Text

@@ -1,9 +1,9 @@
-import ComingSoonScreen from "../screens/ComingSoon";
+// import ComingSoonScreen from "../screens/ComingSoon";
 
-export default function ComingSoonRoute() {
-  return (
-    <>
-      <ComingSoonScreen />
-    </>
-  );
-}
+// export default function ComingSoonRoute() {
+//   return (
+//     <>
+//       <ComingSoonScreen />
+//     </>
+//   );
+// }

@@ -25,7 +25,7 @@ interface EnhancerScreenProps {
 }
 
 type CVDType = "none" | "deuteranopia" | "protanopia" | "tritanopia";
-const SERVER_URL = "http://192.168.1.4:5000/enhancement";
+const SERVER_URL = "http://10.135.50.103:5000/enhancement";
 
 export default function EnhancerScreen({ onSaveImage }: EnhancerScreenProps) {
   const { userData } = useUserData();
