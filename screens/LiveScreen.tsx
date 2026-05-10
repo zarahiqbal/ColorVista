@@ -1,20 +1,18 @@
 //ye opper wala Mudassir ka code. i added theme below
 import { CameraType, CameraView, PermissionResponse } from "expo-camera";
 import { AlertCircle, CameraOff, ScanLine, Zap } from "lucide-react-native";
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Animated,
-  Dimensions,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../Context/ThemeContext"; // Adjust path as needed
 
-const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCAN_AREA_SIZE = 220;
+const SCAN_HALF = SCAN_AREA_SIZE / 2;
+const CROSSHAIR_SIZE = 8;
+const TARGET_CAPTURE_FPS = 4;
+
+/** Backend that processes base64 frames (`mode: "center"` samples image center pixel). */
+const DEFAULT_LIVE_SERVER_URL = "http://192.168.1.4:5000/process-frame";
 
 interface LiveScreenProps {
   active: boolean;
@@ -34,15 +32,16 @@ export default function LiveScreen({
   const { darkMode, getFontSizeMultiplier } = useTheme();
   const fontScale = getFontSizeMultiplier();
 
-  // Server endpoint
-  const SERVER_FRAME_URL = "http://10.135.50.103:5000/process-frame";
-
   const [detectedColors, setDetectedColors] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(true);
   const cameraRef = useRef<any>(null);
   const isProcessingRef = useRef(false);
-  const frameIntervalRef = useRef<any>(null);
-  const targetFPS = 5;
+  const frameIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const abortFetchRef = useRef<AbortController | null>(null);
+  const activeRef = useRef(active);
+  const permissionGrantedRef = useRef(!!permission?.granted);
+  activeRef.current = active;
+  permissionGrantedRef.current = !!permission?.granted;
 
   // Map color names returned by server to CSS color strings
   const colorMap: Record<string, string> = {
@@ -233,16 +232,24 @@ export default function LiveScreen({
       // --- SCANNER STYLES UPDATED TO THEME ---
       boundingBox: {
         position: "absolute",
+        top: "50%",
+        left: "50%",
         width: SCAN_AREA_SIZE,
         height: SCAN_AREA_SIZE,
+        marginLeft: -SCAN_HALF,
+        marginTop: -SCAN_HALF,
         borderWidth: 2,
         borderColor: "rgba(255, 255, 255, 0.4)", // Subtle white guide
         borderRadius: 20,
       },
       scanArea: {
         position: "absolute",
+        top: "50%",
+        left: "50%",
         width: SCAN_AREA_SIZE,
         height: SCAN_AREA_SIZE,
+        marginLeft: -SCAN_HALF,
+        marginTop: -SCAN_HALF,
         overflow: "hidden",
         borderRadius: 20,
       },
@@ -365,19 +372,17 @@ export default function LiveScreen({
         marginTop: 16,
         fontWeight: "600",
       },
-      crosshairContainer: {
-        position: "absolute",
-        width: 60,
-        height: 60,
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 100,
-      },
       crosshairDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        width: CROSSHAIR_SIZE,
+        height: CROSSHAIR_SIZE,
+        marginLeft: -CROSSHAIR_SIZE / 2,
+        marginTop: -CROSSHAIR_SIZE / 2,
+        borderRadius: CROSSHAIR_SIZE / 2,
         backgroundColor: "#FFFFFF",
+        zIndex: 100,
         shadowColor: "#000",
         shadowOpacity: 0.5,
         shadowRadius: 4,
@@ -385,58 +390,94 @@ export default function LiveScreen({
     });
   }, [darkMode, fontScale]);
 
-  // Handle camera ready and start frame capture
-  const handleCameraReady = () => {
-    if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
-    const interval = Math.round(1000 / targetFPS);
+  const clearFrameProcessing = useCallback(() => {
+    abortFetchRef.current?.abort();
+    abortFetchRef.current = null;
+    if (frameIntervalRef.current) {
+      clearInterval(frameIntervalRef.current);
+      frameIntervalRef.current = null;
+    }
+    isProcessingRef.current = false;
+  }, []);
 
-    frameIntervalRef.current = setInterval(async () => {
-      if (isProcessingRef.current || !cameraRef.current || !active) return;
-      isProcessingRef.current = true;
-      try {
-        if (cameraRef.current?.takePictureAsync) {
-          const photo = await cameraRef.current.takePictureAsync({
+  // Handle camera ready and start frame capture (one in-flight pipeline: capture → upload → UI).
+  const handleCameraReady = useCallback(() => {
+    clearFrameProcessing();
+    const intervalMs = Math.round(1000 / TARGET_CAPTURE_FPS);
+
+    frameIntervalRef.current = setInterval(() => {
+      void (async () => {
+        if (!activeRef.current || !permissionGrantedRef.current) return;
+        if (isProcessingRef.current || !cameraRef.current) return;
+
+        isProcessingRef.current = true;
+        let controller: AbortController | null = null;
+
+        try {
+          const camera = cameraRef.current;
+          if (!camera?.takePictureAsync) return;
+
+          abortFetchRef.current?.abort();
+          controller = new AbortController();
+          abortFetchRef.current = controller;
+
+          const photo = await camera.takePictureAsync({
             base64: true,
-            quality: 0.3,
+            quality: 0.18,
             skipProcessing: true,
             exif: false,
           });
-          if ((photo as any)?.base64) {
-            fetch(SERVER_FRAME_URL, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                image: (photo as any).base64,
-                mode: "center",
-              }),
-            })
-              .then((res) => res.json())
-              .then((json) => {
-                if (json?.detected_colors) {
-                  setDetectedColors(json.detected_colors || []);
-                  setIsConnected(true);
-                }
-              })
-              .catch(() => setIsConnected(false));
+
+          const b64 = (photo as { base64?: string })?.base64;
+          if (!b64 || !activeRef.current) return;
+
+          const res = await fetch(DEFAULT_LIVE_SERVER_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              image: b64,
+              mode: "center",
+            }),
+            signal: controller.signal,
+          });
+
+          if (!activeRef.current || controller.signal.aborted) return;
+
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+
+          const json = (await res.json()) as { detected_colors?: string[] };
+
+          if (!activeRef.current || controller.signal.aborted) return;
+
+          if (json?.detected_colors) {
+            setDetectedColors(json.detected_colors);
+            setIsConnected(true);
+          }
+        } catch (err: unknown) {
+          if ((err as { name?: string })?.name === "AbortError") return;
+          console.warn("Capture error", err);
+          if (activeRef.current) {
+            setIsConnected(false);
+          }
+        } finally {
+          isProcessingRef.current = false;
+          if (controller && abortFetchRef.current === controller) {
+            abortFetchRef.current = null;
           }
         }
-      } catch (err) {
-        console.warn("Capture error", err);
-      } finally {
-        isProcessingRef.current = false;
-      }
-    }, interval);
-  };
+      })();
+    }, intervalMs);
+  }, [clearFrameProcessing]);
 
   useEffect(() => {
     if (!active || !permission?.granted) {
-      if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
+      clearFrameProcessing();
       setDetectedColors([]);
     }
-    return () => {
-      if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
-    };
-  }, [active, permission]);
+    return clearFrameProcessing;
+  }, [active, permission, clearFrameProcessing]);
 
   // Animation Logic
   const scanAnim = useRef(new Animated.Value(0)).current;
@@ -542,10 +583,7 @@ export default function LiveScreen({
                     />
                   </View>
 
-                  {/* Center Dot */}
-                  <View style={styles.crosshairContainer}>
-                    <View style={styles.crosshairDot} />
-                  </View>
+                  <View style={styles.crosshairDot} />
                 </View>
               </>
             ) : (

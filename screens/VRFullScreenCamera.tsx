@@ -1,220 +1,119 @@
-import { Ionicons } from "@expo/vector-icons";
+/**
+ * VRFullScreenCamera
+ * ──────────────────
+ * A pure, zero-UI VR colorblind-lens camera screen.
+ *
+ * Designed to run full-screen inside a VR headset as a passthrough camera feed
+ * with a CVD compensation overlay that mimics EnChroma-style spectral notch
+ * filtering. No buttons, no labels, no borders — just the corrected view.
+ *
+ * The overlay layers are stacked absoluteFillObject views with low-opacity RGBA
+ * backgrounds. Together they shift hue perception so that colors the user
+ * previously confused now appear distinguishable, the same way CVD glasses
+ * work by filtering the M/L or S/M cone overlap wavelengths.
+ */
+
+import { useRoute } from "@react-navigation/native";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { useEffect, useMemo, useState } from "react";
-import {
-  SafeAreaView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { useEffect, useMemo } from "react";
+import { StyleSheet, View } from "react-native";
 import { useUserData } from "../Context/useUserData";
+import {
+  VR_CVD_DALTON_MATCHED_OVERLAY,
+  type CVDType,
+} from "../constants/vrCvdDaltonMatchedOverlay";
 
-type CVDType = "none" | "deuteranopia" | "protanopia" | "tritanopia";
+// ─── CVD type normalizer ───────────────────────────────────────────────────
 
-const normalizeCvdType = (rawType?: string | null): CVDType => {
-  if (!rawType) return "none";
+type RawCVDType = CVDType | "none";
 
-  const normalized = rawType.toLowerCase().trim();
-  if (normalized.includes("protan") && normalized.includes("deuter"))
-    return "deuteranopia";
-  if (normalized.includes("protan")) return "protanopia";
-  if (normalized.includes("deuter")) return "deuteranopia";
-  if (normalized.includes("tritan")) return "tritanopia";
-  if (
-    normalized.includes("normal") ||
-    normalized.includes("none") ||
-    normalized.includes("no cvd")
-  )
+const normalizeCvdType = (raw?: string | null): RawCVDType => {
+  if (!raw) return "none";
+  const n = raw.toLowerCase().trim();
+  if (n.includes("protan") && n.includes("deuter")) return "deuteranopia";
+  if (n.includes("protan"))  return "protanopia";
+  if (n.includes("deuter"))  return "deuteranopia";
+  if (n.includes("tritan"))  return "tritanopia";
+  if (n.includes("normal") || n.includes("none") || n.includes("no cvd"))
     return "none";
-
-  return "deuteranopia";
+  return "deuteranopia"; // safe default
 };
 
-import { useRoute } from '@react-navigation/native';
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function VRFullScreenCamera() {
-  const route = useRoute();
+  const route  = useRoute();
   const [permission, requestPermission] = useCameraPermissions();
   const { userData } = useUserData();
 
-  const [facing, setFacing] = useState<"front" | "back">("back");
-  const [torch, setTorch] = useState(false);
-  const streamingEnabled = true;
-  // Cloud processing path intentionally disabled for VR mode.
-  // Previous API path (for reference):
-  // POST /process-live-frame with per-frame camera captures.
+  // Auto-request permission silently — no UI shown for the request itself
+  // because in VR context the permission should be pre-granted at app launch.
+  useEffect(() => {
+    if (!permission?.granted) requestPermission();
+  }, [permission?.granted, requestPermission]);
 
-  const effectiveCvdType = useMemo(() => {
-    // First prefer explicit simulation passed via navigation param
+  // Resolve CVD type: navigation param takes priority over user profile
+  const effectiveCvdType = useMemo<RawCVDType>(() => {
     const navSim = (route as any)?.params?.simulation as string | undefined;
-    if (navSim) {
-      // map incoming names to normalized internal types
-      return normalizeCvdType(navSim);
-    }
+    if (navSim) return normalizeCvdType(navSim);
     return normalizeCvdType(userData?.cvdType);
   }, [userData?.cvdType, (route as any)?.params?.simulation]);
 
-  useEffect(() => {
-    if (!permission?.granted) {
-      requestPermission();
-    }
-  }, [permission?.granted, requestPermission]);
+  // Resolve overlay config — null for "none" (no CVD, no overlay)
+  const overlayConfig = useMemo(() => {
+    if (effectiveCvdType === "none") return null;
+    return VR_CVD_DALTON_MATCHED_OVERLAY[effectiveCvdType];
+  }, [effectiveCvdType]);
 
-  const toggleTorch = () => {
-    if (facing === "front") return; // torch doesn't work on front camera
-    setTorch((prev) => !prev);
-  };
-
-  const getInstantOverlayStyle = () => {
-    switch (effectiveCvdType) {
-      case "deuteranopia":
-        return {
-          backgroundColor: "rgba(120, 20, 170, 0.16)",
-          borderColor: "rgba(130, 230, 255, 0.22)",
-        };
-      case "protanopia":
-        return {
-          backgroundColor: "rgba(40, 120, 210, 0.16)",
-          borderColor: "rgba(120, 255, 170, 0.22)",
-        };
-      case "tritanopia":
-        return {
-          backgroundColor: "rgba(255, 190, 40, 0.14)",
-          borderColor: "rgba(255, 120, 80, 0.20)",
-        };
-      default:
-        return {
-          backgroundColor: "rgba(0,0,0,0)",
-          borderColor: "rgba(0,0,0,0)",
-        };
-    }
-  };
-
+  // If permission not yet granted, render a blank black screen.
+  // In VR context this is intentional — no text, no prompts.
   if (!permission?.granted) {
-    return (
-      <View style={styles.center}>
-        <Text style={{ color: "#fff", marginBottom: 10 }}>
-          Camera permission required
-        </Text>
-
-        <TouchableOpacity style={styles.btn} onPress={requestPermission}>
-          <Text style={{ color: "#000" }}>Allow Camera</Text>
-        </TouchableOpacity>
-      </View>
-    );
+    return <View style={styles.black} />;
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar hidden />
-
-      {/* CAMERA */}
+    <View style={styles.root}>
+      {/* ── Passthrough camera feed ── */}
       <CameraView
         style={StyleSheet.absoluteFillObject}
-        facing={facing}
-        enableTorch={torch}
+        facing="back"
+        enableTorch={false}
         animateShutter={false}
       />
 
-      {streamingEnabled && effectiveCvdType !== "none" && (
+      {/* ── EnChroma-style spectral notch compensation layers ──
+          Each layer is a full-screen semi-transparent color plane.
+          Stacked in order (bottom → top) they compose to simulate
+          the effect of blocking the M/L or S/M cone overlap wavelength band,
+          allowing the brain to perceive cleaner color separation.           */}
+      {overlayConfig?.layers.map((layer) => (
         <View
+          key={layer.key}
           pointerEvents="none"
           style={[
             StyleSheet.absoluteFillObject,
-            styles.instantOverlay,
-            getInstantOverlayStyle(),
+            { backgroundColor: layer.backgroundColor },
           ]}
+          accessible={false}
+          importantForAccessibility="no"
         />
-      )}
-
-      {/* TOP CONTROLS */}
-      <View style={styles.topControls}>
-        <View style={styles.statusRow} />
-
-        <View style={styles.actionsRow}>
-          <TouchableOpacity
-            style={styles.controlBtnCompact}
-            onPress={toggleTorch}
-            accessibilityLabel={torch ? "Turn torch off" : "Turn torch on"}
-          >
-            <Ionicons
-              name={torch ? "flash" : "flash-outline"}
-              size={18}
-              color="#fff"
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </SafeAreaView>
+      ))}
+    </View>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  container: {
+  // Full-bleed root — fills the entire VR viewport, no safe area insets
+  root: {
     flex: 1,
     backgroundColor: "#000",
   },
 
-  center: {
+  // Shown only while camera permission is pending
+  black: {
     flex: 1,
     backgroundColor: "#000",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  btn: {
-    backgroundColor: "#fff",
-    padding: 12,
-    borderRadius: 10,
-  },
-
-  topControls: {
-    position: "absolute",
-    top: 44,
-    width: "100%",
-    paddingHorizontal: 12,
-    gap: 8,
-  },
-
-  statusRow: {
-    width: "100%",
-    flexDirection: "row",
-    gap: 8,
-    alignItems: "center",
-  },
-
-  actionsRow: {
-    width: "100%",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    justifyContent: "flex-start",
-  },
-
-  controlBtnCompact: {
-    backgroundColor: "rgba(0,0,0,0.6)",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-
-  statusPill: {
-    backgroundColor: "rgba(0,0,0,0.6)",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 10,
-    flex: 1,
-    minWidth: 0,
-  },
-
-  instantOverlay: {
-    borderWidth: 3,
-  },
-
-  text: {
-    color: "#fff",
-    fontSize: 13,
   },
 });
