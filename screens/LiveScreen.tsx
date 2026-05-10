@@ -2,7 +2,13 @@
 import { CameraType, CameraView, PermissionResponse } from "expo-camera";
 import { AlertCircle, CameraOff, ScanLine, Zap } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Animated,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../Context/ThemeContext"; // Adjust path as needed
 

@@ -15,8 +15,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-// Import the Theme Hook
 import { useTheme } from "@/Context/ThemeContext";
+import ColorDetectionPanel from "@/components/ColorDetectionPanel";
+import InteractiveImageViewer from "@/components/InteractiveImageViewer";
+import { DetectedColor } from "@/constants/colorPickerUtils";
 
 const { width } = Dimensions.get("window");
 
@@ -24,22 +26,20 @@ const { width } = Dimensions.get("window");
 const SERVER_URL = "http://10.135.50.103:5000/process-image";
 
 export default function MediaUpload() {
-  // Consume Theme Context
   const { darkMode, getFontSizeMultiplier, colorBlindMode } = useTheme();
   const scale = getFontSizeMultiplier();
 
-  // Define Theme & Palette
   const styles = useMemo(() => {
     const palette = {
-      beigeBg: "#F6F3EE", // Light Mode Bg
-      charcoal: "#2F2F2F", // Primary Dark
-      sage: "#8DA399", // Easy Mode Green
-      taupe: "#A9927D", // Hard Mode Brown
-      textDark: "#1C1C1E", // Dark Text
-      textLight: "#6B6661", // Muted Text
+      beigeBg: "#F6F3EE",
+      charcoal: "#2F2F2F",
+      sage: "#8DA399",
+      taupe: "#A9927D",
+      textDark: "#1C1C1E",
+      textLight: "#6B6661",
       white: "#FFFFFF",
-      surfaceDark: "#121212", // Deeper Dark Mode Bg
-      cardDark: "#1E1E1E", // Dark Mode Card
+      surfaceDark: "#121212",
+      cardDark: "#1E1E1E",
     };
 
     const colors = {
@@ -48,10 +48,7 @@ export default function MediaUpload() {
       cardSurfaceActive: darkMode ? "#000000" : palette.white,
       textPrimary: darkMode ? "#FFFFFF" : palette.textDark,
       textSecondary: darkMode ? "#A1A1A1" : palette.textLight,
-      // For text inside the Sage/Taupe buttons specifically
       textOnBrand: "#FFFFFF",
-      // For text inside the placeholder (which is Sage in Light Mode)
-      textOnPlaceholder: darkMode ? "#FFFFFF" : palette.charcoal,
       buttonPrimary: darkMode ? "#3a3a3c" : palette.charcoal,
       border: darkMode ? "#333333" : palette.sage,
       iconColor: darkMode ? "#FFFFFF" : palette.charcoal,
@@ -121,13 +118,13 @@ export default function MediaUpload() {
       placeholderText: {
         fontSize: 20 * scale,
         fontWeight: "700",
-        color: colors.textOnPlaceholder,
+        color: darkMode ? "#FFFFFF" : palette.charcoal,
         marginBottom: 8,
         textAlign: "center",
       },
       placeholderSubText: {
         fontSize: 14 * scale,
-        color: colors.textOnPlaceholder,
+        color: darkMode ? "#FFFFFF" : palette.charcoal,
         opacity: 0.7,
         textAlign: "center",
       },
@@ -212,6 +209,9 @@ export default function MediaUpload() {
       saveBtn: {
         backgroundColor: palette.sage,
       },
+      colorPickerBtn: {
+        backgroundColor: "#6B5ACD",
+      },
       actionButtonText: {
         color: "#FFFFFF",
         fontWeight: "700",
@@ -231,6 +231,33 @@ export default function MediaUpload() {
         fontSize: 15 * scale,
         fontWeight: "600",
       },
+      savedColorsContainer: {
+        paddingHorizontal: 12,
+        marginBottom: 12,
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 8,
+      },
+      colorTag: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 16,
+        backgroundColor: "rgba(0, 0, 0, 0.1)",
+        gap: 6,
+      },
+      colorTagText: {
+        fontSize: 12 * scale,
+        fontWeight: "600",
+      },
+      colorSwatch: {
+        width: 16,
+        height: 16,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: "rgba(0, 0, 0, 0.2)",
+      },
     });
   }, [darkMode, scale]);
 
@@ -238,6 +265,12 @@ export default function MediaUpload() {
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [permissionResponse, requestPermission] = MediaLibrary.usePermissions();
+  const [colorPickerActive, setColorPickerActive] = useState(false);
+  const [detectedColor, setDetectedColor] = useState<DetectedColor | null>(
+    null,
+  );
+  const [colorPanelVisible, setColorPanelVisible] = useState(false);
+  const [savedColors, setSavedColors] = useState<DetectedColor[]>([]);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -255,6 +288,8 @@ export default function MediaUpload() {
     if (!result.canceled) {
       setImage(result.assets[0].uri);
       setProcessedImage(null);
+      setColorPickerActive(false);
+      setSavedColors([]);
     }
   };
 
@@ -277,9 +312,11 @@ export default function MediaUpload() {
       });
 
       if (!response.ok) throw new Error("Server error");
-  const data = await response.json();
-  const imageFormat = data.image_format || "jpeg";
-  setProcessedImage(`data:image/${imageFormat};base64,${data.processed_image}`);
+      const data = await response.json();
+      const imageFormat = data.image_format || "jpeg";
+      setProcessedImage(
+        `data:image/${imageFormat};base64,${data.processed_image}`,
+      );
     } catch (error) {
       Alert.alert("Error", "Could not process image.");
     } finally {
@@ -287,80 +324,113 @@ export default function MediaUpload() {
     }
   };
 
-const handleSave = async () => {
-  try {
-    if (permissionResponse?.status !== "granted") {
-      const { status } = await requestPermission();
+  const handleSave = async () => {
+    try {
+      if (permissionResponse?.status !== "granted") {
+        const { status } = await requestPermission();
 
-      if (status !== "granted") {
-        Alert.alert("Permission Denied", "Gallery permission is required.");
+        if (status !== "granted") {
+          Alert.alert("Permission Denied", "Gallery permission is required.");
+          return;
+        }
+      }
+
+      // If processed image exists (base64)
+      if (processedImage) {
+        const fileUri =
+          FileSystem.cacheDirectory + `enhanced_${Date.now()}.jpg`;
+
+        // Remove data:image/jpeg;base64, prefix
+        const base64Data = processedImage.replace(
+          /^data:image\/\w+;base64,/,
+          "",
+        );
+
+        // Write image to temporary file
+        await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        // Save file to gallery
+        await MediaLibrary.createAssetAsync(fileUri);
+
+        Alert.alert("Saved", "Enhanced image saved to gallery!");
         return;
       }
+
+      // Save original image directly
+      if (image) {
+        await MediaLibrary.createAssetAsync(image);
+
+        Alert.alert("Saved", "Image saved to gallery!");
+      }
+    } catch (error) {
+      console.log(error);
+      Alert.alert("Error", "Could not save image.");
     }
-
-    // If processed image exists (base64)
-    if (processedImage) {
-      const fileUri =
-        FileSystem.cacheDirectory + `enhanced_${Date.now()}.jpg`;
-
-      // Remove data:image/jpeg;base64, prefix
-      const base64Data = processedImage.replace(
-        /^data:image\/\w+;base64,/,
-        ""
-      );
-
-      // Write image to temporary file
-      await FileSystem.writeAsStringAsync(fileUri, base64Data, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      // Save file to gallery
-      await MediaLibrary.createAssetAsync(fileUri);
-
-      Alert.alert("Saved", "Enhanced image saved to gallery!");
-      return;
-    }
-
-    // Save original image directly
-    if (image) {
-      await MediaLibrary.createAssetAsync(image);
-
-      Alert.alert("Saved", "Image saved to gallery!");
-    }
-  } catch (error) {
-    console.log(error);
-    Alert.alert("Error", "Could not save image.");
-  }
-};
+  };
 
   const handleReset = () => {
     setImage(null);
     setProcessedImage(null);
+    setColorPickerActive(false);
+    setSavedColors([]);
+    setDetectedColor(null);
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Upload Media</Text>
-        <Text style={styles.headerSubtitle}>Analyze existing photos</Text>
+        <Text style={styles.headerSubtitle}>
+          Analyze photos & pick colors in real-time
+        </Text>
       </View>
 
       <View style={styles.content}>
         <View style={styles.previewContainer}>
           {image ? (
-            <View style={styles.imageWrapper}>
-              <Image
-                source={{ uri: processedImage || image }}
-                style={styles.previewImage}
-                resizeMode="cover"
-              />
+            <>
+              {colorPickerActive ? (
+                <View style={styles.imageWrapper}>
+                  <InteractiveImageViewer
+                    imageUri={processedImage || image}
+                    containerWidth={width - 48}
+                    containerHeight={width - 48}
+                    onColorDetected={handleColorDetected}
+                    darkMode={darkMode}
+                    pointerStyle="magnifier"
+                    magnifierRadius={50}
+                  />
+                </View>
+              ) : (
+                <View style={styles.imageWrapper}>
+                  <Image
+                    source={{ uri: processedImage || image }}
+                    style={styles.previewImage}
+                    resizeMode="cover"
+                  />
+                  {processedImage && (
+                    <View style={styles.enhancedBadge}>
+                      <Ionicons
+                        name="checkmark-done-circle"
+                        size={16 * scale}
+                        color="#FFF"
+                      />
+                      <Text style={styles.enhancedBadgeText}>
+                        ANALYSIS COMPLETE
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={handleReset}
               >
                 <Ionicons name="close" size={20 * scale} color="#FFF" />
               </TouchableOpacity>
-            </View>
+            </>
           ) : (
             <TouchableOpacity
               style={styles.placeholderContainer}
@@ -374,10 +444,42 @@ const handleSave = async () => {
                 />
               </View>
               <Text style={styles.placeholderText}>Choose from Gallery</Text>
-              <Text style={styles.placeholderSubText}>Tap here to upload</Text>
+              <Text style={styles.placeholderSubText}>
+                Tap to upload an image
+              </Text>
             </TouchableOpacity>
           )}
         </View>
+
+        {savedColors.length > 0 && (
+          <View style={styles.savedColorsContainer}>
+            {savedColors.map((color, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.colorTag,
+                  {
+                    backgroundColor: darkMode
+                      ? "rgba(255, 255, 255, 0.1)"
+                      : "rgba(0, 0, 0, 0.05)",
+                  },
+                ]}
+              >
+                <View
+                  style={[styles.colorSwatch, { backgroundColor: color.hex }]}
+                />
+                <Text
+                  style={[
+                    styles.colorTagText,
+                    { color: darkMode ? "#FFFFFF" : "#000000" },
+                  ]}
+                >
+                  {color.name}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         <View style={styles.controlsContainer}>
           {!image ? (
@@ -393,6 +495,20 @@ const handleSave = async () => {
             <>
               <View style={styles.buttonRow}>
                 <TouchableOpacity
+                  style={[styles.actionButton, styles.colorPickerBtn]}
+                  onPress={() => setColorPickerActive(!colorPickerActive)}
+                >
+                  <Ionicons
+                    name="color-palette-outline"
+                    size={20 * scale}
+                    color="#FFF"
+                  />
+                  <Text style={styles.actionButtonText}>
+                    {colorPickerActive ? "Exit Picker" : "Pick Colors"}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
                   style={[
                     styles.actionButton,
                     styles.identifyBtn,
@@ -404,17 +520,30 @@ const handleSave = async () => {
                   {isProcessing ? (
                     <ActivityIndicator color="#FFF" />
                   ) : (
-                    <Text style={styles.actionButtonText}>Identify</Text>
+                    <>
+                      <Ionicons name="scan" size={20 * scale} color="#FFF" />
+                      <Text style={styles.actionButtonText}>
+                        {processedImage ? "Analyzed" : "Identify"}
+                      </Text>
+                    </>
                   )}
                 </TouchableOpacity>
+              </View>
 
+              <View style={styles.buttonRow}>
                 <TouchableOpacity
                   style={[styles.actionButton, styles.saveBtn]}
                   onPress={handleSave}
                 >
-                  <Text style={styles.actionButtonText}>Save</Text>
+                  <Ionicons
+                    name="download-outline"
+                    size={20 * scale}
+                    color="#FFF"
+                  />
+                  <Text style={styles.actionButtonText}>Save Image</Text>
                 </TouchableOpacity>
               </View>
+
               <TouchableOpacity
                 style={styles.secondaryButton}
                 onPress={pickImage}
@@ -427,6 +556,14 @@ const handleSave = async () => {
           )}
         </View>
       </View>
+
+      <ColorDetectionPanel
+        color={detectedColor}
+        visible={colorPanelVisible}
+        onClose={() => setColorPanelVisible(false)}
+        onSave={handleSaveColor}
+        darkMode={darkMode}
+      />
     </SafeAreaView>
   );
 }
