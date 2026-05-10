@@ -241,6 +241,10 @@ def _draw_color_badge(output, label, fill_bgr, cx, cy, radius_hint):
         cv2.rectangle(output, (bx1 + r, by1), (bx2 - r, by2), (160, 160, 160), 1)
         cv2.rectangle(output, (bx1, by1 + r), (bx2, by2 - r), (160, 160, 160), 1)
 
+    img_w = max(1, output.shape[1])
+    img_h = max(1, output.shape[0])
+    return ((bx1 + bx2) * 0.5 / img_w, (by1 + by2) * 0.5 / img_h)
+
 
 def _draw_center_badge(output, label, fill_bgr, cx, cy):
     """Minimal centre-point badge for live/center-only mode."""
@@ -274,6 +278,10 @@ def _draw_center_badge(output, label, fill_bgr, cx, cy):
     cv2.putText(output, label, (bx1 + pad_x, by1 + pad_y + th),
                 font, font_scale, text_color, thickness, cv2.LINE_AA)
 
+    img_w = max(1, output.shape[1])
+    img_h = max(1, output.shape[0])
+    return ((bx1 + bx2) * 0.5 / img_w, (by1 + by2) * 0.5 / img_h)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Core detection
@@ -306,13 +314,23 @@ def detect_and_draw_colors(image, draw=True, center_only=False, roi_size=80):
             best_color = None
 
         detected = [best_color] if best_color else []
+        detection_regions = []
 
         if draw and best_color:
             cx = (x1 + x2) // 2
             cy = (y1 + y2) // 2
-            _draw_center_badge(output, best_color, COLOR_BGR.get(best_color, (200, 200, 200)), cx, cy)
+            badge_x, badge_y = _draw_center_badge(
+                output, best_color, COLOR_BGR.get(best_color, (200, 200, 200)), cx, cy
+            )
+            detection_regions.append({
+                "label": best_color,
+                "cx": cx / float(cw),
+                "cy": cy / float(ch),
+                "badge_x": badge_x,
+                "badge_y": badge_y,
+            })
 
-        return (output, detected) if draw else detected
+        return (output, detected, detection_regions) if draw else detected
 
     # ── Full-image detection ─────────────────────────────────────────────────
     h, w = hsv.shape[:2]
@@ -379,6 +397,7 @@ def detect_and_draw_colors(image, draw=True, center_only=False, roi_size=80):
         major_colors = [n for n, _ in sorted(totals.items(), key=lambda x: x[1], reverse=True)[:4] if _ > 0]
 
     detected_colors = []
+    detection_regions = []
 
     for cname in major_colors:
         fill = COLOR_BGR.get(cname, (200, 200, 200))
@@ -402,13 +421,20 @@ def detect_and_draw_colors(image, draw=True, center_only=False, roi_size=80):
                 cv2.drawContours(output, [contour], 0, fill,       1, cv2.LINE_AA)
 
                 # Badge label
-                _draw_color_badge(output, cname, fill, cx, cy, radius)
+                badge_x, badge_y = _draw_color_badge(output, cname, fill, cx, cy, radius)
+                detection_regions.append({
+                    "label": cname,
+                    "cx": cx / float(w),
+                    "cy": cy / float(h),
+                    "badge_x": badge_x,
+                    "badge_y": badge_y,
+                })
 
             detected_colors.append(cname)
 
     detected_colors = list(dict.fromkeys(detected_colors))
     print(f"[ColorVista] Detected: {detected_colors or 'None'}")
-    return (output, detected_colors) if draw else detected_colors
+    return (output, detected_colors, detection_regions) if draw else detected_colors
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -552,7 +578,9 @@ def process_image():
 
         working_img = apply_cvd_enhancement(img, cvd_mode) if cvd_mode != 'none' else img
 
-        processed_img, detected_colors = detect_and_draw_colors(working_img, draw=True)
+        processed_img, detected_colors, detection_regions = detect_and_draw_colors(
+            working_img, draw=True
+        )
 
         # Encode – lossless PNG preserves every pixel; JPEG for smaller payloads
         if use_lossless:
@@ -564,6 +592,7 @@ def process_image():
             "processed_image":  b64,
             "image_format":     fmt,
             "detected_colors":  detected_colors,
+            "detection_regions": detection_regions,
             "cvd_mode":         cvd_mode,
         })
 
@@ -603,7 +632,9 @@ def enhancement():
             processed_img = apply_cvd_enhancement(img, cvd_mode)
             detected_colors = []
         else:
-            processed_img, detected_colors = detect_and_draw_colors(img, draw=True)
+            processed_img, detected_colors, _detection_regions = detect_and_draw_colors(
+                img, draw=True
+            )
 
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 95]
         _, buffer = cv2.imencode('.jpg', processed_img, encode_param)
@@ -655,18 +686,20 @@ def process_frame():
                                 max(1, int(img.shape[0] * scale))),
                                interpolation=cv2.INTER_AREA)
 
+        detection_regions = []
         if norm_mode != 'none':
             processed_img   = apply_cvd_enhancement_live(img, norm_mode)
             detected_colors = []
         else:
             center_only     = (data.get('mode') == 'center')
-            processed_img, detected_colors = detect_and_draw_colors(
+            processed_img, detected_colors, detection_regions = detect_and_draw_colors(
                 img, draw=True, center_only=center_only)
 
         b64, _ = encode_jpeg(processed_img, quality=jpeg_quality)
 
         return jsonify({
             "detected_colors": detected_colors,
+            "detection_regions": detection_regions,
             "processed_image": b64,
             "cvd_mode":        norm_mode,
         })
