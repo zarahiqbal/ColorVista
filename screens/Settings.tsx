@@ -3,18 +3,15 @@ import { Stack, useRouter } from "expo-router";
 import { useState } from "react";
 import {
   Alert,
-  KeyboardAvoidingView,
   Linking, // 1. Added Linking import here
   Modal,
-  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 import { useAuth } from "@/Context/AuthContext";
@@ -562,83 +559,6 @@ export default function SettingsPage() {
           </View>
         </View>
       </Modal>
-
-      {/* --- CHANGE PASSWORD MODAL --- */}
-      {!isGuest && (
-        <Modal
-          animationType="fade"
-          transparent={true}
-          visible={passwordModalVisible}
-          onRequestClose={() => setPasswordModalVisible(false)}
-        >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={[
-              styles.modalOverlay,
-              { backgroundColor: "rgba(0,0,0,0.6)" },
-            ]}
-          >
-            <View
-              style={[styles.modalContent, { backgroundColor: theme.card }]}
-            >
-              <Text style={[styles.modalTitle, { color: theme.text }]}>
-                Change Password
-              </Text>
-
-              <TextInput
-                placeholder="Current Password"
-                placeholderTextColor={theme.subText}
-                secureTextEntry
-                style={[
-                  styles.input,
-                  { backgroundColor: theme.bg, color: theme.text },
-                ]}
-              />
-              <TextInput
-                placeholder="New Password"
-                placeholderTextColor={theme.subText}
-                secureTextEntry
-                style={[
-                  styles.input,
-                  { backgroundColor: theme.bg, color: theme.text },
-                ]}
-              />
-              <TextInput
-                placeholder="Confirm New Password"
-                placeholderTextColor={theme.subText}
-                secureTextEntry
-                style={[
-                  styles.input,
-                  { backgroundColor: theme.bg, color: theme.text },
-                ]}
-              />
-
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={[styles.modalBtn, { backgroundColor: theme.bg }]}
-                  onPress={() => setPasswordModalVisible(false)}
-                >
-                  <Text style={{ color: theme.subText, fontWeight: "600" }}>
-                    Cancel
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.modalBtn, { backgroundColor: palette.sage }]}
-                  onPress={() => {
-                    setPasswordModalVisible(false);
-                    Alert.alert("Success", "Password updated successfully");
-                  }}
-                >
-                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                    Update
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
-      )}
     </SafeAreaView>
   );
 }
