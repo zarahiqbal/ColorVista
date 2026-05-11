@@ -5,6 +5,7 @@ export default function DifficultyScreen() {
   const router = useRouter();
 
   const handleSelect = (difficulty: "easy" | "hard") => {
+    // Navigate to the quiz route passing the difficulty param
     router.push({
       pathname: "/quiz",
       params: { difficulty },

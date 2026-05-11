@@ -1,177 +1,302 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useTheme } from "../Context/ThemeContext";
+import {
+  getShuffledOptions,
+  PLATE_DATA,
+  PlateQuestion,
+} from "../constants/questions";
 
-// Define the shape of a question for TypeScript
-interface Question {
-  question: string;
-  options: {
-    A: string;
-    B: string;
-    C: string;
-    D: string;
-  };
-  answer: string;
+interface Quiz1Props {
+  difficulty?: "easy" | "hard";
 }
 
-export default function Quiz1({ difficulty }: { difficulty: string }) {
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [current, setCurrent] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [score, setScore] = useState(0);
-  const [finished, setFinished] = useState(false);
+export default function Quiz1({
+  difficulty: _difficulty = "easy",
+}: Quiz1Props) {
+  const router = useRouter();
+  const { darkMode } = useTheme();
 
-  const totalQuestions = difficulty === "easy" ? 6 : 12;
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [userAnswers, setUserAnswers] = useState<any[]>([]);
+  const [currentOptions, setCurrentOptions] = useState<string[]>([]);
 
-  // --- Initialize Gemini SDK ---
-  // WARNING: In a production app, do not store API keyys directly in the client code.
-  // Use a backend proxy or environment variables (e.g., react-native-dotenv).
-  const API_KEY = "AIzaSyBC0v9b55J0oqNXHbaL6WT5bUL26TAk3vk"; 
-  const genAI = new GoogleGenerativeAI(API_KEY);
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
-  // --- Fetch AI Questions ---
-  const loadQuestions = async () => {
-    try {
-      const model = genAI.getGenerativeModel({ 
-        model: "gemini-2.5-flash", // Using the correct, currently available model
-        generationConfig: {
-          responseMimeType: "application/json", // Forces strict JSON response
-          temperature: 0.7,
-        }
-      });
-
-      const prompt = `Generate ${totalQuestions} multiple-choice questions about color blindness theory and facts ${difficulty} difficulty. 
-      Output strictly a JSON array where each object has: 
-      - "question": string
-      - "options": object with keys A, B, C, D
-      - "answer": string (one of "A", "B", "C", "D")`;
-
-      const result = await model.generateContent(prompt);
-      const response = result.response;
-      const text = response.text();
-
-      console.log("AI Response:", text);
-
-      // Parse the JSON
-      const parsedQuestions: Question[] = JSON.parse(text);
-      
-      setQuestions(parsedQuestions);
-      setLoading(false);
-
-    } catch (error) {
-      console.error("Gemini Fetch Error:", error);
-      Alert.alert("Error", "Failed to load quiz. Please check your internet connection or API Key.");
-      setLoading(false);
-    }
-  };
+  const currentPlate: PlateQuestion | undefined = PLATE_DATA[currentIndex];
 
   useEffect(() => {
-    loadQuestions();
-  }, []);
+    if (!currentPlate) return;
 
-  // --- Handle Answer ---
-  const handleAnswer = (key: string) => {
-    if (key === questions[current].answer) {
-      setScore(score + 1);
-    }
+    const options = getShuffledOptions(currentPlate).filter(
+      (option): option is string => typeof option === "string",
+    );
+    setCurrentOptions(options);
 
-    if (current + 1 < questions.length) {
-      setCurrent(current + 1);
+    Animated.spring(progressAnim, {
+      toValue: (currentIndex + 1) / PLATE_DATA.length,
+      useNativeDriver: false,
+    }).start();
+  }, [currentIndex, currentPlate, progressAnim]);
+
+  const handleSelection = (val: string) => {
+    if (!currentPlate) return;
+
+    const confusionAnswers = currentPlate.confusionAnswers ?? [];
+
+    const isCorrect = val === currentPlate.correctAnswer;
+    const isConfusion =
+      (confusionAnswers.includes(val) ||
+        val === currentPlate.tritanopiaLikelyAnswer) &&
+      val !== currentPlate.correctAnswer;
+
+    const answerData = {
+      plateId: currentPlate.id,
+      type: currentPlate.type,
+      category: currentPlate.category ?? null,
+      selectedAnswer: val,
+      isCorrect,
+      isConfusion,
+    };
+
+    const updatedAnswers = [...userAnswers, answerData];
+    setUserAnswers(updatedAnswers);
+
+    if (currentIndex < PLATE_DATA.length - 1) {
+      setCurrentIndex((prev) => prev + 1);
     } else {
-      setFinished(true);
+      const results = calculateResults(updatedAnswers);
+
+      router.push({
+        pathname: "/result",
+        params: {
+          results: JSON.stringify(results),
+          data: JSON.stringify(updatedAnswers),
+        },
+      });
     }
   };
 
-  // --- Loading Screen ---
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#1E40AF" />
-        <Text style={styles.loadingText}>Generating {difficulty} questions...</Text>
-      </View>
+  const calculateResults = (
+    answers: {
+      type: PlateQuestion["type"];
+      category: PlateQuestion["category"] | null;
+      isCorrect: boolean;
+    }[],
+  ) => {
+    const redGreenAnswers = answers.filter(
+      (answer) => answer.category === "red-green",
     );
-  }
-
-  // --- Finished Screen ---
-  if (finished) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.resultTitle}>Quiz Completed!</Text>
-        <Text style={styles.resultText}>
-          Your score: {score}/{questions.length}
-        </Text>
-      </View>
+    const blueYellowAnswers = answers.filter((answer) =>
+      ["screening", "tritan", "severity"].includes(answer.type),
     );
-  }
 
-  // Safety check if questions failed to load but loading is false
-  if (questions.length === 0) {
-    return (
-        <View style={styles.center}>
-          <Text>No questions available.</Text>
-        </View>
-    )
-  }
+    return {
+      redGreen: {
+        correct: redGreenAnswers.filter((answer) => answer.isCorrect).length,
+        total: redGreenAnswers.length,
+      },
+      blueYellow: {
+        correct: blueYellowAnswers.filter((answer) => answer.isCorrect).length,
+        total: blueYellowAnswers.length,
+      },
+    };
+  };
 
-  const q = questions[current];
+  const theme = {
+    bg: darkMode ? "#121212" : "#F8FAFC",
+    card: darkMode ? "#1E1E1E" : "#FFFFFF",
+    text: darkMode ? "#FFFFFF" : "#1A1A1A",
+    border: darkMode ? "#333" : "#E2E8F0",
+  };
 
-  // --- Quiz UI ---
+  if (!currentPlate) return null;
+
+  const isHRR =
+    currentPlate.type === "demo" ||
+    currentPlate.type === "screening" ||
+    currentPlate.type === "tritan" ||
+    currentPlate.type === "severity";
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.questionNumber}>
-        Question {current + 1} of {questions.length}
-      </Text>
+    <View style={[styles.main, { backgroundColor: theme.bg }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={[styles.stepText, { color: theme.text }]}>
+          Plate {currentIndex + 1} of {PLATE_DATA.length}
+        </Text>
 
-      <Text style={styles.question}>{q.question}</Text>
+        <View style={styles.progressTrack}>
+          <Animated.View
+            style={[
+              styles.progressBar,
+              {
+                width: progressAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ["0%", "100%"],
+                }),
+              },
+            ]}
+          />
+        </View>
+      </View>
 
-      {Object.keys(q.options).map((key) => (
-        <TouchableOpacity
-          key={key}
-          style={styles.option}
-          onPress={() => handleAnswer(key)}
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Plate */}
+        <View
+          style={[
+            styles.plateCard,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+            },
+          ]}
         >
-          <Text style={styles.optionText}>
-            {key}. {q.options[key as keyof typeof q.options]}
+          <Image
+            source={currentPlate.image}
+            style={styles.plateImage}
+            resizeMode="contain"
+          />
+
+          <Text style={[styles.instruction, { color: theme.text }]}>
+            {isHRR ? "Identify the hidden symbol" : "What number do you see?"}
           </Text>
-        </TouchableOpacity>
-      ))}
+        </View>
+
+        {/* Options */}
+        <View style={styles.grid}>
+          {currentOptions.map((opt) => (
+            <TouchableOpacity
+              key={opt}
+              style={[
+                styles.btn,
+                {
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                },
+              ]}
+              onPress={() => handleSelection(opt)}
+            >
+              <Text style={[styles.btnText, { color: theme.text }]}>{opt}</Text>
+            </TouchableOpacity>
+          ))}
+
+          <TouchableOpacity
+            style={[
+              styles.nothingBtn,
+              {
+                backgroundColor: darkMode ? "#311" : "#FFF5F5",
+              },
+            ]}
+            onPress={() => handleSelection("Nothing")}
+          >
+            <Text style={styles.nothingText}>I see nothing</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 22, backgroundColor: "#FFFFFF" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  main: { flex: 1 },
 
-  loadingText: { marginTop: 12, fontSize: 16, color: "#475569" },
-
-  questionNumber: {
-    fontSize: 16,
-    marginBottom: 10,
-    color: "#64748B",
+  header: {
+    paddingTop: 60,
+    paddingHorizontal: 20,
   },
-  question: {
-    fontSize: 22,
+
+  stepText: {
+    fontSize: 14,
     fontWeight: "600",
-    marginBottom: 20,
-    color: "#0F172A",
+    marginBottom: 10,
   },
 
-  option: {
-    padding: 14,
+  progressTrack: {
+    height: 4,
     backgroundColor: "#E2E8F0",
-    borderRadius: 10,
-    marginBottom: 12,
-  },
-  optionText: {
-    fontSize: 16,
-    color: "#0F172A",
+    borderRadius: 2,
+    overflow: "hidden",
   },
 
-  resultTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#1E3A8A",
+  progressBar: {
+    height: "100%",
+    backgroundColor: "#2D5BFF",
   },
-  resultText: { fontSize: 20, marginTop: 10 },
+
+  scrollContent: {
+    padding: 20,
+    alignItems: "center",
+  },
+
+  plateCard: {
+    width: "100%",
+    padding: 20,
+    borderRadius: 24,
+    borderWidth: 1,
+    alignItems: "center",
+    marginBottom: 30,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+
+  plateImage: {
+    width: 260,
+    height: 260,
+    marginBottom: 20,
+  },
+
+  instruction: {
+    fontSize: 18,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+
+  btn: {
+    width: "48%",
+    paddingVertical: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: "center",
+    marginBottom: 15,
+  },
+
+  btnText: {
+    fontSize: 22,
+    fontWeight: "bold",
+  },
+
+  nothingBtn: {
+    width: "100%",
+    paddingVertical: 18,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#FEB2B2",
+    alignItems: "center",
+  },
+
+  nothingText: {
+    color: "#C53030",
+    fontWeight: "700",
+    fontSize: 16,
+  },
 });

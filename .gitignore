@@ -41,3 +41,12 @@ app-example
 # generated native folders
 /ios
 /android
+
+#virtual environment
+.venv/
+
+# Log files
+eas.json
+
+# Firebase
+firestore.rules
