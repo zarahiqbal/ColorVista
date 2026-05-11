@@ -4,11 +4,15 @@ import { DifficultySelection } from "../screens/DifficultyLevel";
 export default function DifficultyScreen() {
   const router = useRouter();
 
-  const handleSelect = (difficulty: "easy" | "hard") => {
-    // Navigate to the quiz route passing the difficulty param
+  const handleSelect = (difficulty: "basic" | "advanced") => {
+    if (difficulty === "advanced") {
+      router.push("/huetestscreen");
+      return;
+    }
+
     router.push({
       pathname: "/quiz",
-      params: { difficulty },
+      params: { difficulty: "easy" },
     });
   };
 
