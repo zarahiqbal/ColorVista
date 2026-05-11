@@ -8,17 +8,13 @@ import {
   updatePassword,
   updateProfile,
 } from "firebase/auth";
-import { ref, update as updateDb } from "firebase/database";
-import {
-  getDownloadURL,
-  ref as storageRef,
-  uploadBytes,
-} from "firebase/storage"; // 2. Storage imports
+import { deleteField } from "firebase/firestore";
 import * as React from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -30,11 +26,19 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
+import { ThemedNoticeModal } from "@/components/ThemedNoticeModal";
+import type { GameProgressDoc, UserGamesDoc } from "@/Context/userProfileFirestore";
 import { useAuth } from "@/Context/AuthContext";
-import { auth, db, storage } from "@/Context/firebase"; // Ensure 'storage' is exported from firebase config
+import { auth } from "@/Context/firebase";
+import { patchUserProfile } from "@/Context/userProfileFirestore";
 import { useUserData } from "@/Context/useUserData";
+import { prepareProfileImageForFirestore } from "@/utils/prepareProfileImageForFirestore";
+import { insightLine, pctAccuracy } from "@/utils/gameProgressInsights";
 import { useTheme } from "../Context/ThemeContext";
 
 // Define available system avatars (just geometric/color representations for this UI)
@@ -52,9 +56,16 @@ const ProfileScreen: React.FC = () => {
   const isGuest = user?.isGuest === true;
   const { darkMode, getFontSizeMultiplier } = useTheme();
   const scale = getFontSizeMultiplier();
+  const insets = useSafeAreaInsets();
+  /** Clears custom BottomNavBar (~80–100pt) + font scale; root bg now matches theme. */
+  const scrollBottomPad = Math.round(104 + scale * 28 + Math.min(insets.bottom, 20));
 
   // Local state for the displayed image (handles URI or system avatar object)
   const [currentPhoto, setCurrentPhoto] = React.useState<any>(null);
+  const currentPhotoRef = React.useRef(currentPhoto);
+  React.useEffect(() => {
+    currentPhotoRef.current = currentPhoto;
+  }, [currentPhoto]);
   const [uploading, setUploading] = React.useState(false);
   const [avatarModalVisible, setAvatarModalVisible] = React.useState(false);
   const [passwordModalVisible, setPasswordModalVisible] = React.useState(false);
@@ -62,6 +73,15 @@ const ProfileScreen: React.FC = () => {
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [updatingPassword, setUpdatingPassword] = React.useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = React.useState(false);
+  const [showNewPassword, setShowNewPassword] = React.useState(false);
+  const [showConfirmPasswordField, setShowConfirmPasswordField] =
+    React.useState(false);
+  const [passwordNotice, setPasswordNotice] = React.useState<{
+    title: string;
+    message: string;
+    variant: "success" | "error";
+  } | null>(null);
 
   const palette = {
     beigeBg: "#F6F3EE",
@@ -98,6 +118,79 @@ const ProfileScreen: React.FC = () => {
   const phone = isGuest
     ? "Not Linked"
     : userData?.phone || user?.phone || "Not provided";
+  const games = (userData?.games ?? undefined) as UserGamesDoc | undefined;
+
+  const renderGameSummary = (label: string, p: GameProgressDoc | undefined) => {
+    if (!p || p.gamesPlayed === 0) {
+      return (
+        <View>
+          <Text
+            style={{
+              color: theme.text,
+              fontSize: 14 * scale,
+              fontWeight: "700",
+              marginBottom: 6,
+            }}
+          >
+            {label}
+          </Text>
+          <Text
+            style={{
+              color: theme.subText,
+              fontSize: 13 * scale,
+              lineHeight: 18 * scale,
+            }}
+          >
+            No completed rounds yet — play a full game to record your stats.
+          </Text>
+        </View>
+      );
+    }
+    return (
+      <View>
+        <Text
+          style={{
+            color: theme.text,
+            fontSize: 14 * scale,
+            fontWeight: "700",
+            marginBottom: 4,
+          }}
+        >
+          {label}
+        </Text>
+        <Text
+          style={{
+            color: theme.subText,
+            fontSize: 13 * scale,
+            marginBottom: 6,
+          }}
+        >
+          Best {p.bestScore.toLocaleString()} · High level {p.highLevel} ·{" "}
+          {p.gamesPlayed} games · Avg accuracy {pctAccuracy(p.avgAccuracy)}
+        </Text>
+        <Text
+          style={{
+            color: theme.subText,
+            fontSize: 12 * scale,
+            marginBottom: 6,
+          }}
+        >
+          Last run: {pctAccuracy(p.lastAccuracy)} accuracy
+        </Text>
+        <Text
+          style={{
+            color: theme.text,
+            fontSize: 12 * scale,
+            fontStyle: "italic",
+            lineHeight: 17 * scale,
+          }}
+        >
+          {insightLine(p)}
+        </Text>
+      </View>
+    );
+  };
+
   const [colorblindnessType, setColorblindnessType] = React.useState(
     userData?.cvdType || user?.cvdType || "Normal Vision",
   );
@@ -105,10 +198,20 @@ const ProfileScreen: React.FC = () => {
   const [isEditingUsername, setIsEditingUsername] = React.useState(false);
   const [tempUsername, setTempUsername] = React.useState(username);
 
-  // Initialize photo from userData or auth
+  // Initialize photo from Firestore (base64), legacy URL, system avatar, or auth
   React.useEffect(() => {
-    const sourcePhotoURL = userData?.photoURL ?? (user as any)?.photoURL;
-    if (!sourcePhotoURL) return;
+    const fromBinary =
+      userData?.profileImageBase64 && userData?.profileImageMime
+        ? `data:${userData.profileImageMime};base64,${userData.profileImageBase64}`
+        : null;
+    const sourcePhotoURL =
+      fromBinary ??
+      userData?.photoURL ??
+      (user as { photoURL?: string })?.photoURL;
+    if (!sourcePhotoURL) {
+      setCurrentPhoto(null);
+      return;
+    }
 
     if (sourcePhotoURL.startsWith("system:")) {
       try {
@@ -144,25 +247,23 @@ const ProfileScreen: React.FC = () => {
 
   // --- Image Handling Logic ---
 
+  /** System / preset avatars: small string in `photoURL`, no binary in Firestore. */
   const savePhotoURL = async (url: string) => {
     if (isGuest || !user?.uid) return;
 
     try {
-      // 1. Update Firebase Auth
       if (auth.currentUser) {
         await updateProfile(auth.currentUser, { photoURL: url });
       }
 
-      // 2. Update Realtime DB
-      const userRef = ref(db, `users/${user.uid}`);
-      await updateDb(userRef, {
+      await patchUserProfile(user.uid, {
         photoURL: url,
+        profileImageBase64: deleteField(),
+        profileImageMime: deleteField(),
         updatedAt: new Date().toISOString(),
       });
 
-      // 3. Update local Context & AsyncStorage
-      const newProfile = { ...(user as any), photoURL: url };
-      // @ts-ignore
+      const newProfile = { ...user, photoURL: url };
       setUser(newProfile);
       await AsyncStorage.setItem("@user", JSON.stringify(newProfile));
     } catch (error) {
@@ -171,39 +272,47 @@ const ProfileScreen: React.FC = () => {
     }
   };
 
-  const uploadImageAsync = async (uri: string): Promise<string | null> => {
+  /** Gallery / camera: JPEG stored in Firestore only (no Cloud Storage). */
+  const saveProfileImageFromLocalUri = async (
+    localUri: string,
+  ): Promise<string | null> => {
     if (!user?.uid) return null;
     setUploading(true);
-
     try {
-      // Why are we using XMLHttpRequest? See: https://github.com/expo/expo/issues/2402#issuecomment-443726662
-      const blob: Blob = await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.onload = function () {
-          resolve(xhr.response);
-        };
-        xhr.onerror = function (e) {
-          console.log(e);
-          reject(new TypeError("Network request failed"));
-        };
-        xhr.responseType = "blob";
-        xhr.open("GET", uri, true);
-        xhr.send(null);
+      const { base64, mime } = await prepareProfileImageForFirestore(localUri);
+      const dataUrl = `data:${mime};base64,${base64}`;
+      await patchUserProfile(user.uid, {
+        profileImageBase64: base64,
+        profileImageMime: mime,
+        photoURL: deleteField(),
+        updatedAt: new Date().toISOString(),
       });
 
-      const fileRef = storageRef(
-        storage,
-        `users/${user.uid}/profile_${Date.now()}.jpg`,
-      );
-      await uploadBytes(fileRef, blob);
+      if (auth.currentUser) {
+        try {
+          await updateProfile(auth.currentUser, { photoURL: "" });
+        } catch {
+          /* Auth may reject empty photoURL on some versions */
+        }
+      }
 
-      // We're done with the blob, close and release it
-      // blob.close(); // Not strictly needed in newer JS, but good practice
+      const newProfile = {
+        ...user,
+        photoURL: "",
+        updatedAt: new Date().toISOString(),
+      };
+      setUser(newProfile);
+      await AsyncStorage.setItem("@user", JSON.stringify(newProfile));
 
-      return await getDownloadURL(fileRef);
+      return dataUrl;
     } catch (e) {
       console.error(e);
-      Alert.alert("Upload Failed", "Could not upload image to cloud storage.");
+      Alert.alert(
+        "Upload failed",
+        e instanceof Error
+          ? e.message
+          : "Could not process the image. Try another photo.",
+      );
       return null;
     } finally {
       setUploading(false);
@@ -229,19 +338,19 @@ const ProfileScreen: React.FC = () => {
       mediaTypes: "images",
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.5, // Reduce quality for faster upload
+      quality: 0.35,
     });
 
     if (!result.canceled && result.assets[0].uri) {
       const localUri = result.assets[0].uri;
+      const revertTo = currentPhotoRef.current;
       setCurrentPhoto({ uri: localUri }); // Optimistic UI update
 
-      const downloadUrl = await uploadImageAsync(localUri);
-      if (downloadUrl) {
-        await savePhotoURL(downloadUrl);
+      const dataUrl = await saveProfileImageFromLocalUri(localUri);
+      if (dataUrl) {
+        setCurrentPhoto({ uri: dataUrl });
       } else {
-        // Revert UI if upload failed
-        setCurrentPhoto(userData?.photoURL ? { uri: userData.photoURL } : null);
+        setCurrentPhoto(revertTo);
       }
     }
   };
@@ -262,18 +371,19 @@ const ProfileScreen: React.FC = () => {
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.5,
+      quality: 0.35,
     });
 
     if (!result.canceled && result.assets[0].uri) {
       const localUri = result.assets[0].uri;
+      const revertTo = currentPhotoRef.current;
       setCurrentPhoto({ uri: localUri });
 
-      const downloadUrl = await uploadImageAsync(localUri);
-      if (downloadUrl) {
-        await savePhotoURL(downloadUrl);
+      const dataUrl = await saveProfileImageFromLocalUri(localUri);
+      if (dataUrl) {
+        setCurrentPhoto({ uri: dataUrl });
       } else {
-        setCurrentPhoto(userData?.photoURL ? { uri: userData.photoURL } : null);
+        setCurrentPhoto(revertTo);
       }
     }
   };
@@ -321,8 +431,7 @@ const ProfileScreen: React.FC = () => {
           updatedAt: new Date().toISOString(),
         };
 
-        const userRef = ref(db, `users/${user.uid}`);
-        await updateDb(userRef, updates);
+        await patchUserProfile(user.uid, updates);
 
         if (auth.currentUser) {
           await updateProfile(auth.currentUser, { displayName: fullName });
@@ -356,10 +465,14 @@ const ProfileScreen: React.FC = () => {
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
+    setShowCurrentPassword(false);
+    setShowNewPassword(false);
+    setShowConfirmPasswordField(false);
   };
 
   const closePasswordModal = () => {
     if (updatingPassword) return;
+    Keyboard.dismiss();
     resetPasswordForm();
     setPasswordModalVisible(false);
   };
@@ -370,6 +483,7 @@ const ProfileScreen: React.FC = () => {
     switch (code) {
       case "auth/wrong-password":
       case "auth/invalid-credential":
+      case "auth/invalid-login-credentials":
         return "Your current password is incorrect.";
       case "auth/weak-password":
         return "Choose a stronger password with at least 8 characters.";
@@ -377,47 +491,73 @@ const ProfileScreen: React.FC = () => {
         return "Please log out and log back in before changing your password.";
       case "auth/network-request-failed":
         return "Network error. Check your connection and try again.";
+      case "auth/too-many-requests":
+        return "Too many attempts. Wait a few minutes and try again.";
+      case "auth/user-token-expired":
+      case "auth/user-disabled":
+        return "Your session is no longer valid. Please sign in again.";
       default:
         return "Could not update your password. Please try again.";
     }
   };
 
   const handleChangePassword = async () => {
-    const emailForAuth = auth.currentUser?.email || user?.email;
+    const firebaseUser = auth.currentUser;
+    const emailForAuth = firebaseUser?.email || user?.email;
 
-    if (!auth.currentUser || !emailForAuth) {
-      Alert.alert("Error", "Please log in again before changing your password.");
+    if (!firebaseUser || !emailForAuth) {
+      setPasswordNotice({
+        title: "Sign in required",
+        message:
+          "Your session could not be confirmed. Sign out and sign in again, then change your password.",
+        variant: "error",
+      });
       return;
     }
 
     if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert("Error", "Please fill in all password fields.");
+      setPasswordNotice({
+        title: "Missing fields",
+        message: "Please fill in all password fields.",
+        variant: "error",
+      });
       return;
     }
 
     if (newPassword.length < 8) {
-      Alert.alert("Error", "New password must be at least 8 characters.");
+      setPasswordNotice({
+        title: "Password too short",
+        message: "New password must be at least 8 characters.",
+        variant: "error",
+      });
       return;
     }
 
     if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPassword)) {
-      Alert.alert(
-        "Error",
-        "New password must include uppercase, lowercase, and a number.",
-      );
+      setPasswordNotice({
+        title: "Password rules",
+        message:
+          "New password must include at least one uppercase letter, one lowercase letter, and one number.",
+        variant: "error",
+      });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert("Error", "New passwords do not match.");
+      setPasswordNotice({
+        title: "Mismatch",
+        message: "New passwords do not match.",
+        variant: "error",
+      });
       return;
     }
 
     if (currentPassword === newPassword) {
-      Alert.alert(
-        "Error",
-        "New password must be different from the current password.",
-      );
+      setPasswordNotice({
+        title: "Same password",
+        message: "New password must be different from the current password.",
+        variant: "error",
+      });
       return;
     }
 
@@ -428,15 +568,24 @@ const ProfileScreen: React.FC = () => {
         emailForAuth,
         currentPassword,
       );
-      await reauthenticateWithCredential(auth.currentUser, credential);
-      await updatePassword(auth.currentUser, newPassword);
+      await reauthenticateWithCredential(firebaseUser, credential);
+      await updatePassword(firebaseUser, newPassword);
 
+      Keyboard.dismiss();
       resetPasswordForm();
       setPasswordModalVisible(false);
-      Alert.alert("Success", "Password updated successfully.");
+      setPasswordNotice({
+        title: "Password updated",
+        message: "Your new password is saved. Use it the next time you sign in.",
+        variant: "success",
+      });
     } catch (error) {
       console.error("Failed to update password:", error);
-      Alert.alert("Error", getPasswordErrorMessage(error));
+      setPasswordNotice({
+        title: "Could not update",
+        message: getPasswordErrorMessage(error),
+        variant: "error",
+      });
     } finally {
       setUpdatingPassword(false);
     }
@@ -521,11 +670,21 @@ const ProfileScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.bg }]}
+      edges={["top", "left", "right"]}
+    >
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar barStyle={darkMode ? "light-content" : "dark-content"} />
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={[styles.content, { backgroundColor: theme.bg }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { backgroundColor: theme.bg, paddingBottom: scrollBottomPad },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Guest Banner */}
         {isGuest && (
           <View
@@ -765,6 +924,41 @@ const ProfileScreen: React.FC = () => {
             </View>
           </View>
         )}
+
+        {!isGuest && (
+          <>
+            <Text
+              style={[
+                styles.sectionHeader,
+                { color: theme.subText, fontSize: 13 * scale },
+              ]}
+            >
+              GAME PROGRESS
+            </Text>
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: theme.card,
+                  flexDirection: "column",
+                  alignItems: "stretch",
+                  paddingVertical: 18,
+                },
+              ]}
+            >
+              {renderGameSummary("Color Detective", games?.colorDetective)}
+              <View
+                style={{
+                  height: 1,
+                  backgroundColor: theme.border,
+                  marginVertical: 14,
+                }}
+              />
+              {renderGameSummary("Signal Rush", games?.signalRush)}
+            </View>
+          </>
+        )}
+
         {/* Change Password */}
         {!isGuest && (
           <TouchableOpacity
@@ -817,8 +1011,6 @@ const ProfileScreen: React.FC = () => {
             {isGuest ? "Sign Up / Log In" : "Log Out"}
           </Text>
         </TouchableOpacity>
-
-        <View style={{ height: 40 }} />
       </ScrollView>
 
       {/* --- AVATAR / IMAGE PICKER MODAL --- */}
@@ -956,117 +1148,233 @@ const ProfileScreen: React.FC = () => {
         >
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
             style={[
               styles.centerModalOverlay,
               { backgroundColor: "rgba(0,0,0,0.6)" },
             ]}
           >
-            <View
-              style={[
-                styles.passwordModalContent,
-                { backgroundColor: theme.card },
-              ]}
+            <ScrollView
+              style={styles.passwordModalScroll}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.passwordModalScrollContent}
+              bounces={false}
             >
-              <Text
+              <View
                 style={[
-                  styles.modalTitle,
-                  { color: theme.text, fontSize: 18 * scale },
+                  styles.passwordModalContent,
+                  { backgroundColor: theme.card },
                 ]}
               >
-                Change Password
-              </Text>
-
-              <TextInput
-                placeholder="Current Password"
-                placeholderTextColor={theme.subText}
-                secureTextEntry
-                value={currentPassword}
-                onChangeText={setCurrentPassword}
-                editable={!updatingPassword}
-                style={[
-                  styles.passwordInput,
-                  {
-                    backgroundColor: theme.bg,
-                    color: theme.text,
-                    fontSize: 16 * scale,
-                  },
-                ]}
-              />
-              <TextInput
-                placeholder="New Password"
-                placeholderTextColor={theme.subText}
-                secureTextEntry
-                value={newPassword}
-                onChangeText={setNewPassword}
-                editable={!updatingPassword}
-                style={[
-                  styles.passwordInput,
-                  {
-                    backgroundColor: theme.bg,
-                    color: theme.text,
-                    fontSize: 16 * scale,
-                  },
-                ]}
-              />
-              <TextInput
-                placeholder="Confirm New Password"
-                placeholderTextColor={theme.subText}
-                secureTextEntry
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                editable={!updatingPassword}
-                style={[
-                  styles.passwordInput,
-                  {
-                    backgroundColor: theme.bg,
-                    color: theme.text,
-                    fontSize: 16 * scale,
-                  },
-                ]}
-              />
-
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={[styles.modalButton, { backgroundColor: theme.bg }]}
-                  onPress={closePasswordModal}
-                  disabled={updatingPassword}
-                >
-                  <Text
-                    style={[
-                      styles.modalButtonText,
-                      { color: theme.subText, fontSize: 15 * scale },
-                    ]}
-                  >
-                    Cancel
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
+                <Text
                   style={[
-                    styles.modalButton,
-                    { backgroundColor: palette.sage },
+                    styles.modalTitle,
+                    { color: theme.text, fontSize: 18 * scale },
                   ]}
-                  onPress={handleChangePassword}
-                  disabled={updatingPassword}
                 >
-                  {updatingPassword ? (
-                    <ActivityIndicator color="#FFF" />
-                  ) : (
+                  Change Password
+                </Text>
+                <Text
+                  style={{
+                    color: theme.subText,
+                    fontSize: 13 * scale,
+                    marginBottom: 16,
+                    lineHeight: 18 * scale,
+                  }}
+                >
+                  Enter your current password, then a new one (at least 8
+                  characters with uppercase, lowercase, and a number).
+                </Text>
+
+                <Text
+                  style={[
+                    styles.passwordFieldLabel,
+                    { color: theme.subText, fontSize: 12 * scale },
+                  ]}
+                >
+                  CURRENT PASSWORD
+                </Text>
+                <View style={styles.passwordFieldRow}>
+                  <TextInput
+                    placeholder="Current password"
+                    placeholderTextColor={theme.subText}
+                    secureTextEntry={!showCurrentPassword}
+                    value={currentPassword}
+                    onChangeText={setCurrentPassword}
+                    editable={!updatingPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    textContentType="password"
+                    style={[
+                      styles.passwordInput,
+                      styles.passwordInputInRow,
+                      {
+                        backgroundColor: theme.bg,
+                        color: theme.text,
+                        fontSize: 16 * scale,
+                      },
+                    ]}
+                  />
+                  <TouchableOpacity
+                    style={styles.passwordEyeButton}
+                    onPress={() => setShowCurrentPassword((v) => !v)}
+                    disabled={updatingPassword}
+                    accessibilityLabel={
+                      showCurrentPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    <Ionicons
+                      name={showCurrentPassword ? "eye-off" : "eye"}
+                      size={22 * scale}
+                      color={theme.subText}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                <Text
+                  style={[
+                    styles.passwordFieldLabel,
+                    { color: theme.subText, fontSize: 12 * scale },
+                  ]}
+                >
+                  NEW PASSWORD
+                </Text>
+                <View style={styles.passwordFieldRow}>
+                  <TextInput
+                    placeholder="New password"
+                    placeholderTextColor={theme.subText}
+                    secureTextEntry={!showNewPassword}
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    editable={!updatingPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    textContentType="newPassword"
+                    style={[
+                      styles.passwordInput,
+                      styles.passwordInputInRow,
+                      {
+                        backgroundColor: theme.bg,
+                        color: theme.text,
+                        fontSize: 16 * scale,
+                      },
+                    ]}
+                  />
+                  <TouchableOpacity
+                    style={styles.passwordEyeButton}
+                    onPress={() => setShowNewPassword((v) => !v)}
+                    disabled={updatingPassword}
+                    accessibilityLabel={
+                      showNewPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    <Ionicons
+                      name={showNewPassword ? "eye-off" : "eye"}
+                      size={22 * scale}
+                      color={theme.subText}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                <Text
+                  style={[
+                    styles.passwordFieldLabel,
+                    { color: theme.subText, fontSize: 12 * scale },
+                  ]}
+                >
+                  CONFIRM NEW PASSWORD
+                </Text>
+                <View style={[styles.passwordFieldRow, { marginBottom: 4 }]}>
+                  <TextInput
+                    placeholder="Confirm new password"
+                    placeholderTextColor={theme.subText}
+                    secureTextEntry={!showConfirmPasswordField}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    editable={!updatingPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    textContentType="newPassword"
+                    style={[
+                      styles.passwordInput,
+                      styles.passwordInputInRow,
+                      {
+                        backgroundColor: theme.bg,
+                        color: theme.text,
+                        fontSize: 16 * scale,
+                      },
+                    ]}
+                  />
+                  <TouchableOpacity
+                    style={styles.passwordEyeButton}
+                    onPress={() => setShowConfirmPasswordField((v) => !v)}
+                    disabled={updatingPassword}
+                    accessibilityLabel={
+                      showConfirmPasswordField ? "Hide password" : "Show password"
+                    }
+                  >
+                    <Ionicons
+                      name={showConfirmPasswordField ? "eye-off" : "eye"}
+                      size={22 * scale}
+                      color={theme.subText}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity
+                    style={[styles.modalButton, { backgroundColor: theme.bg }]}
+                    onPress={closePasswordModal}
+                    disabled={updatingPassword}
+                  >
                     <Text
                       style={[
                         styles.modalButtonText,
-                        { color: "#FFF", fontSize: 15 * scale },
+                        { color: theme.subText, fontSize: 15 * scale },
                       ]}
                     >
-                      Update
+                      Cancel
                     </Text>
-                  )}
-                </TouchableOpacity>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.modalButton,
+                      { backgroundColor: palette.sage },
+                    ]}
+                    onPress={handleChangePassword}
+                    disabled={updatingPassword}
+                  >
+                    {updatingPassword ? (
+                      <ActivityIndicator color="#FFF" />
+                    ) : (
+                      <Text
+                        style={[
+                          styles.modalButtonText,
+                          { color: "#FFF", fontSize: 15 * scale },
+                        ]}
+                      >
+                        Update password
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
+            </ScrollView>
           </KeyboardAvoidingView>
         </Modal>
       )}
+
+      <ThemedNoticeModal
+        visible={passwordNotice != null}
+        title={passwordNotice?.title ?? ""}
+        message={passwordNotice?.message ?? ""}
+        variant={passwordNotice?.variant === "success" ? "success" : "error"}
+        darkMode={darkMode}
+        onPrimary={() => setPasswordNotice(null)}
+      />
     </SafeAreaView>
   );
 };
@@ -1077,6 +1385,8 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 24,
   },
 
@@ -1326,11 +1636,21 @@ const styles = StyleSheet.create({
   centerModalOverlay: {
     flex: 1,
     justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+  },
+  passwordModalScroll: {
+    flex: 1,
+  },
+  passwordModalScrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingVertical: 8,
   },
   passwordModalContent: {
     width: "100%",
+    maxWidth: 400,
+    alignSelf: "center",
     borderRadius: 24,
     padding: 24,
     shadowColor: "#000",
@@ -1338,6 +1658,29 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 10,
     elevation: 10,
+  },
+  passwordFieldLabel: {
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  passwordFieldRow: {
+    position: "relative",
+    marginBottom: 14,
+    justifyContent: "center",
+  },
+  passwordInputInRow: {
+    marginBottom: 0,
+    paddingRight: 48,
+  },
+  passwordEyeButton: {
+    position: "absolute",
+    right: 10,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    width: 40,
   },
   passwordInput: {
     padding: 16,

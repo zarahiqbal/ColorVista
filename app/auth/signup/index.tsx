@@ -534,6 +534,7 @@
 
 // export default Register;
 
+import { ThemedNoticeModal } from "@/components/ThemedNoticeModal";
 import { useAuth } from "@/Context/AuthContext";
 import { useTheme } from "@/Context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
@@ -603,6 +604,10 @@ const Register: React.FC = () => {
   const [errors, setErrors] = useState<Partial<RegisterFormData>>({});
   const [apiError, setApiError] = useState<string>("");
   const [acceptTerms, setAcceptTerms] = useState<boolean>(false);
+  const [signUpNotice, setSignUpNotice] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
 
   const scale = getFontSizeMultiplier();
   const colors = {
@@ -726,7 +731,11 @@ const Register: React.FC = () => {
         phone: fullPhoneNumber, // Send the combined E.164 number
       });
 
-      router.replace("/dashboard");
+      setSignUpNotice({
+        title: "Verify your email",
+        message:
+          "We sent a verification link to your inbox. Open it to activate your account, then sign in here. If nothing arrives within a few minutes, check spam and your Firebase Authentication email settings.",
+      });
     } catch (error) {
       console.error("Registration error:", error);
       setApiError(
@@ -1201,6 +1210,19 @@ const Register: React.FC = () => {
           </View>
         </View>
       </Modal>
+
+      <ThemedNoticeModal
+        visible={signUpNotice != null}
+        title={signUpNotice?.title ?? ""}
+        message={signUpNotice?.message ?? ""}
+        variant="success"
+        primaryLabel="Go to sign in"
+        darkMode={darkMode}
+        onPrimary={() => {
+          setSignUpNotice(null);
+          router.replace("/auth/login");
+        }}
+      />
     </KeyboardAvoidingView>
   );
 };

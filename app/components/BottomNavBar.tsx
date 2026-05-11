@@ -58,8 +58,6 @@ export default function BottomNavBar() {
       >
         <FontAwesome name="user" size={24 * scale} color={getIconColor('userprofile')} />
         <Text style={getTextStyle('userprofile')}>Profile</Text>
-
-        {isActive('userprofile') && <View style={styles.activeNavDot} />}
       </TouchableOpacity>
 
       {/* HOME TAB (DASHBOARD) */}
@@ -69,9 +67,6 @@ export default function BottomNavBar() {
       >
         <FontAwesome name="home" size={24 * scale} color={getIconColor('dashboard')} />
         <Text style={getTextStyle('dashboard')}>Home</Text>
-        
-        {/* Active Indicator Dot */}
-        {isActive('dashboard') && <View style={styles.activeNavDot} />}
       </TouchableOpacity>
       
       {/* SETTINGS TAB */}
@@ -81,9 +76,6 @@ export default function BottomNavBar() {
       >
         <Feather name="settings" size={24 * scale} color={getIconColor('settings')} />
         <Text style={getTextStyle('settings')}>Settings</Text>
-
-        {isActive('settings') && <View style={styles.activeNavDot} />}
-
       </TouchableOpacity>
       
     </View>
@@ -109,14 +101,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minWidth: 60,
     position: 'relative',
-  },
-  activeNavDot: {
-    position: 'absolute',
-    top: -12, // Floats above the icon
-    width: 40,
-    height: 3,
-    backgroundColor: TOOLS_COLORS.sage,
-    borderBottomLeftRadius: 4,
-    borderBottomRightRadius: 4,
   },
 });

@@ -10,7 +10,7 @@ export default function MainLayout() {
   return (
     <View style={[styles.container, { backgroundColor }]}>
       {/* 1. The Screen Content (Dashboard, Profile, or Settings) */}
-      <View style={styles.content}>
+      <View style={[styles.content, { backgroundColor }]}>
         <Stack
           screenOptions={{
             headerShown: false,

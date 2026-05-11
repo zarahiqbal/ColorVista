@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { AuthProvider } from "@/Context/AuthContext";
 import { ThemeProvider, useTheme } from "@/Context/ThemeContext";
 import { Stack } from "expo-router";
@@ -65,9 +67,10 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 //     </>
 //   );
 // }
+/** Match `(main)/_layout` so no off-tone strip shows behind scroll/safe areas. */
 function RootNavigator() {
   const { darkMode } = useTheme();
-  const backgroundColor = darkMode ? "#140a0aff" : "#F9FAFB";
+  const backgroundColor = darkMode ? "#1C1C1E" : "#F6F3EE";
 
   return (
     <>
@@ -117,15 +120,20 @@ function RootNavigator() {
 // ----------------------------------------------------------
 // 2. Root Layout (Providers + BASE BACKGROUND FIX)
 // ----------------------------------------------------------
+function ThemedAppBackground({ children }: { children: ReactNode }) {
+  const { darkMode } = useTheme();
+  const backgroundColor = darkMode ? "#1C1C1E" : "#F6F3EE";
+  return <View style={{ flex: 1, backgroundColor }}>{children}</View>;
+}
+
 export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
         <SafeAreaProvider>
-          {/* IMPORTANT FIX: Base layer background must match theme */}
-          <View style={{ flex: 1, backgroundColor: "#F9FAFB" }}>
+          <ThemedAppBackground>
             <RootNavigator />
-          </View>
+          </ThemedAppBackground>
         </SafeAreaProvider>
       </AuthProvider>
     </ThemeProvider>

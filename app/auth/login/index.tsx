@@ -293,31 +293,35 @@
 //   registerLink: { fontWeight: 'bold', textDecorationLine: 'underline' },
 //   continueAsGuest: { marginTop: 16, alignItems: 'center', textAlign: 'center', textDecorationLine: 'underline' },
 // });
-import { useAuth } from '@/Context/AuthContext';
-import { Link, Stack, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { ThemedNoticeModal } from '@/components/ThemedNoticeModal';
+import { REMEMBER_LOGIN_KEY } from "@/constants/authStorage";
+import { AUTH_EMAIL_NOT_VERIFIED, useAuth } from '@/Context/AuthContext';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Link, Stack, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 // Standard icon set in Expo
 import { Ionicons } from '@expo/vector-icons';
 
-import { useTheme } from '@/Context/ThemeContext';
+import { useTheme } from "@/Context/ThemeContext";
 
 export default function Login() {
   const router = useRouter();
   
-  const { loginAsGuest, signIn } = useAuth();
+  const { loginAsGuest, signIn, requestPasswordReset, resendVerificationEmail } = useAuth();
   const { darkMode, getFontSizeMultiplier } = useTheme();
   
   const scale = getFontSizeMultiplier();
@@ -344,13 +348,45 @@ export default function Login() {
   // 2. New State for Password Visibility
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
+  const [forgotModalVisible, setForgotModalVisible] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetSending, setResetSending] = useState(false);
+  const [showResendVerification, setShowResendVerification] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [notice, setNotice] = useState<{
+    title: string;
+    message: string;
+    variant: 'success' | 'info' | 'error';
+  } | null>(null);
+
   // State for syntax validation
   const [hasInvalidChar, setHasInvalidChar] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(REMEMBER_LOGIN_KEY);
+        if (cancelled || !raw) return;
+        const parsed = JSON.parse(raw) as { email?: string; remember?: boolean };
+        if (parsed?.remember && typeof parsed.email === "string" && parsed.email) {
+          setEmail(parsed.email);
+          setRememberMe(true);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // "Forbidden Characters" Check
   const handleEmailChange = (text: string) => {
     setEmail(text);
-    setFormError(''); 
+    setFormError('');
+    setShowResendVerification(false);
     
     // Regex allows: a-z, A-Z, 0-9, @, ., _, -, +
     const forbiddenCharRegex = /[^a-zA-Z0-9@._\-\+]/;
@@ -378,10 +414,25 @@ export default function Login() {
 
     try {
       await signIn(email.trim(), password);
+      if (rememberMe) {
+        await AsyncStorage.setItem(
+          REMEMBER_LOGIN_KEY,
+          JSON.stringify({ email: email.trim(), remember: true }),
+        );
+      } else {
+        await AsyncStorage.removeItem(REMEMBER_LOGIN_KEY);
+      }
       router.replace('/dashboard');
     } catch (err: any) {
       console.error('Login failed:', err);
-      setFormError('Invalid email or password'); 
+      const code = err?.code as string | undefined;
+      if (code === AUTH_EMAIL_NOT_VERIFIED) {
+        setFormError(err?.message || 'Please verify your email before signing in.');
+        setShowResendVerification(true);
+      } else {
+        setShowResendVerification(false);
+        setFormError('Invalid email or password');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -390,6 +441,75 @@ export default function Login() {
   const handleGuestLogin = () => {
     loginAsGuest(); 
     router.replace('/dashboard');
+  };
+
+  const openForgotPassword = () => {
+    setResetEmail(email.trim());
+    setForgotModalVisible(true);
+  };
+
+  const handleSendPasswordReset = async () => {
+    const trimmed = resetEmail.trim();
+    if (!trimmed) {
+      setNotice({
+        title: 'Email required',
+        message: 'Enter the email address for your account.',
+        variant: 'error',
+      });
+      return;
+    }
+    setResetSending(true);
+    try {
+      await requestPasswordReset(trimmed);
+      setForgotModalVisible(false);
+      setNotice({
+        title: 'Check your email',
+        message:
+          'If an account exists for that address, we sent a link to reset your password. It may take a minute to arrive.',
+        variant: 'success',
+      });
+    } catch (e) {
+      console.error(e);
+      setNotice({
+        title: 'Could not send email',
+        message: 'Try again in a few minutes or check your connection.',
+        variant: 'error',
+      });
+    } finally {
+      setResetSending(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!email.trim() || !password) {
+      setNotice({
+        title: 'Missing details',
+        message: 'Enter your email and password so we can resend the verification link.',
+        variant: 'info',
+      });
+      return;
+    }
+    setResendBusy(true);
+    try {
+      await resendVerificationEmail(email.trim(), password);
+      setNotice({
+        title: 'Verification sent',
+        message:
+          'Open the email from us and tap the link to verify, then sign in here. Check spam if you do not see it.',
+        variant: 'success',
+      });
+    } catch (e: any) {
+      console.error(e);
+      setNotice({
+        title: 'Could not resend',
+        message:
+          e?.message ||
+          'Check your email and password, then try again. If email never arrives, confirm Firebase Authentication email templates are enabled in the console.',
+        variant: 'error',
+      });
+    } finally {
+      setResendBusy(false);
+    }
   };
 
   return (
@@ -439,6 +559,7 @@ export default function Login() {
                   placeholderTextColor={colors.placeholder}
                   autoCapitalize="none"
                   keyboardType="email-address"
+                  editable={!isLoading}
                 />
                 {hasInvalidChar && (
                   <Text style={{ color: colors.error, fontSize: 12 * scale, marginTop: 4 }}>
@@ -470,12 +591,14 @@ export default function Login() {
                     value={password}
                     onChangeText={(text) => {
                       setPassword(text);
-                      setFormError(''); 
+                      setFormError('');
+                      setShowResendVerification(false);
                     }}
                     // Toggle visibility based on state
                     secureTextEntry={!isPasswordVisible}
                     placeholder="******" 
                     placeholderTextColor={colors.placeholder}
+                    editable={!isLoading}
                   />
                   
                   {/* Eye Icon Button */}
@@ -483,6 +606,7 @@ export default function Login() {
                     style={styles.eyeIcon} 
                     onPress={() => setIsPasswordVisible(!isPasswordVisible)}
                     activeOpacity={0.7}
+                    disabled={isLoading}
                   >
                     <Ionicons 
                       name={isPasswordVisible ? "eye" : "eye-off"} 
@@ -493,12 +617,21 @@ export default function Login() {
                 </View>
             </View>
 
+            <View style={{ alignItems: 'flex-end', marginBottom: 8 }}>
+              <TouchableOpacity onPress={openForgotPassword}>
+                <Text style={{ color: colors.text, fontSize: 14 * scale, textDecorationLine: 'underline' }}>
+                  Forgot password?
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             {/* REMEMBER ME CHECKBOX */}
             <View style={styles.rememberContainer}>
                 <TouchableOpacity 
-                    style={styles.checkboxRow} 
+                    style={[styles.checkboxRow, isLoading && { opacity: 0.45 }]} 
                     onPress={() => setRememberMe(!rememberMe)}
                     activeOpacity={0.7}
+                    disabled={isLoading}
                 >
                     <View style={[
                         styles.checkbox, 
@@ -524,6 +657,22 @@ export default function Login() {
               <Text style={[styles.errorText, { color: colors.error, fontSize: 14 * scale }]}>
                 {formError}
               </Text>
+            ) : null}
+
+            {showResendVerification ? (
+              <TouchableOpacity
+                onPress={handleResendVerification}
+                disabled={resendBusy}
+                style={{ marginBottom: 12, alignItems: 'center' }}
+              >
+                {resendBusy ? (
+                  <ActivityIndicator color={colors.text} />
+                ) : (
+                  <Text style={{ color: colors.text, fontSize: 14 * scale, textDecorationLine: 'underline' }}>
+                    Resend verification email
+                  </Text>
+                )}
+              </TouchableOpacity>
             ) : null}
 
             {/* SUBMIT */}
@@ -565,6 +714,66 @@ export default function Login() {
 
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={forgotModalVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => !resetSending && setForgotModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.forgotOverlay}
+        >
+          <View style={[styles.forgotCard, { backgroundColor: colors.inputBg }]}>
+            <Text style={[styles.forgotTitle, { color: colors.text, fontSize: 18 * scale }]}>
+              Reset password
+            </Text>
+            <Text style={{ color: colors.placeholder, fontSize: 13 * scale, marginBottom: 12 }}>
+              Enter your account email. We will send a reset link if an account exists.
+            </Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.bg, borderColor: colors.border, color: colors.text, fontSize: 16 * scale }]}
+              value={resetEmail}
+              onChangeText={setResetEmail}
+              placeholder="email@example.com"
+              placeholderTextColor={colors.placeholder}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              editable={!resetSending}
+            />
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
+              <TouchableOpacity
+                style={[styles.submitButton, { flex: 1, backgroundColor: colors.border }]}
+                onPress={() => !resetSending && setForgotModalVisible(false)}
+                disabled={resetSending}
+              >
+                <Text style={[styles.submitButtonText, { color: colors.text }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.submitButton, { flex: 1, backgroundColor: colors.button }]}
+                onPress={handleSendPasswordReset}
+                disabled={resetSending}
+              >
+                {resetSending ? (
+                  <ActivityIndicator color={colors.buttonText} />
+                ) : (
+                  <Text style={[styles.submitButtonText, { color: colors.buttonText }]}>Send link</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <ThemedNoticeModal
+        visible={notice != null}
+        title={notice?.title ?? ''}
+        message={notice?.message ?? ''}
+        variant={notice?.variant ?? 'info'}
+        darkMode={darkMode}
+        onPrimary={() => setNotice(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -614,4 +823,18 @@ const styles = StyleSheet.create({
   registerContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
   registerLink: { fontWeight: 'bold', textDecorationLine: 'underline' },
   continueAsGuest: { marginTop: 16, alignItems: 'center', textAlign: 'center', textDecorationLine: 'underline' },
+  forgotOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  forgotCard: {
+    borderRadius: 16,
+    padding: 20,
+  },
+  forgotTitle: {
+    fontWeight: '700',
+    marginBottom: 8,
+  },
 });

@@ -1,12 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
-import { db } from './firebase';
+import { subscribeUserProfile } from './userProfileFirestore';
 
 /**
- * Hook to listen to user data in real-time from Firebase Realtime Database
- * Automatically syncs when user logs in/out
+ * Subscribes to the signed-in user's Firestore profile (`users/{uid}`).
+ * Keeps AsyncStorage `@userData` in sync for offline display.
  */
 export const useUserData = () => {
   const { user } = useAuth();
@@ -22,7 +21,7 @@ export const useUserData = () => {
         if (cached && mounted) {
           setUserData(JSON.parse(cached));
         }
-      } catch (error) {
+      } catch {
         // ignore cache errors
       }
     };
@@ -44,27 +43,25 @@ export const useUserData = () => {
 
     setLoading(true);
     setUserData((prev: any) => prev ?? user);
-    const userRef = ref(db, `users/${user.uid}`);
 
-    // Real-time listener
-    const unsubscribe = onValue(
-      userRef,
-      (snapshot) => {
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          setUserData(data);
-          AsyncStorage.setItem('@userData', JSON.stringify(data)).catch(
+    const unsubscribe = subscribeUserProfile(
+      user.uid,
+      (data) => {
+        if (data) {
+          const merged = { ...data, uid: user.uid };
+          setUserData(merged);
+          AsyncStorage.setItem('@userData', JSON.stringify(merged)).catch(
             () => undefined,
           );
         } else {
-          console.log('⚠️ useUserData: No user data found');
+          setUserData({ ...user, uid: user.uid });
         }
         setLoading(false);
       },
       (error) => {
         console.error('❌ useUserData: Error fetching user data:', error);
         setLoading(false);
-      }
+      },
     );
 
     return () => {

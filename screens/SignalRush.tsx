@@ -26,6 +26,7 @@ import {
 } from "../constants/signalRush";
 import { useAuth } from "../Context/AuthContext";
 import { useTheme } from "../Context/ThemeContext";
+import { recordGameSession } from "../Context/userProfileFirestore";
 import { useUserData } from "../Context/useUserData";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -134,20 +135,37 @@ export default function SignalRush() {
     return () => clearInterval(interval);
   }, [isGameOver]);
 
-  // Persist last score.
+  // Persist last score and cloud profile when signed in.
   useEffect(() => {
     if (!isGameOver) return;
+    const accuracy = totalAttempts ? totalCorrect / totalAttempts : 0;
     AsyncStorage.setItem(
       "@signalRushLastScore",
       JSON.stringify({
         score,
         level,
-        accuracy: totalAttempts ? totalCorrect / totalAttempts : 0,
+        accuracy,
         at: new Date().toISOString(),
         cvdType,
       }),
     ).catch(() => undefined);
-  }, [isGameOver, score, level, totalAttempts, totalCorrect, cvdType]);
+    if (user?.uid && !user.isGuest) {
+      recordGameSession(user.uid, "signalRush", {
+        score,
+        level,
+        accuracy,
+      }).catch(() => undefined);
+    }
+  }, [
+    isGameOver,
+    score,
+    level,
+    totalAttempts,
+    totalCorrect,
+    cvdType,
+    user?.uid,
+    user?.isGuest,
+  ]);
 
   useEffect(() => {
     if (!boostActive) return;

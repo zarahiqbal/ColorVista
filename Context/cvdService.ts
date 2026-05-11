@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ref, update } from 'firebase/database';
-import { db } from './firebase';
+import { patchUserProfile } from './userProfileFirestore';
 
 /**
  * Update user's CVD type in Firebase and local storage
@@ -18,15 +17,10 @@ export const updateUserCVDType = async (uid: string, cvdType: string): Promise<v
 
   try {
 
-    // Update in Firebase Realtime Database
-    const userRef = ref(db, `users/${uid}`);
-    
-    const updateData = {
-      cvdType: cvdType,
-      updatedAt: new Date().toISOString()
-    };
-    
-    await update(userRef, updateData);
+    await patchUserProfile(uid, {
+      cvdType,
+      updatedAt: new Date().toISOString(),
+    });
 
     // Update in local storage
     const cachedUser = await AsyncStorage.getItem('@user');

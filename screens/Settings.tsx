@@ -325,7 +325,7 @@ export default function SettingsPage() {
           </View>
 
           {/* Change Password */}
-          {!isGuest && (
+          {/* {!isGuest && (
             <>
               <View
                 style={[styles.separator, { backgroundColor: theme.border }]}
@@ -351,7 +351,7 @@ export default function SettingsPage() {
                 <Feather name="chevron-right" size={20} color={theme.subText} />
               </TouchableOpacity>
             </>
-          )}
+          )} */}
         </View>
 
         {/* --- SECTION 2: USER ACTIVITY --- */}
