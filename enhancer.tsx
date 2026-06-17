@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 // Context & Custom Components
+import { ENHANCEMENT_URL } from "@/constants/api";
 import { useTheme } from "./Context/ThemeContext";
 import { useUserData } from "./Context/useUserData";
 
@@ -25,7 +26,6 @@ interface EnhancerScreenProps {
 }
 
 type CVDType = "none" | "deuteranopia" | "protanopia" | "tritanopia";
-const SERVER_URL = "http://192.168.0.102:5000/enhancement";
 
 export default function EnhancerScreen({ onSaveImage }: EnhancerScreenProps) {
   const { userData } = useUserData();
@@ -89,7 +89,7 @@ export default function EnhancerScreen({ onSaveImage }: EnhancerScreenProps) {
         encoding: "base64" as any,
       });
 
-      const response = await fetch(SERVER_URL, {
+      const response = await fetch(ENHANCEMENT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

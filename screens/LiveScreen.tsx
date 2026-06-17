@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { PROCESS_FRAME_URL } from "@/constants/api";
 import { useTheme } from "../Context/ThemeContext"; // Adjust path as needed
 
 const SCAN_AREA_SIZE = 220;
@@ -18,7 +19,7 @@ const CROSSHAIR_SIZE = 8;
 const TARGET_CAPTURE_FPS = 4;
 
 /** Backend that processes base64 frames (`mode: "center"` samples image center pixel). */
-const DEFAULT_LIVE_SERVER_URL = "http://192.168.1.4:5000/process-frame";
+const DEFAULT_LIVE_SERVER_URL = PROCESS_FRAME_URL;
 
 interface LiveScreenProps {
   active: boolean;

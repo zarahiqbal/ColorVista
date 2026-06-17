@@ -17,9 +17,7 @@ import Svg, { Circle, Defs, G, Line, Marker, Polygon } from "react-native-svg";
 
 // Import the Theme Hook
 import { useTheme } from "@/Context/ThemeContext";
-
-// REPLACE WITH YOUR COMPUTER'S LOCAL IP ADDRESS
-const SERVER_URL = "http://192.168.0.102:5000/process-image";
+import { PROCESS_IMAGE_URL } from "@/constants/api";
 
 type DetectionRegion = {
   label: string;
@@ -303,7 +301,7 @@ export default function MediaUpload() {
         encoding: FileSystem.EncodingType.Base64,
       });
 
-      const response = await fetch(SERVER_URL, {
+      const response = await fetch(PROCESS_IMAGE_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
