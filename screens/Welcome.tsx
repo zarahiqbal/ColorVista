@@ -1830,26 +1830,26 @@
 import { useTheme } from "@/Context/ThemeContext";
 import { useRouter } from "expo-router";
 import {
-  AlertTriangle,
-  ArrowRight,
-  BarChart2,
-  Brain,
-  CheckCircle,
-  Clock,
-  Eye,
-  Hash,
-  ShieldCheck,
+    AlertTriangle,
+    ArrowRight,
+    BarChart2,
+    Brain,
+    CheckCircle,
+    Clock,
+    Eye,
+    Hash,
+    ShieldCheck,
 } from "lucide-react-native";
 import React, { useEffect, useRef } from "react";
 import {
-  Animated,
-  BackHandler,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Animated,
+    BackHandler,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────

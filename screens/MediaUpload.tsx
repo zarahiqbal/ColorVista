@@ -13,20 +13,13 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Svg, {
-  Circle,
-  Defs,
-  G,
-  Line,
-  Marker,
-  Polygon,
-} from "react-native-svg";
+import Svg, { Circle, Defs, G, Line, Marker, Polygon } from "react-native-svg";
 
 // Import the Theme Hook
 import { useTheme } from "@/Context/ThemeContext";
 
 // REPLACE WITH YOUR COMPUTER'S LOCAL IP ADDRESS
-const SERVER_URL = "http://192.168.1.4:5000/process-image";
+const SERVER_URL = "http://192.168.0.102:5000/process-image";
 
 type DetectionRegion = {
   label: string;
@@ -332,8 +325,8 @@ export default function MediaUpload() {
             (r: DetectionRegion) =>
               r &&
               typeof r.label === "string" &&
-              [r.cx, r.cy, r.badge_x, r.badge_y].every((n) =>
-                typeof n === "number" && Number.isFinite(n),
+              [r.cx, r.cy, r.badge_x, r.badge_y].every(
+                (n) => typeof n === "number" && Number.isFinite(n),
               ),
           )
         : [];
@@ -407,8 +400,7 @@ export default function MediaUpload() {
     displayedNatural.w > 0 &&
     displayedNatural.h > 0;
 
-  const useContainForPreview =
-    !!processedImage && detectionRegions.length > 0;
+  const useContainForPreview = !!processedImage && detectionRegions.length > 0;
   const layoutMode = useContainForPreview ? "contain" : "cover";
 
   return (
@@ -500,8 +492,10 @@ export default function MediaUpload() {
                       );
                       // Server draws the pill above the contour; badge_x/y are pill center —
                       // end the stroke just below the pill so the arrowhead clears the label.
-                      const arrowBelowBadgePx =
-                        Math.max(9, 10.5 * Math.min(scale, 1.15));
+                      const arrowBelowBadgePx = Math.max(
+                        9,
+                        10.5 * Math.min(scale, 1.15),
+                      );
                       const arrowEnd = {
                         x: badgeCenter.x,
                         y: badgeCenter.y + arrowBelowBadgePx,

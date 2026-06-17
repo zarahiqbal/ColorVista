@@ -1,11 +1,12 @@
+import "react-native-gesture-handler";
 import type { ReactNode } from "react";
-
 import { AuthProvider } from "@/Context/AuthContext";
 import { ThemeProvider, useTheme } from "@/Context/ThemeContext";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 // ----------------------------------------------------------
 // 1. Root Navigator (inside Providers so we can use useTheme)
@@ -72,49 +73,52 @@ function RootNavigator() {
   const { darkMode } = useTheme();
   const backgroundColor = darkMode ? "#1C1C1E" : "#F6F3EE";
 
-  return (
+  return (  
+        <GestureHandlerRootView style={{ flex: 1 }}>
+
     <>
-      <StatusBar style={darkMode ? "light" : "dark"} />
+        <StatusBar style={darkMode ? "light" : "dark"} />
 
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          animation: "fade",
-          contentStyle: { backgroundColor },
-        }}
-      >
-        {/* --- SCREENS WITHOUT BACK BUTTON (headerShown: false) --- */}
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="splashscreen" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="auth/login/index"
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="auth/signup/index"
-          options={{ headerShown: false }}
-        />
-
-        {/* If your Dashboard/Profile/Settings are inside (main) tabs */}
-        <Stack.Screen
-          name="(main)"
-          options={{ headerShown: false, animation: "none" }}
-        />
-
-        {/* --- SCREENS THAT WILL HAVE THE BACK BUTTON --- */}
-        <Stack.Screen name="live" />
-        <Stack.Screen name="mediaupload" />
-        <Stack.Screen name="welcome" />
-
-        <Stack.Screen
-          name="comingsoon"
-          options={{
-            presentation: "modal",
-            animation: "slide_from_bottom",
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: "fade",
+            contentStyle: { backgroundColor },
           }}
-        />
-      </Stack>
-    </>
+        >
+          {/* --- SCREENS WITHOUT BACK BUTTON (headerShown: false) --- */}
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="splashscreen" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="auth/login/index"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="auth/signup/index"
+            options={{ headerShown: false }}
+          />
+
+          {/* If your Dashboard/Profile/Settings are inside (main) tabs */}
+          <Stack.Screen
+            name="(main)"
+            options={{ headerShown: false, animation: "none" }}
+          />
+
+          {/* --- SCREENS THAT WILL HAVE THE BACK BUTTON --- */}
+          <Stack.Screen name="live" />
+          <Stack.Screen name="mediaupload" />
+          <Stack.Screen name="welcome" />
+
+          <Stack.Screen
+            name="comingsoon"
+            options={{
+              presentation: "modal",
+              animation: "slide_from_bottom",
+            }}
+          />
+        </Stack>
+      
+    </></GestureHandlerRootView>
   );
 }
 // ----------------------------------------------------------

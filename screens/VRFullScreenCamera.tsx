@@ -19,8 +19,8 @@ import { useEffect, useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import { useUserData } from "../Context/useUserData";
 import {
-  VR_CVD_DALTON_MATCHED_OVERLAY,
-  type CVDType,
+    VR_CVD_DALTON_MATCHED_OVERLAY,
+    type CVDType,
 } from "../constants/vrCvdDaltonMatchedOverlay";
 
 // ─── CVD type normalizer ───────────────────────────────────────────────────
@@ -31,9 +31,9 @@ const normalizeCvdType = (raw?: string | null): RawCVDType => {
   if (!raw) return "none";
   const n = raw.toLowerCase().trim();
   if (n.includes("protan") && n.includes("deuter")) return "deuteranopia";
-  if (n.includes("protan"))  return "protanopia";
-  if (n.includes("deuter"))  return "deuteranopia";
-  if (n.includes("tritan"))  return "tritanopia";
+  if (n.includes("protan")) return "protanopia";
+  if (n.includes("deuter")) return "deuteranopia";
+  if (n.includes("tritan")) return "tritanopia";
   if (n.includes("normal") || n.includes("none") || n.includes("no cvd"))
     return "none";
   return "deuteranopia"; // safe default
@@ -42,7 +42,7 @@ const normalizeCvdType = (raw?: string | null): RawCVDType => {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function VRFullScreenCamera() {
-  const route  = useRoute();
+  const route = useRoute();
   const [permission, requestPermission] = useCameraPermissions();
   const { userData } = useUserData();
 

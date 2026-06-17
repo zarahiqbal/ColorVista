@@ -1,15 +1,16 @@
+import { useTheme } from "@/Context/ThemeContext";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef } from "react";
 import {
-  Animated,
-  Dimensions,
-  Image,
-  ImageStyle,
-  StyleSheet,
-  Text,
-  TextStyle,
-  View,
-  ViewStyle,
+    Animated,
+    Dimensions,
+    Image,
+    ImageStyle,
+    StyleSheet,
+    Text,
+    TextStyle,
+    View,
+    ViewStyle,
 } from "react-native";
 
 const { width, height } = Dimensions.get("window");
@@ -33,6 +34,7 @@ interface Styles {
 
 const SplashScreen: React.FC = () => {
   const router = useRouter();
+  const { darkMode } = useTheme();
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -187,8 +189,14 @@ const SplashScreen: React.FC = () => {
     outputRange: ["0%", "100%"],
   });
 
+  // Theme colors
+  const backgroundColor = darkMode ? "#1C1C1E" : "#F9FAFB";
+  const taglineColor = darkMode ? "#9CA3AF" : "#6B7280";
+  const loadingBarBg = darkMode ? "#3A3A3C" : "#E5E7EB";
+  const loadingBarFill = darkMode ? "#06B6D4" : "#14B8A6";
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor }]}>
       {/* Background decorative circles */}
       <Animated.View
         style={[
@@ -270,17 +278,22 @@ const SplashScreen: React.FC = () => {
         }}
       >
         <View style={styles.appName}>
-          <Text style={styles.colorText}>Color</Text>
-          <Text style={styles.vistaText}>Vista</Text>
+          <Text style={[styles.colorText, { color: "#5BC7DE" }]}>Color</Text>
+          <Text style={[styles.vistaText, { color: "#E8D983" }]}>Vista</Text>
         </View>
-        <Text style={styles.tagline}>See the World in Full Spectrum</Text>
+        <Text style={[styles.tagline, { color: taglineColor }]}>
+          See the World in Full Spectrum
+        </Text>
       </Animated.View>
 
       {/* Loading Bar */}
       <Animated.View style={[styles.loadingContainer, { opacity: fadeAnim }]}>
-        <View style={styles.loadingBar}>
+        <View style={[styles.loadingBar, { backgroundColor: loadingBarBg }]}>
           <Animated.View
-            style={[styles.loadingFill, { width: loadingWidth }]}
+            style={[
+              styles.loadingFill,
+              { width: loadingWidth, backgroundColor: loadingBarFill },
+            ]}
           />
         </View>
       </Animated.View>
@@ -291,7 +304,6 @@ const SplashScreen: React.FC = () => {
 const styles = StyleSheet.create<Styles>({
   container: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -324,18 +336,15 @@ const styles = StyleSheet.create<Styles>({
   colorText: {
     fontSize: 48,
     fontWeight: "700",
-    color: "#5BC7DE",
     letterSpacing: -1,
   },
   vistaText: {
     fontSize: 48,
     fontWeight: "700",
-    color: "#E8D983",
     letterSpacing: -1,
   },
   tagline: {
     fontSize: 16,
-    color: "#6B7280",
     textAlign: "center",
     fontWeight: "500",
     letterSpacing: 0.5,
@@ -360,13 +369,11 @@ const styles = StyleSheet.create<Styles>({
   loadingBar: {
     width: "100%",
     height: 4,
-    backgroundColor: "#E5E7EB",
     borderRadius: 2,
     overflow: "hidden",
   },
   loadingFill: {
     height: "100%",
-    backgroundColor: "#14B8A6",
     borderRadius: 2,
   },
 });

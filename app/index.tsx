@@ -1,5 +1,7 @@
+import 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
+
 // Import the splash screen component you already have in your file list
 import SplashScreen from './splashscreen';
 

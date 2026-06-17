@@ -1,17 +1,20 @@
-
-
 // app/quiz.tsx
-import { useLocalSearchParams } from "expo-router";
-// Ensure this path matches where you put the screen file
-import Quiz1 from "../screens/Quiz1";
+import { useRouter } from "expo-router";
+import Quiz1, { QuizResults } from "../screens/Quiz1";
 
 export default function QuizRoute() {
-  // 1. Get the parameter safely
-  const { difficulty } = useLocalSearchParams<{ difficulty: string }>();
+  const router = useRouter();
 
-  // 2. Sanitize: Default to 'easy' if param is missing or weird
-  const mode = difficulty === 'hard' ? 'hard' : 'easy';
+  // Basic mode: quiz -> result
+  const handleQuizComplete = (results: QuizResults, rawAnswers: any[]) => {
+    router.push({
+      pathname: "/result",
+      params: {
+        results: JSON.stringify(results),
+        data: JSON.stringify(rawAnswers),
+      },
+    });
+  };
 
-  // 3. Pass it down as a clean prop
-  return <Quiz1 difficulty={mode} />;
+  return <Quiz1 difficulty="basic" onComplete={handleQuizComplete} />;
 }

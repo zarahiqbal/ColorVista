@@ -1,13 +1,13 @@
 import { useNavigation } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   BackHandler,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { useAuth } from "../Context/AuthContext";
 import { updateUserCVDType } from "../Context/cvdService";
@@ -20,21 +20,33 @@ export default function ResultScreen() {
   const fontScale = getFontSizeMultiplier();
   const { user } = useAuth();
   const { results } = useLocalSearchParams();
-  const [isSaving, setIsSaving] = useState(false);
   const isMounted = useRef(true);
 
-  // Parse Scores Safely
-  let scores = {
-    redGreen: { correct: 0, total: 0 },
-    blueYellow: { correct: 0, total: 0 },
+  // Parse TestResult from HueTestScreen
+  let testResult = {
+    totalScore: 0,
+    rowScores: [0, 0, 0, 0],
+    tritanWeightedScore: 0,
+    rowResults: [],
   };
+
   try {
     if (results) {
-      scores = JSON.parse(results as string);
+      testResult = JSON.parse(results as string);
     }
   } catch (e) {
     console.error("Failed to parse results:", e);
   }
+
+  // Calculate accuracy percentage based on tritanWeightedScore
+  // Score range: 0 (perfect) to ~200+ (very poor)
+  // We'll invert it: 100% = perfect (score 0), 0% = worst case
+  const maxPossibleScore = 120; // Adjusted threshold for clinical interpretation
+  const tritanAccuracy = Math.max(
+    0,
+    100 - (testResult.tritanWeightedScore / maxPossibleScore) * 100,
+  );
+  const byPercent = Math.min(100, Math.round(tritanAccuracy));
 
   const palette = {
     cream: "#F9F8F4",
@@ -55,53 +67,117 @@ export default function ResultScreen() {
     border: darkMode ? "#333333" : palette.lightBorder,
   };
 
-  const getPercent = (category: "redGreen" | "blueYellow") => {
-    const s = scores[category];
-    if (!s || s.total === 0) return 100;
-    return (s.correct / s.total) * 100;
-  };
+  const getTritanDiagnosis = useCallback(() => {
+    const score = testResult.tritanWeightedScore ?? 0;
 
-  const rgPercent = getPercent("redGreen");
-  const byPercent = getPercent("blueYellow");
-
-  const getDiagnosis = useCallback(() => {
-    if (rgPercent <= 60 && byPercent > 80) {
+    if (score <= 8) {
       return {
-        type: "Protanopia / Deuteranopia",
-        title: "Red-Green Deficiency",
-        subtitle: "Vision Analysis",
-        desc: "The test detected a strong difficulty distinguishing red and green hues. This is consistent with Protanopia or Deuteranopia.",
+        key: "tritan_normal",
+        type: "Normal Color Vision",
+        title: "No Blue-Yellow Deficiency",
+        subtitle: "Tritan Analysis",
+        desc: "Hue arrangement shows good discrimination along the blue-yellow axis.",
+        color: palette.sageGreen,
+      };
+    }
+    if (score <= 24) {
+      return {
+        key: "tritan_mild",
+        type: "Mild Tritan",
+        title: "Minor Blue-Yellow Difficulty",
+        subtitle: "Tritan Analysis",
+        desc: "Minor difficulty distinguishing blue and yellow hues; may indicate mild Tritan-axis sensitivity.",
         color: palette.earthTan,
       };
     }
-    if (byPercent <= 60 && rgPercent > 80) {
+    if (score <= 52) {
       return {
-        type: "Tritanopia",
-        title: "Blue-Yellow Deficiency",
-        subtitle: "Vision Analysis",
-        desc: "The test detected difficulty distinguishing blue and yellow hues. This is consistent with Tritanopia (Blue-Blind).",
+        key: "tritan_moderate",
+        type: "Moderate Tritan",
+        title: "Moderate Blue-Yellow Deficiency",
+        subtitle: "Tritan Analysis",
+        desc: "Moderate difficulty in the blue-yellow spectrum; consistent with Tritan-axis deficiency.",
         color: palette.earthTan,
-      };
-    }
-    if (byPercent <= 60 && rgPercent <= 60) {
-      return {
-        type: "Severe CVD",
-        title: "Significant Deficiency",
-        subtitle: "Vision Analysis",
-        desc: "Your results indicate difficulties across the entire color spectrum.",
-        color: palette.terracotta,
       };
     }
     return {
-      type: "Normal Vision",
-      title: "No Deficiency",
-      subtitle: "Vision Analysis",
-      desc: "You correctly identified the patterns across all color spectrums.",
-      color: palette.sageGreen,
+      key: "tritan_strong",
+      type: "Strong Tritan Deficiency",
+      title: "Significant Blue-Yellow Difficulty",
+      subtitle: "Tritan Analysis",
+      desc: "Strong difficulties in the blue-yellow spectrum; consistent with Tritanopia.",
+      color: palette.terracotta,
     };
-  }, [rgPercent, byPercent]);
+  }, [testResult.tritanWeightedScore]);
 
-  const diagnosis = getDiagnosis();
+  const getRedGreenDiagnosis = useCallback(() => {
+    const ish = (testResult as any).ishiharaResult;
+    if (!ish || !Array.isArray(ish.plateAnswers)) {
+      return null;
+    }
+
+    const rgPlates = ish.plateAnswers.filter(
+      (p: any) =>
+        p.plateType === "ishihara" ||
+        p.plateType === "hrr" ||
+        p.plateType === "red-green",
+    );
+    if (rgPlates.length === 0) return null;
+
+    const correct = rgPlates.filter((p: any) => p.isCorrect).length;
+    const pct = (correct / rgPlates.length) * 100;
+
+    if (pct >= 90) {
+      return {
+        key: "rg_normal",
+        type: "No Red-Green Deficiency",
+        title: "Red-Green Normal",
+        subtitle: "Red-Green Analysis",
+        desc: `You answered ${correct}/${rgPlates.length} red-green plates correctly.`,
+        color: palette.sageGreen,
+      };
+    }
+    if (pct >= 60) {
+      return {
+        key: "rg_suspect",
+        type: "Possible Red-Green Difficulty",
+        title: "Suspected Red-Green Issue",
+        subtitle: "Red-Green Analysis",
+        desc: `You answered ${correct}/${rgPlates.length} red-green plates correctly. Consider follow-up testing.`,
+        color: palette.earthTan,
+      };
+    }
+    return {
+      key: "rg_deficient",
+      type: "Likely Red-Green Deficiency",
+      title: "Red-Green Deficiency",
+      subtitle: "Red-Green Analysis",
+      desc: `You answered ${correct}/${rgPlates.length} red-green plates correctly — results suggest red-green color vision deficiency.`,
+      color: palette.terracotta,
+    };
+  }, [testResult]);
+
+  const tritanDiag = getTritanDiagnosis();
+  const rgDiag = getRedGreenDiagnosis();
+
+  // Prefer showing a detected Red-Green issue as the primary diagnosis when present,
+  // otherwise show the Tritan (blue-yellow) diagnosis.
+  const primaryDiag =
+    rgDiag && rgDiag.key !== "rg_normal" ? rgDiag : tritanDiag;
+
+  // Combined type to persist: if both axes show issues, store both; otherwise store the detected one
+  const combinedCvdType = (() => {
+    const tritanKey = tritanDiag?.key ?? "tritan_normal";
+    const rgKey = rgDiag?.key ?? "rg_normal";
+
+    if (rgKey !== "rg_normal" && tritanKey !== "tritan_normal") {
+      return rgDiag ? `${rgDiag.type} & ${tritanDiag.type}` : tritanDiag.type;
+    }
+    if (rgKey !== "rg_normal" && rgDiag) return rgDiag.type;
+    return tritanDiag.type;
+  })();
+
+  const diagnosis = primaryDiag;
 
   // Save to Firebase
   useEffect(() => {
@@ -110,13 +186,10 @@ export default function ResultScreen() {
       if (!user || user.isGuest || !user.uid || !results) return;
 
       try {
-        setIsSaving(true);
-        await updateUserCVDType(user.uid, diagnosis.type);
-        console.log("✅ CVD type saved");
+        await updateUserCVDType(user.uid, combinedCvdType);
+        console.log("✅ CVD type saved", combinedCvdType);
       } catch (error) {
         console.error("❌ Failed to save CVD type:", error);
-      } finally {
-        if (isMounted.current) setIsSaving(false);
       }
     };
 
@@ -124,7 +197,7 @@ export default function ResultScreen() {
     return () => {
       isMounted.current = false;
     };
-  }, [user, results, diagnosis.type]);
+  }, [user, results, combinedCvdType]);
 
   // Handle Navigation and Back Buttons
   useEffect(() => {
@@ -212,7 +285,7 @@ export default function ResultScreen() {
               { color: themeColors.subText, marginBottom: 15 },
             ]}
           >
-            ACCURACY BREAKDOWN
+            TEST SCORE
           </Text>
           <View style={styles.statRow}>
             <View>
@@ -222,44 +295,12 @@ export default function ResultScreen() {
                   { color: themeColors.text, fontSize: 16 * fontScale },
                 ]}
               >
-                Red-Green
+                Blue-Yellow Accuracy
               </Text>
               <Text
                 style={[styles.statSubLabel, { color: themeColors.subText }]}
               >
-                Protan / Deutan
-              </Text>
-            </View>
-            <Text
-              style={[
-                styles.statValue,
-                {
-                  color:
-                    rgPercent < 60 ? palette.terracotta : palette.sageGreen,
-                  fontSize: 20 * fontScale,
-                },
-              ]}
-            >
-              {Math.round(rgPercent)}%
-            </Text>
-          </View>
-          <View
-            style={[styles.divider, { backgroundColor: themeColors.border }]}
-          />
-          <View style={styles.statRow}>
-            <View>
-              <Text
-                style={[
-                  styles.statLabel,
-                  { color: themeColors.text, fontSize: 16 * fontScale },
-                ]}
-              >
-                Blue-Yellow
-              </Text>
-              <Text
-                style={[styles.statSubLabel, { color: themeColors.subText }]}
-              >
-                Tritan
+                Tritan Test
               </Text>
             </View>
             <Text
@@ -275,7 +316,53 @@ export default function ResultScreen() {
               {Math.round(byPercent)}%
             </Text>
           </View>
+          <View
+            style={[styles.divider, { backgroundColor: themeColors.border }]}
+          />
+          <View style={styles.statRow}>
+            <View>
+              <Text
+                style={[
+                  styles.statLabel,
+                  { color: themeColors.text, fontSize: 16 * fontScale },
+                ]}
+              >
+                Total Score
+              </Text>
+              <Text
+                style={[styles.statSubLabel, { color: themeColors.subText }]}
+              >
+                Lower is better
+              </Text>
+            </View>
+            <Text
+              style={[
+                styles.statValue,
+                { color: themeColors.text, fontSize: 20 * fontScale },
+              ]}
+            >
+              {Math.round(testResult.tritanWeightedScore)}
+            </Text>
+          </View>
         </View>
+
+        {rgDiag && (
+          <View style={[styles.card, { backgroundColor: themeColors.cardBg }]}>
+            <Text style={[styles.cardLabel, { color: themeColors.subText }]}>
+              RED-GREEN CHECK
+            </Text>
+            <View style={{ marginTop: 12 }}>
+              <Text style={[styles.statLabel, { color: themeColors.text }]}>
+                {rgDiag.title}
+              </Text>
+              <Text
+                style={[styles.desc, { color: themeColors.text, marginTop: 8 }]}
+              >
+                {rgDiag.desc}
+              </Text>
+            </View>
+          </View>
+        )}
 
         <Text
           style={[
@@ -293,7 +380,7 @@ export default function ResultScreen() {
               styles.secondaryButton,
               { borderColor: themeColors.border },
             ]}
-            onPress={() => router.push("/difficulty")}
+            onPress={() => router.push("./difficulty")}
           >
             <Text
               style={[
@@ -311,7 +398,7 @@ export default function ResultScreen() {
               styles.primaryButton,
               { backgroundColor: palette.softBlack },
             ]}
-            onPress={() => router.replace("/dashboard")}
+            onPress={() => router.replace("./dashboard")}
           >
             <Text
               style={[

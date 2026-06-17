@@ -1,401 +1,613 @@
 // HueTestScreen.tsx
-// Interactive hue-arrangement quiz screen for Color Vision Deficiency detection.
-// Inspired by the Farnsworth-Munsell 100 Hue Test, adapted for Tritanopia detection.
-//
-// Prerequisites in your app:
-//   npm install react-native-reanimated react-native-gesture-handler react-native-draggable-flatlist
-//   Follow reanimated + gesture-handler setup guides for your RN version.
-//
-// Navigation: Plug HueTestParamList into your existing RootStackParamList and
-// call navigation.navigate('Result', { testResult }) from your own Result screen.
+// Main screen for the Farnsworth-Munsell inspired Tritan hue arrangement test.
+// Manages row progression, tile selection/swap, scoring, and navigation.
 
-import DraggableHueRow from "@/components/Draggable";
-import { useRouter } from "expo-router";
-import React, { useCallback, useRef, useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Platform,
-    SafeAreaView,
     StatusBar,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from "react-native";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, {
-    FadeIn,
-    FadeOut,
-    SlideInRight,
-    SlideOutLeft,
+    Easing,
     useAnimatedStyle,
     useSharedValue,
-    withSequence,
+    withSpring,
     withTiming,
 } from "react-native-reanimated";
-import { HUE_ROWS } from "../constants/colorData";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "../Context/ThemeContext";
+
+import ColorArrangementRow from "../components/Colorarrangementrow";
+import { TEST_ROWS, TOTAL_ROWS, getShuffledRow } from "../components/Colordata";
 import {
     buildRowResult,
-    buildTestResult,
-    shuffleDraggableTiles,
-} from "../constants/scoringUtils";
-import { HueTile, RowResult } from "../constants/types";
+    calculateTestResult,
+} from "../components/Scoringutils";
+import { ColorTile, RowResult, TestResult } from "../components/Types";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const TOTAL_ROWS = HUE_ROWS.length;
-
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── HueTestScreen ────────────────────────────────────────────────────────────
 
 const HueTestScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { ishiharaResult: ishParam } = useLocalSearchParams();
+  const ishiharaResult = ishParam ? JSON.parse(ishParam as string) : null;
+  const { getFontSizeMultiplier } = useTheme();
+  const fontScale = getFontSizeMultiplier();
+
+  // ── State ──────────────────────────────────────────────────────────────────
+
   const [currentRowIndex, setCurrentRowIndex] = useState(0);
+  const [currentTiles, setCurrentTiles] = useState<ColorTile[]>(
+    () => getShuffledRow(TEST_ROWS[0]).tiles,
+  );
+  const [selectedTileIndex, setSelectedTileIndex] = useState<number | null>(
+    null,
+  );
   const [rowResults, setRowResults] = useState<RowResult[]>([]);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [swapAnimKey, setSwapAnimKey] = useState(0); // forces re-render for swap anim
 
-  // Track current user order for the active row
-  const currentUserOrder = useRef<HueTile[]>([]);
+  // Progress bar animation
+  const progressAnim = useSharedValue(1 / TOTAL_ROWS);
 
-  // Initialise the current row with shuffled draggable tiles
-  const [shuffledRow, setShuffledRow] = useState<HueTile[]>(() =>
-    shuffleDraggableTiles(HUE_ROWS[0].tiles),
-  );
+  // Row transition animation
+  const rowOpacity = useSharedValue(1);
+  const rowTranslateX = useSharedValue(0);
 
-  // Button pulse animation
-  const buttonScale = useSharedValue(1);
-  const buttonStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: buttonScale.value }],
+  // ── Computed ───────────────────────────────────────────────────────────────
+
+  const currentRow = TEST_ROWS[currentRowIndex];
+  const isLastRow = currentRowIndex === TOTAL_ROWS - 1;
+  const progress = (currentRowIndex + 1) / TOTAL_ROWS;
+
+  // ── Progress bar animated style ────────────────────────────────────────────
+
+  const progressBarStyle = useAnimatedStyle(() => ({
+    width: `${progressAnim.value * 100}%`,
   }));
 
-  const currentRowData = HUE_ROWS[currentRowIndex];
+  useEffect(() => {
+    progressAnim.value = withTiming(progress, {
+      duration: 500,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [progress, progressAnim]);
 
-  // Keep ref in sync whenever the draggable row reports a change
-  const handleOrderChange = useCallback((newTiles: HueTile[]) => {
-    currentUserOrder.current = newTiles;
-  }, []);
+  // ── Tile Tap Handler ───────────────────────────────────────────────────────
 
-  // Initialise ref when a new row loads
-  React.useEffect(() => {
-    currentUserOrder.current = shuffledRow;
-  }, [shuffledRow]);
+  const handleTilePress = useCallback(
+    (pressedIndex: number) => {
+      if (isTransitioning) return;
 
-  const handleSubmitRow = () => {
+      const pressedTile = currentTiles[pressedIndex];
+
+      // Cannot select a locked tile
+      if (pressedTile.isLocked) return;
+
+      // First tap — select the tile
+      if (selectedTileIndex === null) {
+        setSelectedTileIndex(pressedIndex);
+        return;
+      }
+
+      // Tapping the same tile — deselect
+      if (selectedTileIndex === pressedIndex) {
+        setSelectedTileIndex(null);
+        return;
+      }
+
+      // Second tap on a locked tile — deselect first tile, don't swap
+      if (pressedTile.isLocked) {
+        setSelectedTileIndex(null);
+        return;
+      }
+
+      // Second tap on a different moveable tile — swap
+      const newTiles = [...currentTiles];
+      const temp = newTiles[selectedTileIndex];
+      newTiles[selectedTileIndex] = newTiles[pressedIndex];
+      newTiles[pressedIndex] = temp;
+
+      setCurrentTiles(newTiles);
+      setSelectedTileIndex(null);
+      setSwapAnimKey((k) => k + 1); // trigger re-render for swap visual
+    },
+    [currentTiles, isTransitioning, selectedTileIndex],
+  );
+
+  // ── Reset Current Row ──────────────────────────────────────────────────────
+
+  const handleReset = useCallback(() => {
     if (isTransitioning) return;
+    setCurrentTiles(getShuffledRow(currentRow).tiles);
+    setSelectedTileIndex(null);
+  }, [currentRow, isTransitioning]);
 
-    // Pulse the button
-    buttonScale.value = withSequence(
-      withTiming(0.94, { duration: 80 }),
-      withTiming(1.0, { duration: 120 }),
-    );
+  // ── Submit Row ─────────────────────────────────────────────────────────────
 
-    const userTiles =
-      currentUserOrder.current.length > 0
-        ? currentUserOrder.current
-        : shuffledRow;
+  const handleSubmit = useCallback(async () => {
+    if (isTransitioning) return;
+    setIsTransitioning(true);
 
-    const rowResult = buildRowResult(
-      currentRowData.rowId,
-      currentRowData.label,
-      userTiles,
-    );
-
-    const updatedResults = [...rowResults, rowResult];
-    setRowResults(updatedResults);
-
-    const isLastRow = currentRowIndex === TOTAL_ROWS - 1;
+    // Score the row
+    const result = buildRowResult(currentTiles, currentRow);
+    const newResults = [...rowResults, result];
+    setRowResults(newResults);
 
     if (isLastRow) {
-      const testResult = buildTestResult(updatedResults);
-      const blueYellowScore = Math.max(
-        0,
-        100 - Math.min(100, Math.round(testResult.totalTritanScore)),
-      );
+      // ── Final row submitted — calculate and navigate ──────────────────────
+      const testResult: TestResult = calculateTestResult(newResults, TEST_ROWS);
 
-      router.push({
-        pathname: "/result",
-        params: {
-          results: JSON.stringify({
-            redGreen: { correct: 100, total: 100 },
-            blueYellow: { correct: blueYellowScore, total: 100 },
-          }),
-        },
-      });
-      return;
+      // If Advanced mode supplied Ishihara results, include them in the final payload
+      const finalResult = ishiharaResult
+        ? { ...testResult, ishiharaResult }
+        : testResult;
+
+      // Animate out
+      rowOpacity.value = withTiming(0, { duration: 300 });
+
+      setTimeout(() => {
+        router.replace(
+          `./result?results=${encodeURIComponent(JSON.stringify(finalResult))}`,
+        );
+      }, 350);
+    } else {
+      // ── Animate row transition ─────────────────────────────────────────────
+      rowOpacity.value = withTiming(0, { duration: 200 });
+      rowTranslateX.value = withTiming(-40, { duration: 220 });
+
+      setTimeout(() => {
+        const nextIndex = currentRowIndex + 1;
+        const nextRow = getShuffledRow(TEST_ROWS[nextIndex]);
+
+        setCurrentRowIndex(nextIndex);
+        setCurrentTiles(nextRow.tiles);
+        setSelectedTileIndex(null);
+
+        // Reset animation values and fade in
+        rowTranslateX.value = 40;
+        rowOpacity.value = 0;
+
+        setTimeout(() => {
+          rowOpacity.value = withTiming(1, { duration: 260 });
+          rowTranslateX.value = withSpring(0, { damping: 18, stiffness: 180 });
+          setIsTransitioning(false);
+        }, 50);
+      }, 240);
     }
+  }, [
+    currentRow,
+    currentRowIndex,
+    currentTiles,
+    isLastRow,
+    isTransitioning,
+    router,
+    rowOpacity,
+    rowResults,
+    rowTranslateX,
+  ]);
 
-    // Transition to next row
-    setIsTransitioning(true);
-    setTimeout(() => {
-      const nextIndex = currentRowIndex + 1;
-      setCurrentRowIndex(nextIndex);
-      setShuffledRow(shuffleDraggableTiles(HUE_ROWS[nextIndex].tiles));
-      currentUserOrder.current = [];
-      setIsTransitioning(false);
-    }, 350); // matches exit animation duration
-  };
+  // ── Row animated style ─────────────────────────────────────────────────────
 
-  const isLastRow = currentRowIndex === TOTAL_ROWS - 1;
-  const buttonText = isLastRow ? "Submit Test" : "Next Row >";
+  const rowAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: rowOpacity.value,
+    transform: [{ translateX: rowTranslateX.value }],
+  }));
+
+  // ─── Render ─────────────────────────────────────────────────────────────────
+
+  // Create theme-aware colors
+  const themeColors = useMemo(
+    () => ({
+      screenBg: "#F5F5F0",
+      headerText: "#1A1A1A",
+      subText: "#888",
+      progressBg: "#E0E0DA",
+      progressFill: "#E65100",
+      instructionBg: "#F5F5F0",
+      instructionText: "#333",
+      instructionDot: "#E65100",
+      resetButtonBg: "#F0F0F0",
+      resetButtonText: "#1A1A1A",
+      submitButtonBg: "#E65100",
+      submitButtonText: "#FFFFFF",
+      submitButtonDisabledBg: "#D0D0D0",
+      legendBg: "#F9F9F9",
+      legendLabel: "#666",
+    }),
+    [],
+  );
 
   return (
-    <GestureHandlerRootView style={styles.root}>
-      <SafeAreaView style={styles.safe}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F4F4F0" />
+    <View
+      style={[
+        styles.screen,
+        {
+          backgroundColor: themeColors.screenBg,
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom + 16,
+        },
+      ]}
+    >
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor={themeColors.screenBg}
+      />
 
-        {/* ── Header ── */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Hue Arrangement Test</Text>
-          <View style={styles.progressContainer}>
-            {Array.from({ length: TOTAL_ROWS }).map((_, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.progressDot,
-                  i < currentRowIndex && styles.progressDotDone,
-                  i === currentRowIndex && styles.progressDotActive,
-                ]}
-              />
-            ))}
-          </View>
-          <Text style={styles.progressLabel}>
+      {/* ── Header ────────────────────────────────────────────────────────── */}
+      <View style={styles.header}>
+        <Text
+          style={[
+            styles.headerTitle,
+            { color: themeColors.headerText, fontSize: 20 * fontScale },
+          ]}
+        >
+          Hue Arrangement Test
+        </Text>
+        <Text
+          style={[
+            styles.headerSubtitle,
+            { color: themeColors.subText, fontSize: 12 * fontScale },
+          ]}
+        >
+          Tritan Color Deficiency Screen
+        </Text>
+      </View>
+
+      {/* ── Progress ──────────────────────────────────────────────────────── */}
+      <View style={styles.progressSection}>
+        <View style={styles.progressLabelRow}>
+          <Text
+            style={[
+              styles.progressLabel,
+              { color: themeColors.subText, fontSize: 13 * fontScale },
+            ]}
+          >
             Row {currentRowIndex + 1} of {TOTAL_ROWS}
           </Text>
         </View>
-
-        {/* ── Instruction Card ── */}
-        <View style={styles.instructionCard}>
-          <Text style={styles.instructionText}>
-            Arrange the tiles in a smooth colour gradient from left to right.
-            The{" "}
-            <Text style={styles.instructionBold}>
-              first and last tiles are fixed.
-            </Text>
-          </Text>
+        <View
+          style={[
+            styles.progressTrack,
+            { backgroundColor: themeColors.progressBg },
+          ]}
+        >
+          <Animated.View
+            style={[
+              styles.progressFill,
+              progressBarStyle,
+              { backgroundColor: themeColors.progressFill },
+            ]}
+          />
         </View>
+        {/* Row step dots */}
+        <View style={styles.stepDots}>
+          {Array.from({ length: TOTAL_ROWS }).map((_, i) => (
+            <View
+              key={`step-dot-${TEST_ROWS[i].rowId}`}
+              style={[
+                styles.stepDot,
+                {
+                  backgroundColor:
+                    i < currentRowIndex
+                      ? themeColors.progressFill
+                      : themeColors.progressBg,
+                },
+                i === currentRowIndex && {
+                  backgroundColor: themeColors.progressFill,
+                  width: 20,
+                },
+              ]}
+            />
+          ))}
+        </View>
+      </View>
 
-        {/* ── Row Label ── */}
-        <Animated.View
-          key={`label-${currentRowIndex}`}
-          entering={FadeIn.duration(250)}
-          exiting={FadeOut.duration(200)}
-          style={styles.rowLabelContainer}
-        >
-          <Text style={styles.rowLabel}>{currentRowData.label}</Text>
+      {/* ── Tile Row ──────────────────────────────────────────────────────── */}
+      <View style={styles.tileSection}>
+        <Animated.View style={rowAnimatedStyle}>
+          <ColorArrangementRow
+            key={`row-${currentRowIndex}-${swapAnimKey}`}
+            tiles={currentTiles}
+            selectedIndex={selectedTileIndex}
+            onTilePress={handleTilePress}
+            rowDescription={currentRow.description}
+          />
         </Animated.View>
+      </View>
 
-        {/* ── Draggable Hue Row ── */}
-        <Animated.View
-          key={`row-${currentRowIndex}`}
-          entering={SlideInRight.duration(320).springify().damping(18)}
-          exiting={SlideOutLeft.duration(280)}
-          style={styles.rowWrapper}
+      {/* ── Instructions Card ─────────────────────────────────────────────── */}
+      <View
+        style={[
+          styles.instructionCard,
+          { backgroundColor: themeColors.instructionBg },
+        ]}
+      >
+        <View
+          style={[
+            styles.instructionDot,
+            { backgroundColor: themeColors.instructionDot },
+          ]}
+        />
+        <Text
+          style={[
+            styles.instructionText,
+            { color: themeColors.instructionText, fontSize: 13 * fontScale },
+          ]}
         >
-          <View style={styles.rowSurface}>
-            <DraggableHueRow
-              tiles={shuffledRow}
-              onOrderChange={handleOrderChange}
+          Arrange the middle tiles so colors flow smoothly between the locked
+          endpoints
+        </Text>
+      </View>
+
+      {/* ── Legend ────────────────────────────────────────────────────────── */}
+      <View style={[styles.legend, { backgroundColor: themeColors.legendBg }]}>
+        <View style={styles.legendItem}>
+          <View style={styles.legendSwatch}>
+            <View style={styles.legendSwatchInner} />
+            <View
+              style={[
+                styles.legendDot,
+                { backgroundColor: themeColors.progressFill },
+              ]}
             />
           </View>
-        </Animated.View>
-
-        {/* ── Hint ── */}
-        <Text style={styles.hint}>
-          Press and drag tiles horizontally to rearrange them
-        </Text>
-
-        {/* ── Action Button ── */}
-        <View style={styles.buttonArea}>
-          <Animated.View style={[styles.buttonWrapper, buttonStyle]}>
-            <TouchableOpacity
-              style={[styles.button, isTransitioning && styles.buttonDisabled]}
-              onPress={handleSubmitRow}
-              disabled={isTransitioning}
-              activeOpacity={0.88}
-            >
-              <Text style={styles.buttonText}>{buttonText}</Text>
-            </TouchableOpacity>
-          </Animated.View>
-
-          {/* Row score preview after first submission */}
-          {rowResults.length > 0 && (
-            <Animated.View
-              entering={FadeIn.duration(300)}
-              style={styles.scorePreview}
-            >
-              {rowResults.map((r) => (
-                <Text key={r.rowId} style={styles.scorePreviewText}>
-                  {r.label}: {r.errorScore} pts
-                </Text>
-              ))}
-            </Animated.View>
-          )}
+          <Text
+            style={[
+              styles.legendLabel,
+              { color: themeColors.legendLabel, fontSize: 12 * fontScale },
+            ]}
+          >
+            Fixed
+          </Text>
         </View>
-      </SafeAreaView>
-    </GestureHandlerRootView>
+        <View style={styles.legendItem}>
+          <View
+            style={[
+              styles.legendSwatch,
+              { borderColor: themeColors.progressFill, borderWidth: 2 },
+            ]}
+          >
+            <View style={styles.legendSwatchInner} />
+          </View>
+          <Text
+            style={[
+              styles.legendLabel,
+              { color: themeColors.legendLabel, fontSize: 12 * fontScale },
+            ]}
+          >
+            Selected
+          </Text>
+        </View>
+      </View>
+
+      {/* ── Actions ───────────────────────────────────────────────────────── */}
+      <View style={styles.actions}>
+        <TouchableOpacity
+          style={[
+            styles.resetButton,
+            { backgroundColor: themeColors.resetButtonBg },
+          ]}
+          onPress={handleReset}
+          accessibilityLabel="Reset this row"
+          accessibilityRole="button"
+        >
+          <Text
+            style={[
+              styles.resetButtonText,
+              { color: themeColors.resetButtonText, fontSize: 14 * fontScale },
+            ]}
+          >
+            Reset Row
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.submitButton,
+            {
+              backgroundColor: isTransitioning
+                ? themeColors.submitButtonDisabledBg
+                : themeColors.submitButtonBg,
+            },
+            isTransitioning && styles.submitButtonDisabled,
+          ]}
+          onPress={handleSubmit}
+          disabled={isTransitioning}
+          accessibilityLabel={
+            isLastRow ? "Finish test" : "Submit row and continue"
+          }
+          accessibilityRole="button"
+        >
+          <Text
+            style={[
+              styles.submitButtonText,
+              { color: themeColors.submitButtonText, fontSize: 14 * fontScale },
+            ]}
+          >
+            {isLastRow ? "Finish Test" : "Submit Row →"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 };
 
+export default HueTestScreen;
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const ORANGE = "#F5960A";
-const BG = "#F4F4F0";
-const SURFACE = "#FFFFFF";
-const TEXT_PRIMARY = "#1A1A2E";
-const TEXT_SECONDARY = "#6B6B80";
-
 const styles = StyleSheet.create({
-  root: {
+  screen: {
     flex: 1,
-    backgroundColor: BG,
-  },
-  safe: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingBottom: Platform.OS === "android" ? 16 : 0,
   },
 
-  // ── Header ──
+  // Header
   header: {
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 8,
     alignItems: "center",
-    paddingTop: Platform.OS === "android" ? 16 : 8,
-    paddingBottom: 12,
-    gap: 10,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: TEXT_PRIMARY,
+    fontWeight: "600",
     letterSpacing: 0.3,
   },
-  progressContainer: {
+  headerSubtitle: {
+    marginTop: 2,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+
+  // Progress
+  progressSection: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+  },
+  progressLabelRow: {
     flexDirection: "row",
-    gap: 8,
-  },
-  progressDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#D8D8D8",
-  },
-  progressDotDone: {
-    backgroundColor: "#4CAF82",
-  },
-  progressDotActive: {
-    backgroundColor: ORANGE,
-    transform: [{ scale: 1.25 }],
+    justifyContent: "space-between",
+    marginBottom: 8,
   },
   progressLabel: {
-    fontSize: 13,
-    color: TEXT_SECONDARY,
     fontWeight: "500",
   },
-
-  // ── Instruction Card ──
-  instructionCard: {
-    backgroundColor: SURFACE,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  instructionText: {
-    fontSize: 13.5,
-    color: TEXT_SECONDARY,
-    lineHeight: 20,
-    textAlign: "center",
-  },
-  instructionBold: {
-    fontWeight: "700",
-    color: TEXT_PRIMARY,
-  },
-
-  // ── Row Label ──
-  rowLabelContainer: {
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  rowLabel: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: TEXT_PRIMARY,
-    letterSpacing: 0.2,
-  },
-
-  // ── Row Surface ──
-  rowWrapper: {
-    marginBottom: 12,
-  },
-  rowSurface: {
-    backgroundColor: SURFACE,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
-  },
-
-  // ── Hint ──
-  hint: {
-    fontSize: 11.5,
-    color: TEXT_SECONDARY,
-    textAlign: "center",
-    marginBottom: 24,
-    opacity: 0.75,
-  },
-
-  // ── Button ──
-  buttonArea: {
-    flex: 1,
-    justifyContent: "flex-end",
-    paddingBottom: 8,
-    gap: 12,
-  },
-  buttonWrapper: {
-    borderRadius: 14,
+  progressTrack: {
+    height: 4,
+    borderRadius: 2,
     overflow: "hidden",
   },
-  button: {
-    backgroundColor: ORANGE,
-    borderRadius: 14,
-    paddingVertical: 17,
-    alignItems: "center",
-    shadowColor: ORANGE,
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 6,
+  progressFill: {
+    height: 4,
+    borderRadius: 2,
   },
-  buttonDisabled: {
-    opacity: 0.65,
+  stepDots: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 10,
   },
-  buttonText: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    letterSpacing: 0.4,
+  stepDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 
-  // ── Score Preview ──
-  scorePreview: {
-    backgroundColor: SURFACE,
-    borderRadius: 10,
-    padding: 12,
-    gap: 4,
+  // Tile area
+  tileSection: {
+    flex: 1,
+    justifyContent: "center",
+    paddingVertical: 8,
   },
-  scorePreviewText: {
-    fontSize: 12,
-    color: TEXT_SECONDARY,
-    textAlign: "center",
+
+  // Instruction card
+  instructionCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginHorizontal: 24,
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 12,
+    gap: 10,
+  },
+  instructionDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginTop: 4,
+    flexShrink: 0,
+  },
+  instructionText: {
+    flex: 1,
+    lineHeight: 19,
+  },
+
+  // Legend
+  legend: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 24,
+    marginBottom: 16,
+    paddingHorizontal: 24,
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  legendSwatch: {
+    width: 20,
+    height: 28,
+    borderRadius: 4,
+    backgroundColor: "#B0BEC5",
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  legendSwatchInner: {
+    width: 14,
+    height: 22,
+    borderRadius: 3,
+    backgroundColor: "#78909C",
+  },
+  legendDot: {
+    position: "absolute",
+    bottom: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  legendLabel: {
+    fontWeight: "400",
+  },
+
+  // Actions
+  actions: {
+    flexDirection: "row",
+    paddingHorizontal: 24,
+    gap: 12,
+    alignItems: "center",
+  },
+  resetButton: {
+    flex: 1,
+    height: 52,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#CCCCCA",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  resetButtonText: {
+    fontWeight: "500",
+  },
+  submitButton: {
+    flex: 2,
+    height: 52,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    ...Platform.select({
+      ios: {
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+  submitButtonDisabled: {
+    opacity: 0.55,
+  },
+  submitButtonText: {
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
 });
-
-export default HueTestScreen;

@@ -258,13 +258,13 @@ import { useTheme } from "@/Context/ThemeContext";
 import { ArrowRight, Flame, Zap } from "lucide-react-native";
 import { useRef, useState } from "react";
 import {
-  Animated,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Animated,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 // ─── Design Tokens ─────────────────────────────────────────────────────────────
@@ -310,7 +310,7 @@ const CARDS = [
     accentLight: TOKENS.tealLight,
     accentLightDark: "#0D2E2A",
     Icon: Zap,
-    tags: ["14 plates", "~5 min", "Red-green focus"],
+    tags: ["Take your Time", "Full Spectrum"],
   },
   {
     key: "advanced" as DifficultyLevel,
@@ -321,7 +321,7 @@ const CARDS = [
     accentLight: TOKENS.amberLight,
     accentLightDark: "#2A1800",
     Icon: Flame,
-    tags: ["24 plates", "~10 min", "Full spectrum"],
+    tags: ["Take your Time", "Full Spectrum"],
   },
 ];
 

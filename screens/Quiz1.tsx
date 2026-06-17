@@ -1,4 +1,3 @@
-import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -9,30 +8,61 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useTheme } from "../Context/ThemeContext";
+// Dark mode removed for quiz screens — use fixed light theme
 import {
   getShuffledOptions,
   PLATE_DATA,
   PlateQuestion,
 } from "../constants/questions";
 
+// ─── Props ────────────────────────────────────────────────────────────────────
+
 interface Quiz1Props {
-  difficulty?: "easy" | "hard";
+  // Which plates to show. Defaults to PLATE_DATA (basic 22 plates).
+  plates?: PlateQuestion[];
+
+  // Called when the last plate is answered.
+  // Receives the calculated results object.
+  // Basic mode:    router.push('/result', { results })
+  // Advanced mode: navigation.navigate('HueTest', { ishiharaResult: results })
+  onComplete?: (results: QuizResults, rawAnswers: AnswerData[]) => void;
+
+  difficulty?: "basic" | "advanced";
 }
 
+interface AnswerData {
+  plateId: number;
+  type: PlateQuestion["type"];
+  category: PlateQuestion["category"] | null;
+  selectedAnswer: string;
+  isCorrect: boolean;
+  isConfusion: boolean;
+}
+
+export interface QuizResults {
+  redGreen: { correct: number; total: number };
+  blueYellow: { correct: number; total: number };
+  // Advanced mode adds these:
+  tritanConfusionCount?: number;
+  ishiharaTritanScore?: number;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function Quiz1({
-  difficulty: _difficulty = "easy",
+  plates = PLATE_DATA,
+  onComplete,
+  difficulty = "basic",
 }: Quiz1Props) {
-  const router = useRouter();
-  const { darkMode } = useTheme();
+  // Dark mode removed; use fixed light theme colors below
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [userAnswers, setUserAnswers] = useState<any[]>([]);
+  const [userAnswers, setUserAnswers] = useState<AnswerData[]>([]);
   const [currentOptions, setCurrentOptions] = useState<string[]>([]);
 
   const progressAnim = useRef(new Animated.Value(0)).current;
 
-  const currentPlate: PlateQuestion | undefined = PLATE_DATA[currentIndex];
+  const currentPlate: PlateQuestion | undefined = plates[currentIndex];
 
   useEffect(() => {
     if (!currentPlate) return;
@@ -43,23 +73,24 @@ export default function Quiz1({
     setCurrentOptions(options);
 
     Animated.spring(progressAnim, {
-      toValue: (currentIndex + 1) / PLATE_DATA.length,
+      toValue: (currentIndex + 1) / plates.length,
       useNativeDriver: false,
     }).start();
-  }, [currentIndex, currentPlate, progressAnim]);
+  }, [currentIndex, currentPlate, plates.length, progressAnim]);
+
+  // ── Answer handler ──────────────────────────────────────────────────────────
 
   const handleSelection = (val: string) => {
     if (!currentPlate) return;
 
     const confusionAnswers = currentPlate.confusionAnswers ?? [];
-
     const isCorrect = val === currentPlate.correctAnswer;
     const isConfusion =
       (confusionAnswers.includes(val) ||
         val === currentPlate.tritanopiaLikelyAnswer) &&
       val !== currentPlate.correctAnswer;
 
-    const answerData = {
+    const answerData: AnswerData = {
       plateId: currentPlate.id,
       type: currentPlate.type,
       category: currentPlate.category ?? null,
@@ -71,52 +102,64 @@ export default function Quiz1({
     const updatedAnswers = [...userAnswers, answerData];
     setUserAnswers(updatedAnswers);
 
-    if (currentIndex < PLATE_DATA.length - 1) {
+    if (currentIndex < plates.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
+      // Last plate — calculate and hand off
       const results = calculateResults(updatedAnswers);
-
-      router.push({
-        pathname: "/result",
-        params: {
-          results: JSON.stringify(results),
-          data: JSON.stringify(updatedAnswers),
-        },
-      });
+      onComplete?.(results, updatedAnswers);
     }
   };
 
-  const calculateResults = (
-    answers: {
-      type: PlateQuestion["type"];
-      category: PlateQuestion["category"] | null;
-      isCorrect: boolean;
-    }[],
-  ) => {
-    const redGreenAnswers = answers.filter(
-      (answer) => answer.category === "red-green",
+  // ── Score calculator ────────────────────────────────────────────────────────
+
+  const calculateResults = (answers: AnswerData[]): QuizResults => {
+    const redGreenAnswers = answers.filter((a) => a.category === "red-green");
+    const blueYellowAnswers = answers.filter((a) =>
+      ["screening", "tritan", "severity"].includes(a.type),
     );
-    const blueYellowAnswers = answers.filter((answer) =>
-      ["screening", "tritan", "severity"].includes(answer.type),
-    );
+
+    // Tritan confusion count — how many times user gave the tritanopiaLikelyAnswer
+    const tritanConfusionCount = answers.filter((a) => a.isConfusion).length;
+
+    // Weighted Tritan error score for advanced mode handoff to HueTest
+    const ishiharaTritanScore = answers.reduce((sum, a) => {
+      if (!a.isCorrect) {
+        // Tritan-type plates contribute more heavily
+        const weight =
+          a.type === "tritan"
+            ? 2.0
+            : a.type === "severity"
+              ? 1.8
+              : a.type === "screening"
+                ? 1.5
+                : 1.0;
+        return sum + weight;
+      }
+      return sum;
+    }, 0);
 
     return {
       redGreen: {
-        correct: redGreenAnswers.filter((answer) => answer.isCorrect).length,
+        correct: redGreenAnswers.filter((a) => a.isCorrect).length,
         total: redGreenAnswers.length,
       },
       blueYellow: {
-        correct: blueYellowAnswers.filter((answer) => answer.isCorrect).length,
+        correct: blueYellowAnswers.filter((a) => a.isCorrect).length,
         total: blueYellowAnswers.length,
       },
+      tritanConfusionCount,
+      ishiharaTritanScore,
     };
   };
 
+  // ── Theme ───────────────────────────────────────────────────────────────────
+
   const theme = {
-    bg: darkMode ? "#121212" : "#F8FAFC",
-    card: darkMode ? "#1E1E1E" : "#FFFFFF",
-    text: darkMode ? "#FFFFFF" : "#1A1A1A",
-    border: darkMode ? "#333" : "#E2E8F0",
+    bg: "#F8FAFC",
+    card: "#FFFFFF",
+    text: "#1A1A1A",
+    border: "#E2E8F0",
   };
 
   if (!currentPlate) return null;
@@ -127,12 +170,21 @@ export default function Quiz1({
     currentPlate.type === "tritan" ||
     currentPlate.type === "severity";
 
+  // ── Render ──────────────────────────────────────────────────────────────────
+
   return (
     <View style={[styles.main, { backgroundColor: theme.bg }]}>
       {/* Header */}
       <View style={styles.header}>
+        {/* Phase tag — only shown in advanced mode */}
+        {difficulty === "advanced" && (
+          <View style={styles.phaseTag}>
+            <Text style={styles.phaseTagText}>PHASE 1 OF 2 — PLATE TEST</Text>
+          </View>
+        )}
+
         <Text style={[styles.stepText, { color: theme.text }]}>
-          Plate {currentIndex + 1} of {PLATE_DATA.length}
+          Plate {currentIndex + 1} of {plates.length}
         </Text>
 
         <View style={styles.progressTrack}>
@@ -151,14 +203,11 @@ export default function Quiz1({
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Plate */}
+        {/* Plate card */}
         <View
           style={[
             styles.plateCard,
-            {
-              backgroundColor: theme.card,
-              borderColor: theme.border,
-            },
+            { backgroundColor: theme.card, borderColor: theme.border },
           ]}
         >
           <Image
@@ -166,23 +215,19 @@ export default function Quiz1({
             style={styles.plateImage}
             resizeMode="contain"
           />
-
           <Text style={[styles.instruction, { color: theme.text }]}>
             {isHRR ? "Identify the hidden symbol" : "What number do you see?"}
           </Text>
         </View>
 
-        {/* Options */}
+        {/* Options grid */}
         <View style={styles.grid}>
           {currentOptions.map((opt) => (
             <TouchableOpacity
               key={opt}
               style={[
                 styles.btn,
-                {
-                  backgroundColor: theme.card,
-                  borderColor: theme.border,
-                },
+                { backgroundColor: theme.card, borderColor: theme.border },
               ]}
               onPress={() => handleSelection(opt)}
             >
@@ -191,12 +236,7 @@ export default function Quiz1({
           ))}
 
           <TouchableOpacity
-            style={[
-              styles.nothingBtn,
-              {
-                backgroundColor: darkMode ? "#311" : "#FFF5F5",
-              },
-            ]}
+            style={[styles.nothingBtn, { backgroundColor: "#FFF5F5" }]}
             onPress={() => handleSelection("Nothing")}
           >
             <Text style={styles.nothingText}>I see nothing</Text>
@@ -207,12 +247,30 @@ export default function Quiz1({
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+// Identical to original — no visual changes.
+
 const styles = StyleSheet.create({
   main: { flex: 1 },
 
   header: {
     paddingTop: 60,
     paddingHorizontal: 20,
+  },
+
+  phaseTag: {
+    alignSelf: "flex-start",
+    backgroundColor: "#E8F0FE",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 20,
+    marginBottom: 8,
+  },
+  phaseTagText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#4B6BFB",
+    letterSpacing: 1.0,
   },
 
   stepText: {

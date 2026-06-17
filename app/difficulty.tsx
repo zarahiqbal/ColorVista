@@ -6,14 +6,13 @@ export default function DifficultyScreen() {
 
   const handleSelect = (difficulty: "basic" | "advanced") => {
     if (difficulty === "advanced") {
-      router.push("/huetestscreen");
+      // Advanced: Ishihara plates → HueTest → Result
+      router.push("/advanced-entry");
       return;
     }
 
-    router.push({
-      pathname: "/quiz",
-      params: { difficulty: "easy" },
-    });
+    // Basic: Quiz → Result
+    router.push("/quiz");
   };
 
   return <DifficultySelection onSelectDifficulty={handleSelect} />;
