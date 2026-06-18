@@ -27,7 +27,6 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-// --- MOCK DATA ---
 const faqData = [
   {
     category: "General",
@@ -40,7 +39,7 @@ const faqData = [
       {
         id: 2,
         q: "Is the app free to use?",
-        a: "Yes, the core features like Live Detection and basic Image Upload are free. Advanced features may require a subscription.",
+        a: "Yes, the core features are free to use like Live Detection and basic Image Upload and all others for now.",
       },
     ],
   },
@@ -50,7 +49,7 @@ const faqData = [
       {
         id: 3,
         q: "How do I change the color blind mode?",
-        a: "Go to Settings > Color Blind Mode. You can choose between Protanopia, Deuteranopia, and Tritanopia.",
+        a: "No, you cannot change the color blind mode. The app automatically detects the type of color blindness based on your quiz results and applies the appropriate simulation or enhancement settings. This ensures you get the most accurate experience tailored to your needs.",
       },
       {
         id: 4,
@@ -351,7 +350,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 15,
   },
-  
+
   headerTitle: {
     fontWeight: "600",
     fontFamily: Platform.OS === "ios" ? "System" : "Roboto",

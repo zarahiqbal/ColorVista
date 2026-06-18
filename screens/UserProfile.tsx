@@ -32,13 +32,16 @@ import {
 } from "react-native-safe-area-context";
 
 import { ThemedNoticeModal } from "@/components/ThemedNoticeModal";
-import type { GameProgressDoc, UserGamesDoc } from "@/Context/userProfileFirestore";
 import { useAuth } from "@/Context/AuthContext";
 import { auth } from "@/Context/firebase";
+import type {
+  GameProgressDoc,
+  UserGamesDoc,
+} from "@/Context/userProfileFirestore";
 import { patchUserProfile } from "@/Context/userProfileFirestore";
 import { useUserData } from "@/Context/useUserData";
-import { prepareProfileImageForFirestore } from "@/utils/prepareProfileImageForFirestore";
 import { insightLine, pctAccuracy } from "@/utils/gameProgressInsights";
+import { prepareProfileImageForFirestore } from "@/utils/prepareProfileImageForFirestore";
 import { useTheme } from "../Context/ThemeContext";
 
 // Define available system avatars (just geometric/color representations for this UI)
@@ -58,7 +61,9 @@ const ProfileScreen: React.FC = () => {
   const scale = getFontSizeMultiplier();
   const insets = useSafeAreaInsets();
   /** Clears custom BottomNavBar (~80–100pt) + font scale; root bg now matches theme. */
-  const scrollBottomPad = Math.round(104 + scale * 28 + Math.min(insets.bottom, 20));
+  const scrollBottomPad = Math.round(
+    104 + scale * 28 + Math.min(insets.bottom, 20),
+  );
 
   // Local state for the displayed image (handles URI or system avatar object)
   const [currentPhoto, setCurrentPhoto] = React.useState<any>(null);
@@ -576,7 +581,8 @@ const ProfileScreen: React.FC = () => {
       setPasswordModalVisible(false);
       setPasswordNotice({
         title: "Password updated",
-        message: "Your new password is saved. Use it the next time you sign in.",
+        message:
+          "Your new password is saved. Use it the next time you sign in.",
         variant: "success",
       });
     } catch (error) {
@@ -1312,7 +1318,9 @@ const ProfileScreen: React.FC = () => {
                     onPress={() => setShowConfirmPasswordField((v) => !v)}
                     disabled={updatingPassword}
                     accessibilityLabel={
-                      showConfirmPasswordField ? "Hide password" : "Show password"
+                      showConfirmPasswordField
+                        ? "Hide password"
+                        : "Show password"
                     }
                   >
                     <Ionicons

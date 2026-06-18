@@ -27,7 +27,7 @@ export default function SettingsPage() {
     setDarkMode,
     colorBlindMode,
     setColorBlindMode,
-    getFontSizeMultiplier,
+    getScaledFontSize,
   } = useTheme();
 
   const { user, logout } = useAuth();
@@ -39,7 +39,7 @@ export default function SettingsPage() {
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
 
-  const scale = getFontSizeMultiplier();
+  const font = getScaledFontSize;
 
   const palette = {
     beigeBg: "#F6F3EE",
@@ -63,7 +63,7 @@ export default function SettingsPage() {
   };
 
   const dText = (size: number) => ({
-    fontSize: size * scale,
+    fontSize: font(size),
     color: theme.text,
   });
 
@@ -127,7 +127,7 @@ export default function SettingsPage() {
           headerShadowVisible: false,
           headerStyle: { backgroundColor: theme.bg },
           headerTintColor: theme.text,
-          headerTitleStyle: { fontWeight: "800", fontSize: 24 * scale },
+          headerTitleStyle: { fontWeight: "800", fontSize: font(24) },
         }}
       />
 
@@ -139,7 +139,7 @@ export default function SettingsPage() {
         <Text
           style={[
             styles.sectionHeader,
-            { fontSize: 13 * scale, color: theme.subText },
+            { fontSize: font(13), color: theme.subText },
           ]}
         >
           APP SETTINGS
@@ -222,7 +222,7 @@ export default function SettingsPage() {
                     <Text
                       style={[
                         styles.valueText,
-                        { fontSize: 15 * scale, color: theme.subText },
+                        { fontSize: font(15), color: theme.subText },
                       ]}
                     >
                       {colorBlindMode}
@@ -254,7 +254,7 @@ export default function SettingsPage() {
                         <Text
                           style={[
                             styles.dropdownItemText,
-                            { color: theme.text, fontSize: 15 * scale },
+                            { color: theme.text, fontSize: font(15) },
                             colorBlindMode === option && {
                               color: palette.sage,
                               fontWeight: "700",
@@ -312,7 +312,7 @@ export default function SettingsPage() {
                       styles.radioText,
                       {
                         color: fontSize === size ? "#FFF" : theme.text,
-                        fontSize: 13 * scale,
+                        fontSize: font(13),
                       },
                       fontSize === size && { fontWeight: "700" },
                     ]}
@@ -360,7 +360,7 @@ export default function SettingsPage() {
             <Text
               style={[
                 styles.sectionHeader,
-                { fontSize: 13 * scale, color: theme.subText },
+                { fontSize: font(13), color: theme.subText },
               ]}
             >
               USER ACTIVITY
@@ -400,7 +400,7 @@ export default function SettingsPage() {
                     style={{
                       fontWeight: "800",
                       color: palette.sage,
-                      fontSize: 16 * scale,
+                      fontSize: font(16),
                     }}
                   >
                     78%
@@ -423,7 +423,7 @@ export default function SettingsPage() {
         <Text
           style={[
             styles.sectionHeader,
-            { fontSize: 13 * scale, color: theme.subText },
+            { fontSize: font(13), color: theme.subText },
           ]}
         >
           OTHER OPTIONS
@@ -468,13 +468,13 @@ export default function SettingsPage() {
         >
           <Ionicons
             name={isGuest ? "log-in-outline" : "log-out-outline"}
-            size={22 * scale}
+            size={font(22)}
             color="#FFF"
           />
           <Text
             style={[
               styles.logoutText,
-              { fontSize: 16 * scale, color: "#FFFFFF" },
+              { fontSize: font(16), color: "#FFFFFF" },
             ]}
           >
             {isGuest ? "Create Free Account" : "Log Out"}
@@ -525,7 +525,7 @@ export default function SettingsPage() {
                 style={{
                   color: theme.subText,
                   textAlign: "center",
-                  fontSize: 14 * scale,
+                  fontSize: font(14),
                 }}
               >
                 {isGuest

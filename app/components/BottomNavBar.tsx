@@ -14,8 +14,8 @@ export default function BottomNavBar() {
   const router = useRouter();
   const pathname = usePathname(); // Gets the current URL (e.g., "/dashboard")
   
-  const { darkMode, getFontSizeMultiplier } = useTheme();
-  const scale = getFontSizeMultiplier();
+  const { darkMode, getScaledFontSize } = useTheme();
+  const font = getScaledFontSize;
 
   // Dynamic Theme Colors
   const theme = {
@@ -34,7 +34,7 @@ export default function BottomNavBar() {
     isActive(routeKey) ? TOOLS_COLORS.sage : theme.subText;
 
   const getTextStyle = (routeKey: string) => ({ 
-      fontSize: 11 * scale, 
+      fontSize: font(11), 
       color: isActive(routeKey) ? theme.activeText : theme.subText,
       fontWeight: (isActive(routeKey) ? '600' : '500') as '600' | '500',
       marginTop: 4,
@@ -56,7 +56,7 @@ export default function BottomNavBar() {
         style={styles.navItem} 
         onPress={() => handleNav('/userprofile', 'userprofile')}
       >
-        <FontAwesome name="user" size={24 * scale} color={getIconColor('userprofile')} />
+        <FontAwesome name="user" size={font(24)} color={getIconColor('userprofile')} />
         <Text style={getTextStyle('userprofile')}>Profile</Text>
       </TouchableOpacity>
 
@@ -65,7 +65,7 @@ export default function BottomNavBar() {
         style={styles.navItem} 
         onPress={() => handleNav('/dashboard', 'dashboard')}
       >
-        <FontAwesome name="home" size={24 * scale} color={getIconColor('dashboard')} />
+        <FontAwesome name="home" size={font(24)} color={getIconColor('dashboard')} />
         <Text style={getTextStyle('dashboard')}>Home</Text>
       </TouchableOpacity>
       
@@ -74,7 +74,7 @@ export default function BottomNavBar() {
         style={styles.navItem} 
         onPress={() => handleNav('/settings', 'settings')}
       >
-        <Feather name="settings" size={24 * scale} color={getIconColor('settings')} />
+        <Feather name="settings" size={font(24)} color={getIconColor('settings')} />
         <Text style={getTextStyle('settings')}>Settings</Text>
       </TouchableOpacity>
       
