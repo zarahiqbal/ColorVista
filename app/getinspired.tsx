@@ -1,9 +1,8 @@
-import GetInspiredScreen from '../screens/GetInspired' // Adjust path to where you saved the UI file
+import GetInspiredScreen from '../screens/GetInspired';
+import { useGoBackOrHomeOnBack } from '../hooks/useBackNavigation';
 
 export default function GetInspiredRoute() {
-  return (
-    <>
-      <GetInspiredScreen />
-    </>
-  );
+  useGoBackOrHomeOnBack();
+
+  return <GetInspiredScreen />;
 }

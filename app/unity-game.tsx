@@ -14,6 +14,7 @@ import {
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useGoBackOrHomeOnBack } from "../hooks/useBackNavigation";
 
 const UNITY_APK_URL =
   "https://pub-003ba14b4c2e4e9088e5b88d4b3aed6f.r2.dev/Spectrum%20Shifter.apk";
@@ -21,6 +22,7 @@ const APK_FILE_NAME = "SpectrumShifter.apk";
 
 export default function UnityGameScreen() {
   const { darkMode, getFontSizeMultiplier } = useTheme();
+  useGoBackOrHomeOnBack();
   const multiplier = getFontSizeMultiplier();
 
   const [downloadedUri, setDownloadedUri] = useState<string | null>(null);

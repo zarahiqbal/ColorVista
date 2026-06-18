@@ -413,7 +413,7 @@ export default function Login() {
     setFormError('');
 
     try {
-      await signIn(email.trim(), password);
+      await signIn(email.trim(), password, rememberMe);
       if (rememberMe) {
         await AsyncStorage.setItem(
           REMEMBER_LOGIN_KEY,

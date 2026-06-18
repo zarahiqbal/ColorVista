@@ -1828,7 +1828,7 @@
 // //   },
 // // });
 import { useTheme } from "@/Context/ThemeContext";
-import { useRouter } from "expo-router";
+import { useGoHomeOnBack } from "@/hooks/useBackNavigation";
 import {
     AlertTriangle,
     ArrowRight,
@@ -1843,7 +1843,6 @@ import {
 import React, { useEffect, useRef } from "react";
 import {
     Animated,
-    BackHandler,
     Platform,
     ScrollView,
     StyleSheet,
@@ -2209,8 +2208,6 @@ const TipRow: React.FC<{
 export default function Welcome({ onStart }: WelcomeProps) {
   const { darkMode } = useTheme();
 
-  const router = useRouter();
-
   const pulseAnim = useRef(new Animated.Value(0)).current;
   const heroAnim = useRef(new Animated.Value(0)).current;
   const bodyAnim = useRef(new Animated.Value(0)).current;
@@ -2252,16 +2249,7 @@ export default function Welcome({ onStart }: WelcomeProps) {
     ]).start();
   }, []);
 
-  useEffect(() => {
-    const backAction = () => {
-      router.replace("/dashboard");
-      return true;
-    };
-
-    const sub = BackHandler.addEventListener("hardwareBackPress", backAction);
-
-    return () => sub.remove();
-  }, [router]);
+  useGoHomeOnBack();
 
   const heroTranslate = heroAnim.interpolate({
     inputRange: [0, 1],

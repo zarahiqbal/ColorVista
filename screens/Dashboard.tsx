@@ -27,8 +27,11 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 // Theme & Auth (Assumed paths from your snippet)
 import { useAuth } from "@/Context/AuthContext";
+import { useNotifications } from "@/Context/NotificationContext";
 import { useTheme } from "@/Context/ThemeContext";
 import { useUserData } from "@/Context/useUserData";
+import NotificationPanel from "@/components/NotificationPanel";
+import { useExitAppOnBack } from "@/hooks/useBackNavigation";
 import { isNormalVision } from "@/constants/cvdUtils";
 
 // ---------------- PREMIUM EARTH TONE PALETTE ----------------
@@ -100,25 +103,6 @@ const toolsData = [
   },
 ];
 
-const MOCK_NOTIFICATIONS = [
-  {
-    id: "1",
-    title: "Welcome!",
-    message: "Thanks for joining Color Vista.",
-    time: "Just now",
-    icon: "heart" as any,
-    color: "#FF6B6B",
-  },
-  {
-    id: "2",
-    title: "New Feature",
-    message: "Try the VR Simulation tool now!",
-    time: "2h ago",
-    icon: "cube" as any,
-    color: "#4A90E2",
-  },
-];
-
 // ---------------- MAIN DASHBOARD SCREEN ----------------
 export default function DashboardScreen() {
   const router = useRouter();
@@ -137,7 +121,7 @@ export default function DashboardScreen() {
     actionLabel: "",
     actionRoute: "",
   });
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const { unreadCount } = useNotifications();
 
   const { darkMode, getFontSizeMultiplier } = useTheme();
   const { user } = useAuth();
@@ -147,6 +131,8 @@ export default function DashboardScreen() {
   const cvdType = userData?.cvdType || user?.cvdType;
   const isNormalUser = !isGuest && isNormalVision(cvdType);
   const scale = getFontSizeMultiplier();
+
+  useExitAppOnBack();
 
   const theme = {
     bg: darkMode ? "#1C1C1E" : palette.beigeBg,
@@ -272,8 +258,12 @@ export default function DashboardScreen() {
               size={24 * scale}
               color={theme.text}
             />
-            {notifications.length > 0 && (
-              <View style={styles.notificationBadge} />
+            {unreadCount > 0 && (
+              <View style={styles.notificationBadge}>
+                {unreadCount < 10 && (
+                  <Text style={styles.badgeText}>{unreadCount}</Text>
+                )}
+              </View>
             )}
           </TouchableOpacity>
         ) : (
@@ -301,31 +291,12 @@ export default function DashboardScreen() {
         />
       </ScrollView>
 
-      {/* Simplified Modal logic for functionality */}
-      <Modal
+      <NotificationPanel
         visible={showNotificationsModal}
-        animationType="slide"
-        transparent={true}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
-            <Text style={[styles.modalTitle, { color: theme.text }]}>
-              Notifications
-            </Text>
-            {notifications.map((n) => (
-              <View key={n.id} style={styles.notifItem}>
-                <Text style={{ color: theme.subText }}>{n.title}</Text>
-              </View>
-            ))}
-            <TouchableOpacity
-              onPress={() => setShowNotificationsModal(false)}
-              style={styles.closeBtn}
-            >
-              <Text style={{ color: palette.blue }}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowNotificationsModal(false)}
+        darkMode={darkMode}
+        scale={scale}
+      />
 
       <Modal
         visible={lockModal.visible}
@@ -697,15 +668,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   notificationBadge: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: "#FF5252",
     position: "absolute",
-    top: 6,
-    right: 8,
+    top: 4,
+    right: 4,
     borderWidth: 2,
     borderColor: palette.beigeBg,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700",
   },
   scrollContent: { paddingHorizontal: 24, paddingBottom: 100 },
   heroSection: {

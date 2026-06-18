@@ -1,8 +1,6 @@
-import { useNavigation } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
-  BackHandler,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,10 +10,11 @@ import {
 import { useAuth } from "../Context/AuthContext";
 import { updateUserCVDType } from "../Context/cvdService";
 import { useTheme } from "../Context/ThemeContext";
+import { useGoHomeOnBack } from "../hooks/useBackNavigation";
+import { goHome } from "../utils/navigation";
 
 export default function ResultScreen() {
   const router = useRouter();
-  const navigation = useNavigation();
   const { darkMode, getFontSizeMultiplier } = useTheme();
   const fontScale = getFontSizeMultiplier();
   const { user } = useAuth();
@@ -346,28 +345,7 @@ export default function ResultScreen() {
     };
   }, [user, results, combinedSummary.savedString]);
 
-  useEffect(() => {
-    const handleBackAction = () => {
-      router.replace("/welcome");
-      return true;
-    };
-
-    const backHandler = BackHandler.addEventListener(
-      "hardwareBackPress",
-      handleBackAction,
-    );
-    const unsubscribe = navigation.addListener("beforeRemove", (e) => {
-      if (e.data.action.type === "GO_BACK") {
-        e.preventDefault();
-        handleBackAction();
-      }
-    });
-
-    return () => {
-      backHandler.remove();
-      unsubscribe();
-    };
-  }, [navigation, router]);
+  useGoHomeOnBack();
 
   return (
     <ScrollView
@@ -574,7 +552,7 @@ export default function ResultScreen() {
               styles.primaryButton,
               { backgroundColor: palette.softBlack },
             ]}
-            onPress={() => router.replace("./dashboard")}
+            onPress={() => goHome()}
           >
             <Text
               style={[

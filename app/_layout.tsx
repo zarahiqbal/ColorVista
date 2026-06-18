@@ -1,6 +1,7 @@
 import "react-native-gesture-handler";
 import type { ReactNode } from "react";
 import { AuthProvider } from "@/Context/AuthContext";
+import { NotificationProvider } from "@/Context/NotificationContext";
 import { ThemeProvider, useTheme } from "@/Context/ThemeContext";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -134,11 +135,13 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <SafeAreaProvider>
-          <ThemedAppBackground>
-            <RootNavigator />
-          </ThemedAppBackground>
-        </SafeAreaProvider>
+        <NotificationProvider>
+          <SafeAreaProvider>
+            <ThemedAppBackground>
+              <RootNavigator />
+            </ThemedAppBackground>
+          </SafeAreaProvider>
+        </NotificationProvider>
       </AuthProvider>
     </ThemeProvider>
   );

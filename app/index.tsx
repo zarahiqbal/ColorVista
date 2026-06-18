@@ -2,24 +2,26 @@ import 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 
-// Import the splash screen component you already have in your file list
+import { useAuth } from '@/Context/AuthContext';
 import SplashScreen from './splashscreen';
 
 export default function Index() {
   const router = useRouter();
+  const { user, isLoading } = useAuth();
 
   useEffect(() => {
-    // Wait for 3 seconds (3000 milliseconds)
+    if (isLoading) return;
+
     const timer = setTimeout(() => {
-      // Navigate to your login screen
-      // We use .replace() so the user can't go "back" to the splash screen
-      router.replace('/auth/login'); 
-    }, 3000);
+      if (user) {
+        router.replace('/dashboard');
+      } else {
+        router.replace('/auth/login');
+      }
+    }, 2500);
 
-    // Cleanup the timer if the user leaves the screen early
     return () => clearTimeout(timer);
-  }, []);
+  }, [isLoading, user, router]);
 
-  // While waiting, show the Splash Screen design
   return <SplashScreen />;
 }

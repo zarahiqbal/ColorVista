@@ -5,7 +5,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  BackHandler,
+  Alert,
   Platform,
   StatusBar,
   StyleSheet,
@@ -23,6 +23,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../Context/ThemeContext";
+import { useFocusedBackHandler } from "../hooks/useBackNavigation";
 
 import ColorArrangementRow from "../components/Colorarrangementrow";
 import { TEST_ROWS, TOTAL_ROWS, getShuffledRow } from "../components/Colordata";
@@ -43,11 +44,6 @@ const HueTestScreen: React.FC = () => {
   const ishiharaResult = ishParam ? JSON.parse(ishParam as string) : null;
   const { getFontSizeMultiplier } = useTheme();
   const fontScale = getFontSizeMultiplier();
-
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const [pendingBackAction, setPendingBackAction] = useState(false);
-
-  // ── State ──────────────────────────────────────────────────────────────────
 
   const [currentRowIndex, setCurrentRowIndex] = useState(0);
   const [currentTiles, setCurrentTiles] = useState<ColorTile[]>(
@@ -209,50 +205,26 @@ const HueTestScreen: React.FC = () => {
 
   // ─── Back Handling (exit confirmation) ───────────────────────────────────
 
-  useEffect(() => {
-    const onBackPress = () => {
-      // If we're already showing the exit modal, block duplicate triggers.
-      if (showExitConfirm) return true;
-
-      // Only confirm if user is mid-quiz (at least one row completed).
-      if (currentRowIndex <= 0) {
-        // Navigate back to difficulty selection
-        // router.back() does not accept args; use push to go to route
-        router.push("/difficulty");
-        return true;
-      }
-
-      setPendingBackAction(true);
-      setShowExitConfirm(true);
+  useFocusedBackHandler(() => {
+    if (currentRowIndex <= 0) {
+      router.dismissTo("/difficulty");
       return true;
-    };
+    }
 
-    const sub = (BackHandler as any)?.addEventListener
-      ? (BackHandler as any).addEventListener("hardwareBackPress", onBackPress)
-      : null;
-
-    // Expo / RN typically uses addEventListener returning subscription; keep safe.
-    return () => {
-      try {
-        if (sub?.remove) sub.remove();
-      } catch {
-        // ignore
-      }
-    };
-  }, [currentRowIndex, router, showExitConfirm]);
-
-  // const handleConfirmExit = useCallback(() => {
-  //   setShowExitConfirm(false);
-  //   if (pendingBackAction) {
-  //     setPendingBackAction(false);
-  //     router.back();
-  //   }
-  // }, [pendingBackAction, router]);
-
-  // const handleCancelExit = useCallback(() => {
-  //   setShowExitConfirm(false);
-  //   setPendingBackAction(false);
-  // }, []);
+    Alert.alert(
+      "Leave Quiz?",
+      "Your progress will be lost if you leave now.",
+      [
+        { text: "Stay", style: "cancel" },
+        {
+          text: "Leave",
+          style: "destructive",
+          onPress: () => router.dismissTo("/difficulty"),
+        },
+      ],
+    );
+    return true;
+  }, [currentRowIndex, router]);
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 

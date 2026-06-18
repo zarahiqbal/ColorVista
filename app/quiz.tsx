@@ -1,11 +1,13 @@
 // app/quiz.tsx
 import { useRouter } from "expo-router";
+import { useConfirmLeaveQuizOnBack } from "../hooks/useBackNavigation";
 import Quiz1, { QuizResults } from "../screens/Quiz1";
 
 export default function QuizRoute() {
   const router = useRouter();
 
-  // Basic mode: quiz -> result
+  useConfirmLeaveQuizOnBack();
+
   const handleQuizComplete = (results: QuizResults, rawAnswers: any[]) => {
     router.push({
       pathname: "/result",

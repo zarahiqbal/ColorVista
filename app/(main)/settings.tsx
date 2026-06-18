@@ -1,11 +1,8 @@
-// We import the specific UI component from your screens folder
-// Note: Ensure the path '../screens/Settings' is correct relative to your app folder
 import SettingsPage from '../../screens/Settings';
+import { useGoToDashboardOnBack } from '../../hooks/useBackNavigation';
 
 export default function SettingsRoute() {
-  return (
-    <>
-      <SettingsPage />
-    </>
-  );
+  useGoToDashboardOnBack();
+
+  return <SettingsPage />;
 }

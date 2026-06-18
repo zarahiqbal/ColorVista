@@ -478,6 +478,7 @@ import { CvdSimulation } from "@/constants/cvdUtils";
 import { useAuth } from "@/Context/AuthContext";
 import { useTheme } from "@/Context/ThemeContext";
 import { useUserData } from "@/Context/useUserData";
+import { useGoBackOrHomeOnBack } from "@/hooks/useBackNavigation";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -548,6 +549,7 @@ const SPECTRUM_COLORS: Record<SimulationType, string[]> = {
 
 export default function VRScreen({ navigation }: Props) {
   const { darkMode, getFontSizeMultiplier } = useTheme();
+  useGoBackOrHomeOnBack();
   const { user } = useAuth();
   const { userData } = useUserData();
   const router = useRouter();

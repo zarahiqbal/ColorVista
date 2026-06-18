@@ -1,17 +1,18 @@
 import { useRouter } from "expo-router";
+import { useNavigateToOnBack } from "../hooks/useBackNavigation";
 import { DifficultySelection } from "../screens/DifficultyLevel";
 
 export default function DifficultyScreen() {
   const router = useRouter();
 
+  useNavigateToOnBack("/welcome");
+
   const handleSelect = (difficulty: "basic" | "advanced") => {
     if (difficulty === "advanced") {
-      // Advanced: Ishihara plates → HueTest → Result
       router.push("/advanced-entry");
       return;
     }
 
-    // Basic: Quiz → Result
     router.push("/quiz");
   };
 
