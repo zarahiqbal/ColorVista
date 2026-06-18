@@ -14,6 +14,7 @@ interface ThemeContextType {
   setColorBlindMode: (mode: ColorBlindMode) => void;
   // Helper to get actual pixel number based on selection
   getFontSizeMultiplier: () => number;
+  getScaledFontSize: (size: number) => number;
 }
 
 // 2. Create Context
@@ -34,6 +35,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const getScaledFontSize = (size: number) => {
+    return Math.round(size * getFontSizeMultiplier());
+  };
+
   return (
     <ThemeContext.Provider value={{
       fontSize,
@@ -42,7 +47,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setDarkMode,
       colorBlindMode,
       setColorBlindMode,
-      getFontSizeMultiplier
+      getFontSizeMultiplier,
+      getScaledFontSize
     }}>
       {children}
     </ThemeContext.Provider>
