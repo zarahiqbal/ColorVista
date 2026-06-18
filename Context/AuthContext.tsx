@@ -87,31 +87,43 @@
 //   }
 //   return context;
 // };
-
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { PERSIST_SESSION_KEY } from "@/constants/authStorage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-    createUserWithEmailAndPassword,
-    signOut as firebaseSignOut,
-    onAuthStateChanged,
-    reload,
-    sendEmailVerification,
-    sendPasswordResetEmail,
-    signInWithEmailAndPassword,
-    updateProfile,
-} from 'firebase/auth';
-import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
-import { PERSIST_SESSION_KEY } from '@/constants/authStorage';
-import { auth } from './firebase';
-import type { DocumentData } from 'firebase/firestore';
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  reload,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  updateProfile,
+} from "firebase/auth";
+import type { DocumentData } from "firebase/firestore";
+import React, {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { AppState, type AppStateStatus } from "react-native";
+import { auth } from "./firebase";
 import {
-    fetchUserProfileDoc,
-    writeUserProfile,
-    type UserGamesDoc,
-} from './userProfileFirestore';
+  fetchUserProfileDoc,
+  writeUserProfile,
+  type UserGamesDoc,
+} from "./userProfileFirestore";
 
 // 1. UPDATE: Expanded User interface to support Guest properties
-export const AUTH_EMAIL_NOT_VERIFIED = 'auth/email-not-verified';
+export const AUTH_EMAIL_NOT_VERIFIED = "auth/email-not-verified";
+
+// Session expiry config:
+// - "Remember me" checked  -> no expiry, session persists indefinitely.
+// - "Remember me" unchecked -> session valid for ONE_DAY_MS from sign-in.
+const SESSION_EXPIRY_KEY = "@session_expiry";
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 interface User {
   uid?: string;
@@ -123,7 +135,7 @@ interface User {
   photoURL?: string;
   games?: UserGamesDoc;
   emailVerified?: boolean;
-  role: 'user' | 'admin' | 'guest';
+  role: "user" | "admin" | "guest";
   isGuest: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -132,14 +144,14 @@ interface User {
 function firestoreDataToUser(uid: string, data: DocumentData): User {
   return {
     uid,
-    firstName: String(data.firstName ?? ''),
-    lastName: String(data.lastName ?? ''),
-    email: String(data.email ?? ''),
+    firstName: String(data.firstName ?? ""),
+    lastName: String(data.lastName ?? ""),
+    email: String(data.email ?? ""),
     phone: data.phone != null ? String(data.phone) : undefined,
     cvdType: data.cvdType != null ? String(data.cvdType) : undefined,
     photoURL: data.photoURL != null ? String(data.photoURL) : undefined,
     games: (data.games as UserGamesDoc | undefined) ?? undefined,
-    role: (data.role as User['role']) ?? 'user',
+    role: (data.role as User["role"]) ?? "user",
     isGuest: false,
     createdAt: data.createdAt != null ? String(data.createdAt) : undefined,
     updatedAt: data.updatedAt != null ? String(data.updatedAt) : undefined,
@@ -151,8 +163,18 @@ interface AuthContextType {
   setUser: (user: User | null) => void;
   logout: () => Promise<void>;
   loginAsGuest: () => void;
-  signUp: (data: { firstName: string; lastName: string; email: string; phone: string; password: string }) => Promise<void>;
-  signIn: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
+  signUp: (data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    password: string;
+  }) => Promise<void>;
+  signIn: (
+    email: string,
+    password: string,
+    rememberMe?: boolean,
+  ) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
   resendVerificationEmail: (email: string, password: string) => Promise<void>;
   isLoading: boolean;
@@ -173,17 +195,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const shouldPersistSession = async (): Promise<boolean> => {
     try {
       const value = await AsyncStorage.getItem(PERSIST_SESSION_KEY);
-      return value === 'true';
+      return value === "true";
     } catch {
       return false;
     }
   };
 
   const setSessionPersistence = async (persist: boolean) => {
+    await AsyncStorage.setItem(PERSIST_SESSION_KEY, persist ? "true" : "false");
     if (persist) {
-      await AsyncStorage.setItem(PERSIST_SESSION_KEY, 'true');
+      // Remember me: never expire.
+      await AsyncStorage.removeItem(SESSION_EXPIRY_KEY);
     } else {
-      await AsyncStorage.setItem(PERSIST_SESSION_KEY, 'false');
+      // No remember me: stamp a 24h expiry from now.
+      await AsyncStorage.setItem(
+        SESSION_EXPIRY_KEY,
+        String(Date.now() + ONE_DAY_MS),
+      );
+    }
+  };
+
+  // True if a non-persistent session has passed its 24h window.
+  // A missing/invalid expiry on a non-persistent session is treated as expired
+  // (covers stale or pre-update sessions).
+  const isSessionExpired = async (): Promise<boolean> => {
+    try {
+      const raw = await AsyncStorage.getItem(SESSION_EXPIRY_KEY);
+      if (!raw) return true;
+      const expiry = Number(raw);
+      if (Number.isNaN(expiry)) return true;
+      return Date.now() >= expiry;
+    } catch {
+      return true;
     }
   };
 
@@ -193,7 +236,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const init = async () => {
       try {
-        const cached = await AsyncStorage.getItem('@user');
+        const cached = await AsyncStorage.getItem("@user");
         if (cached && mounted) {
           const parsed = JSON.parse(cached) as User;
           if (parsed.isGuest) {
@@ -208,15 +251,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (fbUser) {
           const persist = await shouldPersistSession();
           if (coldStartRef.current && !persist) {
-            sessionActiveRef.current = false;
-            await firebaseSignOut(auth);
-            if (mounted) {
-              setUser(null);
-              await AsyncStorage.removeItem('@user');
-              setIsLoading(false);
+            const expired = await isSessionExpired();
+            if (expired) {
+              sessionActiveRef.current = false;
+              await firebaseSignOut(auth);
+              if (mounted) {
+                setUser(null);
+                await AsyncStorage.removeItem("@user");
+                await AsyncStorage.removeItem(SESSION_EXPIRY_KEY);
+                setIsLoading(false);
+              }
+              coldStartRef.current = false;
+              return;
             }
-            coldStartRef.current = false;
-            return;
+            // Not expired -> keep the session and fall through.
           }
 
           sessionActiveRef.current = true;
@@ -234,29 +282,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             if (snapshot.exists()) {
               profile = firestoreDataToUser(fbUser.uid, snapshot.data());
             } else {
-              const names = (fbUser.displayName || '').split(' ');
+              const names = (fbUser.displayName || "").split(" ");
               profile = {
                 uid: fbUser.uid,
-                firstName: names[0] || '',
-                lastName: names.slice(1).join(' ') || '',
-                email: fbUser.email || '',
-                role: 'user',
+                firstName: names[0] || "",
+                lastName: names.slice(1).join(" ") || "",
+                email: fbUser.email || "",
+                role: "user",
                 isGuest: false,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 photoURL: fbUser.photoURL || undefined,
               };
-              await writeUserProfile(fbUser.uid, profile as unknown as DocumentData);
+              await writeUserProfile(
+                fbUser.uid,
+                profile as unknown as DocumentData,
+              );
             }
 
             profile.emailVerified = fbUser.emailVerified;
 
             if (mounted) {
               setUser(profile);
-              await AsyncStorage.setItem('@user', JSON.stringify(profile));
+              await AsyncStorage.setItem("@user", JSON.stringify(profile));
             }
           } catch (err) {
-            console.error('Error loading profile:', err);
+            console.error("Error loading profile:", err);
           }
         } else {
           sessionActiveRef.current = false;
@@ -264,7 +315,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
           if (mounted) {
             try {
-              const cached = await AsyncStorage.getItem('@user');
+              const cached = await AsyncStorage.getItem("@user");
               if (cached) {
                 const parsed = JSON.parse(cached) as User;
                 if (parsed.isGuest) {
@@ -278,7 +329,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
 
             setUser(null);
-            await AsyncStorage.removeItem('@user');
+            await AsyncStorage.removeItem("@user");
           }
         }
         if (mounted) setIsLoading(false);
@@ -291,20 +342,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     return () => {
       mounted = false;
-      unsubPromise.then((unsubscribe: any) => {
-        if (typeof unsubscribe === 'function') unsubscribe();
-      }).catch(() => {});
+      unsubPromise
+        .then((unsubscribe: any) => {
+          if (typeof unsubscribe === "function") unsubscribe();
+        })
+        .catch(() => {});
     };
   }, []);
 
-  // End session when app backgrounds if "Remember me" was not selected
+  // When the app returns to the foreground, end the session if the 24h
+  // window has lapsed (only applies when "Remember me" was not selected).
   useEffect(() => {
     const handleAppState = async (nextState: AppStateStatus) => {
-      if (nextState !== 'background' && nextState !== 'inactive') return;
+      if (nextState !== "active") return;
       if (!sessionActiveRef.current || !auth.currentUser) return;
 
       const persist = await shouldPersistSession();
       if (persist) return;
+
+      if (!(await isSessionExpired())) return;
 
       sessionActiveRef.current = false;
       try {
@@ -313,35 +369,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         /* ignore */
       }
       setUser(null);
-      await AsyncStorage.removeItem('@user');
+      await AsyncStorage.removeItem("@user");
+      await AsyncStorage.removeItem(SESSION_EXPIRY_KEY);
     };
 
-    const subscription = AppState.addEventListener('change', handleAppState);
+    const subscription = AppState.addEventListener("change", handleAppState);
     return () => subscription.remove();
   }, []);
 
   const saveUser = async (userData: User) => {
     try {
-      await AsyncStorage.setItem('@user', JSON.stringify(userData));
+      await AsyncStorage.setItem("@user", JSON.stringify(userData));
     } catch (error) {
-      console.error('Error saving user:', error);
+      console.error("Error saving user:", error);
     }
   };
 
   const removeUser = async () => {
     try {
-      await AsyncStorage.removeItem('@user');
+      await AsyncStorage.removeItem("@user");
     } catch (error) {
-      console.error('Error removing user:', error);
+      console.error("Error removing user:", error);
     }
   };
 
   const loginAsGuest = () => {
     const guestUser: User = {
-      firstName: 'Guest',
-      lastName: 'User',
-      email: '',
-      role: 'guest',
+      firstName: "Guest",
+      lastName: "User",
+      email: "",
+      role: "guest",
       isGuest: true,
     };
     setUser(guestUser);
@@ -353,21 +410,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       await firebaseSignOut(auth);
     } catch (err) {
-      console.warn('Firebase sign out error:', err);
+      console.warn("Firebase sign out error:", err);
     }
     setUser(null);
     await removeUser();
     await AsyncStorage.removeItem(PERSIST_SESSION_KEY);
+    await AsyncStorage.removeItem(SESSION_EXPIRY_KEY);
   };
 
-  const signUp = async (data: { firstName: string; lastName: string; email: string; phone: string; password: string }) => {
+  const signUp = async (data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    password: string;
+  }) => {
     const { firstName, lastName, email, phone, password } = data;
     try {
       // Create user in Firebase Auth
-      const credential = await createUserWithEmailAndPassword(auth, email, password);
-      
+      const credential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
+
       // Update auth user's display name
-      await updateProfile(credential.user, { displayName: `${firstName} ${lastName}` });
+      await updateProfile(credential.user, {
+        displayName: `${firstName} ${lastName}`,
+      });
 
       const profile: User = {
         uid: credential.user.uid,
@@ -375,36 +445,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         lastName,
         email,
         phone,
-        cvdType: 'Normal Vision',
-        role: 'user',
+        cvdType: "Normal Vision",
+        role: "user",
         isGuest: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
 
-      await writeUserProfile(credential.user.uid, profile as unknown as DocumentData);
+      await writeUserProfile(
+        credential.user.uid,
+        profile as unknown as DocumentData,
+      );
 
       await sendEmailVerification(credential.user);
       await firebaseSignOut(auth);
     } catch (err) {
-      console.error('Sign up error:', err);
+      console.error("Sign up error:", err);
       throw err;
     }
   };
 
-  const signIn = async (email: string, password: string, rememberMe = false) => {
+  const signIn = async (
+    email: string,
+    password: string,
+    rememberMe = false,
+  ) => {
     try {
       setIsLoading(true);
       await setSessionPersistence(rememberMe);
 
-      const credential = await signInWithEmailAndPassword(auth, email, password);
+      const credential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
       await reload(credential.user);
 
       if (!credential.user.emailVerified) {
         await firebaseSignOut(auth);
         await AsyncStorage.removeItem(PERSIST_SESSION_KEY);
+        await AsyncStorage.removeItem(SESSION_EXPIRY_KEY);
         const err = new Error(
-          'Please verify your email using the link we sent you, then sign in again.',
+          "Please verify your email using the link we sent you, then sign in again.",
         );
         (err as { code?: string }).code = AUTH_EMAIL_NOT_VERIFIED;
         throw err;
@@ -418,18 +500,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (snapshot.exists()) {
         profile = firestoreDataToUser(credential.user.uid, snapshot.data());
       } else {
-        const names = (credential.user.displayName || '').split(' ');
+        const names = (credential.user.displayName || "").split(" ");
         profile = {
           uid: credential.user.uid,
-          firstName: names[0] || '',
-          lastName: names.slice(1).join(' ') || '',
+          firstName: names[0] || "",
+          lastName: names.slice(1).join(" ") || "",
           email: credential.user.email || email,
-          role: 'user',
+          role: "user",
           isGuest: false,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
-        await writeUserProfile(credential.user.uid, profile as unknown as DocumentData);
+        await writeUserProfile(
+          credential.user.uid,
+          profile as unknown as DocumentData,
+        );
       }
 
       profile.emailVerified = credential.user.emailVerified;
@@ -437,7 +522,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(profile);
       await saveUser(profile);
     } catch (err) {
-      console.error('Sign in error:', err);
+      console.error("Sign in error:", err);
       throw err;
     } finally {
       setIsLoading(false);
@@ -447,7 +532,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const requestPasswordReset = async (email: string) => {
     const trimmed = email.trim();
     if (!trimmed) {
-      throw new Error('Email is required');
+      throw new Error("Email is required");
     }
     await sendPasswordResetEmail(auth, trimmed);
   };
@@ -457,7 +542,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     await reload(cred.user);
     if (cred.user.emailVerified) {
       await firebaseSignOut(auth);
-      throw new Error('This email is already verified. Try signing in.');
+      throw new Error("This email is already verified. Try signing in.");
     }
     await sendEmailVerification(cred.user);
     await firebaseSignOut(auth);
@@ -485,7 +570,408 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
+// import AsyncStorage from '@react-native-async-storage/async-storage';
+// import {
+//     createUserWithEmailAndPassword,
+//     signOut as firebaseSignOut,
+//     onAuthStateChanged,
+//     reload,
+//     sendEmailVerification,
+//     sendPasswordResetEmail,
+//     signInWithEmailAndPassword,
+//     updateProfile,
+// } from 'firebase/auth';
+// import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
+// import { AppState, type AppStateStatus } from 'react-native';
+// import { PERSIST_SESSION_KEY } from '@/constants/authStorage';
+// import { auth } from './firebase';
+// import type { DocumentData } from 'firebase/firestore';
+// import {
+//     fetchUserProfileDoc,
+//     writeUserProfile,
+//     type UserGamesDoc,
+// } from './userProfileFirestore';
+
+// // 1. UPDATE: Expanded User interface to support Guest properties
+// export const AUTH_EMAIL_NOT_VERIFIED = 'auth/email-not-verified';
+
+// interface User {
+//   uid?: string;
+//   firstName: string;
+//   lastName: string;
+//   email: string;
+//   phone?: string;
+//   cvdType?: string;
+//   photoURL?: string;
+//   games?: UserGamesDoc;
+//   emailVerified?: boolean;
+//   role: 'user' | 'admin' | 'guest';
+//   isGuest: boolean;
+//   createdAt?: string;
+//   updatedAt?: string;
+// }
+
+// function firestoreDataToUser(uid: string, data: DocumentData): User {
+//   return {
+//     uid,
+//     firstName: String(data.firstName ?? ''),
+//     lastName: String(data.lastName ?? ''),
+//     email: String(data.email ?? ''),
+//     phone: data.phone != null ? String(data.phone) : undefined,
+//     cvdType: data.cvdType != null ? String(data.cvdType) : undefined,
+//     photoURL: data.photoURL != null ? String(data.photoURL) : undefined,
+//     games: (data.games as UserGamesDoc | undefined) ?? undefined,
+//     role: (data.role as User['role']) ?? 'user',
+//     isGuest: false,
+//     createdAt: data.createdAt != null ? String(data.createdAt) : undefined,
+//     updatedAt: data.updatedAt != null ? String(data.updatedAt) : undefined,
+//   };
+// }
+
+// interface AuthContextType {
+//   user: User | null;
+//   setUser: (user: User | null) => void;
+//   logout: () => Promise<void>;
+//   loginAsGuest: () => void;
+//   signUp: (data: { firstName: string; lastName: string; email: string; phone: string; password: string }) => Promise<void>;
+//   signIn: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
+//   requestPasswordReset: (email: string) => Promise<void>;
+//   resendVerificationEmail: (email: string, password: string) => Promise<void>;
+//   isLoading: boolean;
+// }
+
+// const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// interface AuthProviderProps {
+//   children: ReactNode;
+// }
+
+// export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+//   const [user, setUser] = useState<User | null>(null);
+//   const [isLoading, setIsLoading] = useState<boolean>(true);
+//   const coldStartRef = useRef(true);
+//   const sessionActiveRef = useRef(false);
+
+//   const shouldPersistSession = async (): Promise<boolean> => {
+//     try {
+//       const value = await AsyncStorage.getItem(PERSIST_SESSION_KEY);
+//       return value === 'true';
+//     } catch {
+//       return false;
+//     }
+//   };
+
+//   const setSessionPersistence = async (persist: boolean) => {
+//     if (persist) {
+//       await AsyncStorage.setItem(PERSIST_SESSION_KEY, 'true');
+//     } else {
+//       await AsyncStorage.setItem(PERSIST_SESSION_KEY, 'false');
+//     }
+//   };
+
+//   // Load cached user initially and subscribe to Firebase auth state
+//   useEffect(() => {
+//     let mounted = true;
+
+//     const init = async () => {
+//       try {
+//         const cached = await AsyncStorage.getItem('@user');
+//         if (cached && mounted) {
+//           const parsed = JSON.parse(cached) as User;
+//           if (parsed.isGuest) {
+//             setUser(parsed);
+//           }
+//         }
+//       } catch {
+//         /* ignore */
+//       }
+
+//       const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+//         if (fbUser) {
+//           const persist = await shouldPersistSession();
+//           if (coldStartRef.current && !persist) {
+//             sessionActiveRef.current = false;
+//             await firebaseSignOut(auth);
+//             if (mounted) {
+//               setUser(null);
+//               await AsyncStorage.removeItem('@user');
+//               setIsLoading(false);
+//             }
+//             coldStartRef.current = false;
+//             return;
+//           }
+
+//           sessionActiveRef.current = true;
+//           coldStartRef.current = false;
+
+//           try {
+//             try {
+//               await reload(fbUser);
+//             } catch {
+//               /* offline / transient; continue with current token state */
+//             }
+//             const snapshot = await fetchUserProfileDoc(fbUser.uid);
+//             let profile: User;
+
+//             if (snapshot.exists()) {
+//               profile = firestoreDataToUser(fbUser.uid, snapshot.data());
+//             } else {
+//               const names = (fbUser.displayName || '').split(' ');
+//               profile = {
+//                 uid: fbUser.uid,
+//                 firstName: names[0] || '',
+//                 lastName: names.slice(1).join(' ') || '',
+//                 email: fbUser.email || '',
+//                 role: 'user',
+//                 isGuest: false,
+//                 createdAt: new Date().toISOString(),
+//                 updatedAt: new Date().toISOString(),
+//                 photoURL: fbUser.photoURL || undefined,
+//               };
+//               await writeUserProfile(fbUser.uid, profile as unknown as DocumentData);
+//             }
+
+//             profile.emailVerified = fbUser.emailVerified;
+
+//             if (mounted) {
+//               setUser(profile);
+//               await AsyncStorage.setItem('@user', JSON.stringify(profile));
+//             }
+//           } catch (err) {
+//             console.error('Error loading profile:', err);
+//           }
+//         } else {
+//           sessionActiveRef.current = false;
+//           coldStartRef.current = false;
+
+//           if (mounted) {
+//             try {
+//               const cached = await AsyncStorage.getItem('@user');
+//               if (cached) {
+//                 const parsed = JSON.parse(cached) as User;
+//                 if (parsed.isGuest) {
+//                   setUser(parsed);
+//                   setIsLoading(false);
+//                   return;
+//                 }
+//               }
+//             } catch {
+//               /* ignore */
+//             }
+
+//             setUser(null);
+//             await AsyncStorage.removeItem('@user');
+//           }
+//         }
+//         if (mounted) setIsLoading(false);
+//       });
+
+//       return unsubscribe;
+//     };
+
+//     const unsubPromise = init();
+
+//     return () => {
+//       mounted = false;
+//       unsubPromise.then((unsubscribe: any) => {
+//         if (typeof unsubscribe === 'function') unsubscribe();
+//       }).catch(() => {});
+//     };
+//   }, []);
+
+//   // End session when app backgrounds if "Remember me" was not selected
+//   useEffect(() => {
+//     const handleAppState = async (nextState: AppStateStatus) => {
+//       if (nextState !== 'background' && nextState !== 'inactive') return;
+//       if (!sessionActiveRef.current || !auth.currentUser) return;
+
+//       const persist = await shouldPersistSession();
+//       if (persist) return;
+
+//       sessionActiveRef.current = false;
+//       try {
+//         await firebaseSignOut(auth);
+//       } catch {
+//         /* ignore */
+//       }
+//       setUser(null);
+//       await AsyncStorage.removeItem('@user');
+//     };
+
+//     const subscription = AppState.addEventListener('change', handleAppState);
+//     return () => subscription.remove();
+//   }, []);
+
+//   const saveUser = async (userData: User) => {
+//     try {
+//       await AsyncStorage.setItem('@user', JSON.stringify(userData));
+//     } catch (error) {
+//       console.error('Error saving user:', error);
+//     }
+//   };
+
+//   const removeUser = async () => {
+//     try {
+//       await AsyncStorage.removeItem('@user');
+//     } catch (error) {
+//       console.error('Error removing user:', error);
+//     }
+//   };
+
+//   const loginAsGuest = () => {
+//     const guestUser: User = {
+//       firstName: 'Guest',
+//       lastName: 'User',
+//       email: '',
+//       role: 'guest',
+//       isGuest: true,
+//     };
+//     setUser(guestUser);
+//     saveUser(guestUser);
+//   };
+
+//   const logout = async () => {
+//     sessionActiveRef.current = false;
+//     try {
+//       await firebaseSignOut(auth);
+//     } catch (err) {
+//       console.warn('Firebase sign out error:', err);
+//     }
+//     setUser(null);
+//     await removeUser();
+//     await AsyncStorage.removeItem(PERSIST_SESSION_KEY);
+//   };
+
+//   const signUp = async (data: { firstName: string; lastName: string; email: string; phone: string; password: string }) => {
+//     const { firstName, lastName, email, phone, password } = data;
+//     try {
+//       // Create user in Firebase Auth
+//       const credential = await createUserWithEmailAndPassword(auth, email, password);
+
+//       // Update auth user's display name
+//       await updateProfile(credential.user, { displayName: `${firstName} ${lastName}` });
+
+//       const profile: User = {
+//         uid: credential.user.uid,
+//         firstName,
+//         lastName,
+//         email,
+//         phone,
+//         cvdType: 'Normal Vision',
+//         role: 'user',
+//         isGuest: false,
+//         createdAt: new Date().toISOString(),
+//         updatedAt: new Date().toISOString(),
+//       };
+
+//       await writeUserProfile(credential.user.uid, profile as unknown as DocumentData);
+
+//       await sendEmailVerification(credential.user);
+//       await firebaseSignOut(auth);
+//     } catch (err) {
+//       console.error('Sign up error:', err);
+//       throw err;
+//     }
+//   };
+
+//   const signIn = async (email: string, password: string, rememberMe = false) => {
+//     try {
+//       setIsLoading(true);
+//       await setSessionPersistence(rememberMe);
+
+//       const credential = await signInWithEmailAndPassword(auth, email, password);
+//       await reload(credential.user);
+
+//       if (!credential.user.emailVerified) {
+//         await firebaseSignOut(auth);
+//         await AsyncStorage.removeItem(PERSIST_SESSION_KEY);
+//         const err = new Error(
+//           'Please verify your email using the link we sent you, then sign in again.',
+//         );
+//         (err as { code?: string }).code = AUTH_EMAIL_NOT_VERIFIED;
+//         throw err;
+//       }
+
+//       sessionActiveRef.current = true;
+
+//       const snapshot = await fetchUserProfileDoc(credential.user.uid);
+//       let profile: User;
+
+//       if (snapshot.exists()) {
+//         profile = firestoreDataToUser(credential.user.uid, snapshot.data());
+//       } else {
+//         const names = (credential.user.displayName || '').split(' ');
+//         profile = {
+//           uid: credential.user.uid,
+//           firstName: names[0] || '',
+//           lastName: names.slice(1).join(' ') || '',
+//           email: credential.user.email || email,
+//           role: 'user',
+//           isGuest: false,
+//           createdAt: new Date().toISOString(),
+//           updatedAt: new Date().toISOString(),
+//         };
+//         await writeUserProfile(credential.user.uid, profile as unknown as DocumentData);
+//       }
+
+//       profile.emailVerified = credential.user.emailVerified;
+
+//       setUser(profile);
+//       await saveUser(profile);
+//     } catch (err) {
+//       console.error('Sign in error:', err);
+//       throw err;
+//     } finally {
+//       setIsLoading(false);
+//     }
+//   };
+
+//   const requestPasswordReset = async (email: string) => {
+//     const trimmed = email.trim();
+//     if (!trimmed) {
+//       throw new Error('Email is required');
+//     }
+//     await sendPasswordResetEmail(auth, trimmed);
+//   };
+
+//   const resendVerificationEmail = async (email: string, password: string) => {
+//     const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+//     await reload(cred.user);
+//     if (cred.user.emailVerified) {
+//       await firebaseSignOut(auth);
+//       throw new Error('This email is already verified. Try signing in.');
+//     }
+//     await sendEmailVerification(cred.user);
+//     await firebaseSignOut(auth);
+//   };
+
+//   return (
+//     <AuthContext.Provider
+//       value={{
+//         user,
+//         setUser,
+//         logout,
+//         loginAsGuest,
+//         signUp,
+//         signIn,
+//         requestPasswordReset,
+//         resendVerificationEmail,
+//         isLoading,
+//       }}
+//     >
+//       {children}
+//     </AuthContext.Provider>
+//   );
+// };
+
+// export const useAuth = (): AuthContextType => {
+//   const context = useContext(AuthContext);
+//   if (context === undefined) {
+//     throw new Error('useAuth must be used within an AuthProvider');
+//   }
+//   return context;
+// };
