@@ -484,7 +484,6 @@ import { useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -492,6 +491,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 type Props = NativeStackScreenProps<RootStackParamList, "VRSimulation">;
 type SimulationType = CvdSimulation;
@@ -555,28 +555,15 @@ export default function VRScreen({ navigation }: Props) {
   const router = useRouter();
   const cvdType = userData?.cvdType || user?.cvdType;
 
-  // Modern Multi-Axis Parser Engine
   const parsedCvdData = useMemo(() => {
     if (!cvdType) return { isNormal: true, types: [] };
-
     try {
-      // Parse structured JSON object metadata safely
       const parsed = JSON.parse(cvdType);
       const activeTypes: SimulationType[] = [];
-
-      if (parsed.hasRedGreen) {
-        activeTypes.push("Protanopia", "Deuteranopia");
-      }
-      if (parsed.hasTritan) {
-        activeTypes.push("Tritanopia");
-      }
-
-      return {
-        isNormal: activeTypes.length === 0,
-        types: activeTypes,
-      };
+      if (parsed.hasRedGreen) activeTypes.push("Protanopia", "Deuteranopia");
+      if (parsed.hasTritan) activeTypes.push("Tritanopia");
+      return { isNormal: activeTypes.length === 0, types: activeTypes };
     } catch {
-      // Clean fallback if database contains traditional plain tracking strings
       const legacyStr = cvdType.toLowerCase();
       const activeTypes: SimulationType[] = [];
       const hasRG =
@@ -588,11 +575,10 @@ export default function VRScreen({ navigation }: Props) {
 
       if (hasRG) activeTypes.push("Protanopia", "Deuteranopia");
       if (hasTritan) activeTypes.push("Tritanopia");
-      if (legacyStr.includes("normal") || activeTypes.length === 0) {
-        return { isNormal: true, types: [] };
-      }
-
-      return { isNormal: false, types: activeTypes };
+      return {
+        isNormal: legacyStr.includes("normal") || activeTypes.length === 0,
+        types: activeTypes,
+      };
     }
   }, [cvdType]);
 
@@ -634,216 +620,234 @@ export default function VRScreen({ navigation }: Props) {
   };
 
   const themeColors = {
-    background: darkMode ? "#000000" : "#F2F2F2",
-    card: darkMode ? "#111111" : "#FFFFFF",
-    text: darkMode ? "#FFFFFF" : "#000000",
-    subText: darkMode ? "#888888" : "#666666",
-    accent: darkMode ? "#3a3a3c" : "#3a3a3c",
-    border: darkMode ? "#222222" : "#E5E5E5",
+    background: darkMode ? "#121212" : "#F5F4F0",
+    card: darkMode ? "#1E1E1E" : "#E6E5E0",
+    innerCard: darkMode ? "#2A2A2A" : "#FFFFFF",
+    text: darkMode ? "#FFFFFF" : "#1A1A1A",
+    subText: darkMode ? "#AAAAAA" : "#666666",
+    accent: darkMode ? "#333333" : "#262626",
+    border: darkMode ? "#333333" : "#A6B5A4",
+
+    // Accessibility overrides for the tab buttons
+    tabActiveBg: darkMode ? "#FFFFFF" : "#1A1A1A", // Inverts for absolute luminance contrast
+    tabActiveText: darkMode ? "#121212" : "#FFFFFF", // Crisp readable text regardless of color blindness
   };
 
   const cvd = CVD_DETAILS[activeTab] || CVD_DETAILS.Deuteranopia;
 
-  if (isNormal) {
-    return (
-      <SafeAreaView
-        style={[styles.safe, { backgroundColor: themeColors.background }]}
-      >
-        <StatusBar barStyle={darkMode ? "light-content" : "dark-content"} />
-        <View style={styles.header}>
-          <Text
-            style={[
-              styles.screenTitle,
-              { color: themeColors.text, fontSize: 20 * fontScale },
-            ]}
-          >
-            VR Simulation
-          </Text>
-          <View style={{ width: 40 }} />
-        </View>
-        <View
-          style={[styles.lockedCard, { backgroundColor: themeColors.card }]}
-        >
-          <Text
-            style={[
-              styles.lockedTitle,
-              { color: themeColors.text, fontSize: 18 * fontScale },
-            ]}
-          >
-            Unlock VR Simulation
-          </Text>
-          <Text
-            style={[
-              styles.lockedText,
-              { color: themeColors.subText, fontSize: 13 * fontScale },
-            ]}
-          >
-            Take the quiz to detect your CVD type before using VR filters.
-          </Text>
-          <TouchableOpacity
-            style={[styles.primaryBtn, { backgroundColor: themeColors.accent }]}
-            onPress={() => router.push("/welcome")}
-          >
-            <Text
-              style={[
-                styles.primaryBtnText,
-                { color: "#FFF", fontSize: 14 * fontScale },
-              ]}
-            >
-              Take Quiz
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView
       style={[styles.safe, { backgroundColor: themeColors.background }]}
+      edges={["top", "left", "right", "bottom"]}
     >
       <StatusBar barStyle={darkMode ? "light-content" : "dark-content"} />
-
-      <View style={styles.header}>
-        <Text
-          style={[
-            styles.screenTitle,
-            { color: themeColors.text, fontSize: 20 * fontScale },
-          ]}
-        >
-          VR Simulation
-        </Text>
-        <View style={{ width: 40 }} />
-      </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* VIEWPORT SECTION */}
-        <View
-          style={[
-            styles.viewportWrapper,
-            { borderColor: themeColors.border, borderWidth: 1 },
-          ]}
-        >
-          <View style={styles.roomScene}>
-            <View style={styles.floor} />
-            <View style={styles.windowBg} />
-            <View style={styles.sofa} />
+        <View style={styles.textHeaderContainer}>
+          <Text
+            style={[
+              styles.screenTitle,
+              { color: themeColors.text, fontSize: 26 * fontScale },
+            ]}
+          >
+            VR Simulation
+          </Text>
+          <Text
+            style={[
+              styles.screenSubtitle,
+              { color: themeColors.subText, fontSize: 13 * fontScale },
+            ]}
+          >
+            Select a matrix configuration to calibrate environment filters
+          </Text>
+        </View>
 
-            <View style={styles.liveBadge}>
-              <View style={styles.pulseDot} />
-              <Text style={styles.liveText}>
-                ACTIVE FILTER: {activeTab.toUpperCase()}
-              </Text>
-            </View>
-
-            <View
-              style={[
-                styles.hudCard,
-                {
-                  backgroundColor: darkMode
-                    ? "rgba(0,0,0,0.85)"
-                    : "rgba(255,255,255,0.95)",
-                },
-              ]}
-            >
-              <Text
+        {isNormal ? (
+          <View
+            style={[
+              styles.mainCard,
+              {
+                backgroundColor: themeColors.card,
+                borderColor: themeColors.border,
+              },
+            ]}
+          >
+            <View style={styles.centerStandbyContent}>
+              <View
                 style={[
-                  styles.hudTitle,
-                  { color: themeColors.text, fontSize: 22 * fontScale },
+                  styles.iconCircle,
+                  { backgroundColor: themeColors.border },
                 ]}
               >
-                {activeTab}
+                <Text
+                  style={{
+                    color: themeColors.innerCard,
+                    fontSize: 24,
+                    fontWeight: "bold",
+                  }}
+                >
+                  🔒
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.cardStateTitle,
+                  { color: themeColors.text, fontSize: 18 * fontScale },
+                ]}
+              >
+                Simulation Locked
               </Text>
               <Text
                 style={[
-                  styles.hudBody,
+                  styles.cardStateSubtitle,
                   { color: themeColors.subText, fontSize: 13 * fontScale },
                 ]}
               >
-                {cvd.description}
+                Take the evaluation quiz to diagnose your custom CVD profile
+                parameters.
               </Text>
-              <View style={styles.spectrumBar}>
-                {(
-                  SPECTRUM_COLORS[activeTab] || SPECTRUM_COLORS.Deuteranopia
-                ).map((c, i) => (
-                  <View
-                    key={i}
-                    style={[styles.spectrumSlice, { backgroundColor: c }]}
-                  />
-                ))}
-              </View>
             </View>
           </View>
-        </View>
-
-        {/* SELECTION VIEW */}
-        <View
-          style={[styles.controlCard, { backgroundColor: themeColors.card }]}
-        >
-          <Text
+        ) : (
+          <View
             style={[
-              styles.label,
-              { color: themeColors.text, fontSize: 14 * fontScale },
+              styles.mainCard,
+              {
+                backgroundColor: themeColors.card,
+                borderColor: themeColors.border,
+              },
             ]}
           >
-            Selected simulation: {activeTab}
-          </Text>
-          <View style={styles.tabRow}>
-            {availableTabs.map((tab) => {
-              const isActive = activeTab === tab;
-              return (
-                <TouchableOpacity
-                  key={tab}
+            <View style={styles.viewportWrapper}>
+              <View style={styles.roomScene}>
+                <View style={styles.floor} />
+                <View style={styles.windowBg} />
+                <View style={styles.sofa} />
+
+                <View style={styles.liveBadge}>
+                  <View style={styles.pulseDot} />
+                  <Text style={styles.liveText}>
+                    READY: {activeTab.toUpperCase()}
+                  </Text>
+                </View>
+
+                <View
                   style={[
-                    styles.tabButton,
-                    { borderColor: themeColors.border },
-                    isActive && {
-                      backgroundColor: themeColors.accent,
-                      borderColor: themeColors.accent,
-                    },
+                    styles.hudCard,
+                    { backgroundColor: themeColors.innerCard },
                   ]}
-                  onPress={() => setActiveTab(tab)}
-                  activeOpacity={0.8}
                 >
                   <Text
                     style={[
-                      styles.tabLabel,
-                      {
-                        color: isActive ? "#FFF" : themeColors.subText,
-                        fontSize: 12 * fontScale,
-                      },
+                      styles.hudTitle,
+                      { color: themeColors.text, fontSize: 18 * fontScale },
                     ]}
                   >
-                    {tab}
+                    {activeTab}
                   </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                  <Text
+                    style={[
+                      styles.hudBody,
+                      { color: themeColors.subText, fontSize: 12 * fontScale },
+                    ]}
+                  >
+                    {cvd.description}
+                  </Text>
+                  <View style={styles.spectrumBar}>
+                    {(
+                      SPECTRUM_COLORS[activeTab] || SPECTRUM_COLORS.Deuteranopia
+                    ).map((c, i) => (
+                      <View
+                        key={i}
+                        style={[styles.spectrumSlice, { backgroundColor: c }]}
+                      />
+                    ))}
+                  </View>
+                </View>
+              </View>
+            </View>
 
+            {/* ACCESSIBLE SELECTION TABS */}
+            <View style={styles.controlsSection}>
+              <Text
+                style={[
+                  styles.label,
+                  { color: themeColors.text, fontSize: 13 * fontScale },
+                ]}
+              >
+                Available Profiles:
+              </Text>
+              <View style={styles.tabRow}>
+                {availableTabs.map((tab) => {
+                  const isActive = activeTab === tab;
+                  return (
+                    <TouchableOpacity
+                      key={tab}
+                      style={[
+                        styles.tabButton,
+                        {
+                          borderColor: themeColors.border,
+                          backgroundColor: themeColors.innerCard,
+                        },
+                        isActive && {
+                          backgroundColor: themeColors.tabActiveBg,
+                          borderColor: themeColors.tabActiveBg,
+                        },
+                      ]}
+                      onPress={() => setActiveTab(tab)}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[
+                          styles.tabLabel,
+                          {
+                            color: isActive
+                              ? themeColors.tabActiveText
+                              : themeColors.text,
+                            fontSize: 12 * fontScale,
+                          },
+                        ]}
+                      >
+                        {tab}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.bottomActionContainer}>
           <Animated.View
-            style={{ transform: [{ scale: scaleAnim }], marginTop: 20 }}
+            style={{ transform: [{ scale: scaleAnim }], width: "100%" }}
           >
             <TouchableOpacity
               style={[
                 styles.primaryBtn,
                 { backgroundColor: themeColors.accent },
               ]}
-              onPress={handleEnterVR}
+              onPress={isNormal ? () => router.push("/welcome") : handleEnterVR}
+              activeOpacity={0.9}
             >
               <Text
-                style={[
-                  styles.primaryBtnText,
-                  { color: "#FFF", fontSize: 14 * fontScale },
-                ]}
+                style={[styles.primaryBtnText, { fontSize: 15 * fontScale }]}
               >
-                Start Fullscreen VR
+                {isNormal ? "Begin Test Quiz" : "Start Live Simulation"}
               </Text>
             </TouchableOpacity>
           </Animated.View>
+          <Text
+            style={[
+              styles.statusText,
+              { color: themeColors.subText, fontSize: 11 * fontScale },
+            ]}
+          >
+            {isNormal ? "Awaiting calibration" : "System ready to project"}
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -851,158 +855,189 @@ export default function VRScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  header: {
-    flexDirection: "row",
+  safe: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingLeft: 56,
-    paddingRight: 16,
-    alignContent: "center",
-    textAlign: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+  },
+  textHeaderContainer: {
+    alignItems: "center",
+    marginBottom: 32,
+    width: "100%",
   },
   screenTitle: {
     fontWeight: "900",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginTop: 0,
+    letterSpacing: -0.5,
     textAlign: "center",
-    justifyContent: "center",
-    alignContent: "center",
+    marginBottom: 6,
   },
-  scrollContent: {
-    padding: 20,
+  screenSubtitle: {
+    textAlign: "center",
+    paddingHorizontal: 16,
+    lineHeight: 18,
+  },
+  mainCard: {
+    width: "100%",
+    aspectRatio: 0.88,
+    borderRadius: 36,
+    borderWidth: 1.5,
+    padding: 16,
+    justifyContent: "space-between",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  centerStandbyContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  iconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  cardStateTitle: {
+    fontWeight: "800",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  cardStateSubtitle: {
+    textAlign: "center",
+    lineHeight: 18,
   },
   viewportWrapper: {
-    height: 380,
+    flex: 1.1,
     borderRadius: 24,
     overflow: "hidden",
-    marginBottom: 20,
+    marginBottom: 14,
   },
   roomScene: {
     flex: 1,
     backgroundColor: "#b8c8a0",
     justifyContent: "flex-end",
-    padding: 20,
+    padding: 14,
   },
   liveBadge: {
     position: "absolute",
-    top: 20,
-    left: 20,
-    backgroundColor: "rgba(0,0,0,0.8)",
+    top: 14,
+    left: 14,
+    backgroundColor: "rgba(0,0,0,0.75)",
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
   },
   pulseDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#FF0000",
-    marginRight: 8,
+    backgroundColor: "#52c41a",
+    marginRight: 6,
   },
   liveText: {
     color: "#FFF",
     fontSize: 9,
     fontWeight: "900",
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   hudCard: {
     borderRadius: 16,
-    padding: 20,
+    padding: 14,
     width: "100%",
   },
   hudTitle: {
-    fontWeight: "900",
+    fontWeight: "800",
   },
   hudBody: {
-    marginVertical: 10,
-    lineHeight: 18,
-    fontWeight: "500",
+    marginTop: 4,
+    marginBottom: 8,
+    lineHeight: 16,
   },
   spectrumBar: {
     flexDirection: "row",
-    height: 4,
-    borderRadius: 2,
+    height: 3,
+    borderRadius: 1.5,
     overflow: "hidden",
-    marginTop: 8,
   },
-  spectrumSlice: { flex: 1 },
-  controlCard: {
-    borderRadius: 24,
-    padding: 24,
+  spectrumSlice: {
+    flex: 1,
   },
-  lockedCard: {
-    marginHorizontal: 20,
-    marginTop: 24,
-    borderRadius: 20,
-    padding: 24,
-    alignItems: "center",
-  },
-  lockedTitle: {
-    fontWeight: "800",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  lockedText: {
-    textAlign: "center",
-    marginBottom: 16,
-    lineHeight: 18,
+  controlsSection: {
+    paddingHorizontal: 4,
+    paddingBottom: 4,
   },
   label: {
-    fontWeight: "800",
-    marginBottom: 16,
-    letterSpacing: 0.5,
+    fontWeight: "700",
+    marginBottom: 8,
   },
   tabRow: {
     flexDirection: "row",
-    justifyContent: "flex-start",
-    flexWrap: "wrap",
-    gap: 10,
+    gap: 8,
   },
   tabButton: {
-    flexGrow: 1,
-    flexBasis: "45%",
-    marginHorizontal: 3,
-    paddingVertical: 14,
+    flex: 1,
+    paddingVertical: 12,
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: 1.5,
     alignItems: "center",
   },
   tabLabel: {
     fontWeight: "800",
   },
-  primaryBtn: {
-    paddingVertical: 20,
-    borderRadius: 16,
+  bottomActionContainer: {
+    width: "100%",
     alignItems: "center",
+    marginTop: 32,
+  },
+  primaryBtn: {
+    width: "100%",
+    paddingVertical: 18,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
   },
   primaryBtnText: {
-    fontWeight: "900",
-    letterSpacing: 2,
+    color: "#FFFFFF",
+    fontWeight: "800",
+    letterSpacing: 0.2,
+  },
+  statusText: {
+    marginTop: 10,
+    fontWeight: "600",
   },
   floor: {
     position: "absolute",
     bottom: 0,
-    height: 120,
+    height: 80,
     width: "150%",
     backgroundColor: "#c8a870",
   },
   windowBg: {
     position: "absolute",
     top: 0,
-    height: 250,
+    height: 180,
     width: "150%",
     backgroundColor: "#a8c090",
   },
   sofa: {
     position: "absolute",
-    bottom: 80,
-    left: 40,
-    width: 120,
-    height: 45,
+    bottom: 50,
+    left: 24,
+    width: 80,
+    height: 30,
     backgroundColor: "#7a9a6a",
     borderRadius: 4,
   },

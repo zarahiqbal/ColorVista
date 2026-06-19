@@ -1,11 +1,11 @@
-import { useTheme } from '@/Context/ThemeContext';
-import { Stack } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { useTheme } from "@/Context/ThemeContext";
+import { Stack } from "expo-router";
+import { StyleSheet, View } from "react-native";
 import BottomNavBar from "../components/BottomNavBar"; // Ensure path is correct
 
 export default function MainLayout() {
   const { darkMode } = useTheme();
-  const backgroundColor = darkMode ? '#1C1C1E' : '#F6F3EE';
+  const backgroundColor = darkMode ? "#1C1C1E" : "#F6F3EE";
 
   return (
     <View style={[styles.container, { backgroundColor }]}>
@@ -14,7 +14,7 @@ export default function MainLayout() {
         <Stack
           screenOptions={{
             headerShown: false,
-            animation: 'none',
+            animation: "none",
             contentStyle: { backgroundColor },
           }}
         />
