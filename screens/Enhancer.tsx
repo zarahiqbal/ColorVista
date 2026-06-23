@@ -1,0 +1,444 @@
+import {
+  CvdSelection,
+  formatCvdLabel,
+  getAllowedSimulations,
+} from "@/constants/cvdUtils";
+import { useAuth } from "@/Context/AuthContext";
+import { useUserData } from "@/Context/useUserData";
+import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Alert,
+  Dimensions,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "../Context/ThemeContext";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+interface EnhancerScreenProps {
+  onSaveImage: (imageUri?: string) => void;
+  onSavePreferences: () => void;
+  onApplySystem: () => void;
+}
+
+export default function EnhancerScreen({
+  onSaveImage,
+  onSavePreferences,
+  onApplySystem,
+}: EnhancerScreenProps) {
+  const { darkMode, getFontSizeMultiplier } = useTheme();
+  const { user } = useAuth();
+  const { userData } = useUserData();
+  const router = useRouter();
+  const scale = getFontSizeMultiplier();
+
+  const cvdType = userData?.cvdType || user?.cvdType;
+  const { isNormal, types, allowCombined } = getAllowedSimulations(cvdType);
+  const availableTabs = useMemo<CvdSelection[]>(() => {
+    const baseTabs = types as CvdSelection[];
+    return allowCombined
+      ? ([...baseTabs, "Combined"] as CvdSelection[])
+      : baseTabs;
+  }, [allowCombined, types]);
+  const [activeMode, setActiveMode] = useState<CvdSelection>(
+    allowCombined ? "Combined" : ((types[0] ?? "Deuteranopia") as CvdSelection),
+  );
+
+  const theme = {
+    bg: darkMode ? "#1C1C1A" : "#EDEAE3",
+    card: darkMode ? "#2A2A27" : "#E4E0D8",
+    accent: "#7A9E8E",
+    textPrimary: darkMode ? "#F0EDE6" : "#2B2B2B",
+    textSecondary: darkMode ? "#9A9690" : "#7A7670",
+    buttonDark: darkMode ? "#3A3A37" : "#2B2B2B",
+    compareBg: darkMode ? "rgba(28,28,26,0.82)" : "rgba(237,234,227,0.82)",
+    white: "#FFFFFF",
+  };
+
+  const [imageUri, setImageUri] = useState(
+    "https://picsum.photos/id/28/600/400",
+  );
+  const [aspectRatio, setAspectRatio] = useState(1.5); // Default to a standard landscape
+  const [showOriginal, setShowOriginal] = useState(false);
+
+  useEffect(() => {
+    Image.getSize(
+      imageUri,
+      (width, height) => {
+        setAspectRatio(width / height);
+      },
+      (error) => console.error("Initial size error:", error),
+    );
+  }, []);
+
+  useEffect(() => {
+    if (isNormal) return;
+    if (!allowCombined) {
+      setActiveMode((types[0] ?? "Deuteranopia") as CvdSelection);
+      return;
+    }
+    setActiveMode((prev) => (availableTabs.includes(prev) ? prev : "Combined"));
+  }, [allowCombined, availableTabs, isNormal, types]);
+
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission needed",
+        "We need gallery permissions to continue!",
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true, // Set to true if you want the user to crop manually
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      const asset = result.assets[0];
+      setImageUri(asset.uri);
+      if (asset.width && asset.height) {
+        setAspectRatio(asset.width / asset.height);
+      }
+    }
+  };
+
+  const handleAction = (action: string) => {
+    if (action === "save") onSaveImage?.(imageUri);
+    if (action === "prefs") onSavePreferences();
+    if (action === "apply") onApplySystem();
+  };
+
+  if (isNormal) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
+        <StatusBar style={darkMode ? "light" : "dark"} />
+        <View style={[styles.lockedCard, { backgroundColor: theme.card }]}>
+          <Text style={[styles.lockedTitle, { color: theme.textPrimary }]}>
+            Unlock Image Enhancer
+          </Text>
+          <Text style={[styles.lockedText, { color: theme.textSecondary }]}>
+            Take the quiz to detect your CVD type before using the enhancer.
+          </Text>
+          <TouchableOpacity
+            style={[styles.primaryButton, { backgroundColor: theme.accent }]}
+            onPress={() => router.push("/welcome")}
+            activeOpacity={0.85}
+          >
+            <Text style={[styles.actionButtonText, { fontSize: 15 * scale }]}>
+              Take Quiz
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar style={darkMode ? "light" : "dark"} />
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.headerContainer}>
+          <Text
+            style={[
+              styles.headerTitle,
+              { color: theme.textPrimary, fontSize: 26 * scale },
+            ]}
+          >
+            Image Enhancer
+          </Text>
+          <Text
+            style={[
+              styles.headerSubtitle,
+              { color: theme.textSecondary, fontSize: 14 * scale },
+            ]}
+          >
+            Stored CVD type: {formatCvdLabel(cvdType)}
+          </Text>
+        </View>
+
+        {allowCombined ? (
+          <View style={styles.selectionRow}>
+            {availableTabs.map((tab) => {
+              const isActive = activeMode === tab;
+              return (
+                <TouchableOpacity
+                  key={tab}
+                  style={[
+                    styles.selectionPill,
+                    isActive && { backgroundColor: theme.accent },
+                  ]}
+                  onPress={() => setActiveMode(tab)}
+                  activeOpacity={0.85}
+                >
+                  <Text
+                    style={[
+                      styles.selectionText,
+                      { color: isActive ? theme.white : theme.textSecondary },
+                    ]}
+                  >
+                    {tab}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={styles.lockedSelection}>
+            <Text style={[styles.lockedText, { color: theme.textSecondary }]}>
+              Enhancement locked to {activeMode}
+            </Text>
+          </View>
+        )}
+
+        {/* Main Card with the Image */}
+        <View style={[styles.imageCard, { backgroundColor: theme.card }]}>
+          <View style={[styles.imageWrapper, { aspectRatio: aspectRatio }]}>
+            <Image
+              source={{ uri: imageUri }}
+              style={styles.image}
+              resizeMode="contain" // This ensures the whole picture appears without cropping
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.compareButton,
+                { backgroundColor: theme.compareBg },
+              ]}
+              onPressIn={() => setShowOriginal(true)}
+              onPressOut={() => setShowOriginal(false)}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name={showOriginal ? "eye" : "eye-outline"}
+                size={13 * scale}
+                color={theme.textPrimary}
+                style={{ marginRight: 4 }}
+              />
+              <Text
+                style={[
+                  styles.compareButtonText,
+                  { color: theme.textPrimary, fontSize: 11 * scale },
+                ]}
+              >
+                {showOriginal ? "Original" : "Hold to compare"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.statusRow}>
+            <View
+              style={[styles.statusDot, { backgroundColor: theme.accent }]}
+            />
+            <Text
+              style={[
+                styles.statusText,
+                { color: theme.textSecondary, fontSize: 13 * scale },
+              ]}
+            >
+              Active correction: {activeMode}
+            </Text>
+          </View>
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.actionsContainer}>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: theme.accent }]}
+            onPress={pickImage}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name="image-outline"
+              size={20 * scale}
+              color={theme.white}
+              style={styles.buttonIcon}
+            />
+            <Text style={[styles.actionButtonText, { fontSize: 16 * scale }]}>
+              UPLOAD & AUTO-ENHANCE
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: theme.buttonDark }]}
+            onPress={() => handleAction("save")}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name="download-outline"
+              size={20 * scale}
+              color={theme.white}
+              style={styles.buttonIcon}
+            />
+            <Text style={[styles.actionButtonText, { fontSize: 16 * scale }]}>
+              DOWNLOAD ENHANCED IMAGE
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1, // Allows the content to fill the screen
+    justifyContent: "center", // Centers the card vertically in the empty space
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+  },
+  headerContainer: {
+    alignItems: "center",
+    marginBottom: 30,
+  },
+  headerTitle: {
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  headerSubtitle: {
+    marginTop: 4,
+    fontWeight: "600",
+  },
+  selectionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 10,
+    marginBottom: 20,
+  },
+  selectionPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "transparent",
+    backgroundColor: "rgba(0,0,0,0.08)",
+  },
+  selectionText: {
+    fontWeight: "700",
+    fontSize: 12,
+    letterSpacing: 0.4,
+  },
+  lockedSelection: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  lockedCard: {
+    marginHorizontal: 20,
+    marginTop: 40,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
+  },
+  lockedTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  lockedText: {
+    fontSize: 13,
+    textAlign: "center",
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  primaryButton: {
+    borderRadius: 15,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    width: "100%",
+    alignItems: "center",
+  },
+  imageCard: {
+    borderRadius: 24,
+    padding: 12,
+    marginBottom: 30,
+    width: "100%",
+    // Shadow for depth
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  imageWrapper: {
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: "#00000010", // Slight tint for empty areas
+    width: "100%",
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+  },
+  compareButton: {
+    position: "absolute",
+    bottom: 12,
+    right: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  compareButtonText: {
+    fontWeight: "700",
+  },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 15,
+    paddingHorizontal: 5,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  statusText: {
+    fontWeight: "500",
+  },
+  actionsContainer: {
+    width: "100%",
+    gap: 15,
+  },
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 15,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    width: "100%",
+  },
+  buttonIcon: {
+    marginRight: 10,
+  },
+  actionButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "bold",
+    letterSpacing: 0.5,
+  },
+});

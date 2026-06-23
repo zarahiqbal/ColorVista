@@ -3,10 +3,11 @@ import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
-// Import the screen component from the screens folder
+import { useGoBackOrHomeOnBack } from '../hooks/useBackNavigation';
 import MediaUploadScreen from '../screens/MediaUpload';
 
 export default function MediaUploadRoute() {
+  useGoBackOrHomeOnBack();
   return (
     <View style={styles.container}>
       {/* 1. We added StatusBar here (from your code) to ensure light content 

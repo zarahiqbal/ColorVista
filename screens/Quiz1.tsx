@@ -1,177 +1,360 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+// Dark mode removed for quiz screens — use fixed light theme
+import {
+  getShuffledOptions,
+  PLATE_DATA,
+  PlateQuestion,
+} from "../constants/questions";
 
-// Define the shape of a question for TypeScript
-interface Question {
-  question: string;
-  options: {
-    A: string;
-    B: string;
-    C: string;
-    D: string;
-  };
-  answer: string;
+// ─── Props ────────────────────────────────────────────────────────────────────
+
+interface Quiz1Props {
+  // Which plates to show. Defaults to PLATE_DATA (basic 22 plates).
+  plates?: PlateQuestion[];
+
+  // Called when the last plate is answered.
+  // Receives the calculated results object.
+  // Basic mode:    router.push('/result', { results })
+  // Advanced mode: navigation.navigate('HueTest', { ishiharaResult: results })
+  onComplete?: (results: QuizResults, rawAnswers: AnswerData[]) => void;
+
+  difficulty?: "basic" | "advanced";
 }
 
-export default function Quiz1({ difficulty }: { difficulty: string }) {
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [current, setCurrent] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [score, setScore] = useState(0);
-  const [finished, setFinished] = useState(false);
+interface AnswerData {
+  plateId: number;
+  type: PlateQuestion["type"];
+  category: PlateQuestion["category"] | null;
+  selectedAnswer: string;
+  isCorrect: boolean;
+  isConfusion: boolean;
+}
 
-  const totalQuestions = difficulty === "easy" ? 6 : 12;
+export interface QuizResults {
+  redGreen: { correct: number; total: number };
+  blueYellow: { correct: number; total: number };
+  // Advanced mode adds these:
+  tritanConfusionCount?: number;
+  ishiharaTritanScore?: number;
+}
 
-  // --- Initialize Gemini SDK ---
-  // WARNING: In a production app, do not store API keyys directly in the client code.
-  // Use a backend proxy or environment variables (e.g., react-native-dotenv).
-  const API_KEY = "AIzaSyBC0v9b55J0oqNXHbaL6WT5bUL26TAk3vk"; 
-  const genAI = new GoogleGenerativeAI(API_KEY);
+// ─── Component ────────────────────────────────────────────────────────────────
 
-  // --- Fetch AI Questions ---
-  const loadQuestions = async () => {
-    try {
-      const model = genAI.getGenerativeModel({ 
-        model: "gemini-2.5-flash", // Using the correct, currently available model
-        generationConfig: {
-          responseMimeType: "application/json", // Forces strict JSON response
-          temperature: 0.7,
-        }
-      });
+export default function Quiz1({
+  plates = PLATE_DATA,
+  onComplete,
+  difficulty = "basic",
+}: Quiz1Props) {
+  // Dark mode removed; use fixed light theme colors below
 
-      const prompt = `Generate ${totalQuestions} multiple-choice questions about color blindness theory and facts ${difficulty} difficulty. 
-      Output strictly a JSON array where each object has: 
-      - "question": string
-      - "options": object with keys A, B, C, D
-      - "answer": string (one of "A", "B", "C", "D")`;
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [userAnswers, setUserAnswers] = useState<AnswerData[]>([]);
+  const [currentOptions, setCurrentOptions] = useState<string[]>([]);
 
-      const result = await model.generateContent(prompt);
-      const response = result.response;
-      const text = response.text();
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
-      console.log("AI Response:", text);
-
-      // Parse the JSON
-      const parsedQuestions: Question[] = JSON.parse(text);
-      
-      setQuestions(parsedQuestions);
-      setLoading(false);
-
-    } catch (error) {
-      console.error("Gemini Fetch Error:", error);
-      Alert.alert("Error", "Failed to load quiz. Please check your internet connection or API Key.");
-      setLoading(false);
-    }
-  };
+  const currentPlate: PlateQuestion | undefined = plates[currentIndex];
 
   useEffect(() => {
-    loadQuestions();
-  }, []);
+    if (!currentPlate) return;
 
-  // --- Handle Answer ---
-  const handleAnswer = (key: string) => {
-    if (key === questions[current].answer) {
-      setScore(score + 1);
-    }
+    const options = getShuffledOptions(currentPlate).filter(
+      (option): option is string => typeof option === "string",
+    );
+    setCurrentOptions(options);
 
-    if (current + 1 < questions.length) {
-      setCurrent(current + 1);
+    Animated.spring(progressAnim, {
+      toValue: (currentIndex + 1) / plates.length,
+      useNativeDriver: false,
+    }).start();
+  }, [currentIndex, currentPlate, plates.length, progressAnim]);
+
+  // ── Answer handler ──────────────────────────────────────────────────────────
+
+  const handleSelection = (val: string) => {
+    if (!currentPlate) return;
+
+    const confusionAnswers = currentPlate.confusionAnswers ?? [];
+    const isCorrect = val === currentPlate.correctAnswer;
+    const isConfusion =
+      (confusionAnswers.includes(val) ||
+        val === currentPlate.tritanopiaLikelyAnswer) &&
+      val !== currentPlate.correctAnswer;
+
+    const answerData: AnswerData = {
+      plateId: currentPlate.id,
+      type: currentPlate.type,
+      category: currentPlate.category ?? null,
+      selectedAnswer: val,
+      isCorrect,
+      isConfusion,
+    };
+
+    const updatedAnswers = [...userAnswers, answerData];
+    setUserAnswers(updatedAnswers);
+
+    if (currentIndex < plates.length - 1) {
+      setCurrentIndex((prev) => prev + 1);
     } else {
-      setFinished(true);
+      // Last plate — calculate and hand off
+      const results = calculateResults(updatedAnswers);
+      onComplete?.(results, updatedAnswers);
     }
   };
 
-  // --- Loading Screen ---
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#1E40AF" />
-        <Text style={styles.loadingText}>Generating {difficulty} questions...</Text>
-      </View>
+  // ── Score calculator ────────────────────────────────────────────────────────
+
+  const calculateResults = (answers: AnswerData[]): QuizResults => {
+    const redGreenAnswers = answers.filter((a) => a.category === "red-green");
+    const blueYellowAnswers = answers.filter((a) =>
+      ["screening", "tritan", "severity"].includes(a.type),
     );
-  }
 
-  // --- Finished Screen ---
-  if (finished) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.resultTitle}>Quiz Completed!</Text>
-        <Text style={styles.resultText}>
-          Your score: {score}/{questions.length}
-        </Text>
-      </View>
-    );
-  }
+    // Tritan confusion count — how many times user gave the tritanopiaLikelyAnswer
+    const tritanConfusionCount = answers.filter((a) => a.isConfusion).length;
 
-  // Safety check if questions failed to load but loading is false
-  if (questions.length === 0) {
-    return (
-        <View style={styles.center}>
-          <Text>No questions available.</Text>
-        </View>
-    )
-  }
+    // Weighted Tritan error score for advanced mode handoff to HueTest
+    const ishiharaTritanScore = answers.reduce((sum, a) => {
+      if (!a.isCorrect) {
+        // Tritan-type plates contribute more heavily
+        const weight =
+          a.type === "tritan"
+            ? 2.0
+            : a.type === "severity"
+              ? 1.8
+              : a.type === "screening"
+                ? 1.5
+                : 1.0;
+        return sum + weight;
+      }
+      return sum;
+    }, 0);
 
-  const q = questions[current];
+    return {
+      redGreen: {
+        correct: redGreenAnswers.filter((a) => a.isCorrect).length,
+        total: redGreenAnswers.length,
+      },
+      blueYellow: {
+        correct: blueYellowAnswers.filter((a) => a.isCorrect).length,
+        total: blueYellowAnswers.length,
+      },
+      tritanConfusionCount,
+      ishiharaTritanScore,
+    };
+  };
 
-  // --- Quiz UI ---
+  // ── Theme ───────────────────────────────────────────────────────────────────
+
+  const theme = {
+    bg: "#F8FAFC",
+    card: "#FFFFFF",
+    text: "#1A1A1A",
+    border: "#E2E8F0",
+  };
+
+  if (!currentPlate) return null;
+
+  const isHRR =
+    currentPlate.type === "demo" ||
+    currentPlate.type === "screening" ||
+    currentPlate.type === "tritan" ||
+    currentPlate.type === "severity";
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.questionNumber}>
-        Question {current + 1} of {questions.length}
-      </Text>
+    <View style={[styles.main, { backgroundColor: theme.bg }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        {/* Phase tag — only shown in advanced mode */}
+        {difficulty === "advanced" && (
+          <View style={styles.phaseTag}>
+            <Text style={styles.phaseTagText}>PHASE 1 OF 2 — PLATE TEST</Text>
+          </View>
+        )}
 
-      <Text style={styles.question}>{q.question}</Text>
+        <Text style={[styles.stepText, { color: theme.text }]}>
+          Plate {currentIndex + 1} of {plates.length}
+        </Text>
 
-      {Object.keys(q.options).map((key) => (
-        <TouchableOpacity
-          key={key}
-          style={styles.option}
-          onPress={() => handleAnswer(key)}
+        <View style={styles.progressTrack}>
+          <Animated.View
+            style={[
+              styles.progressBar,
+              {
+                width: progressAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ["0%", "100%"],
+                }),
+              },
+            ]}
+          />
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Plate card */}
+        <View
+          style={[
+            styles.plateCard,
+            { backgroundColor: theme.card, borderColor: theme.border },
+          ]}
         >
-          <Text style={styles.optionText}>
-            {key}. {q.options[key as keyof typeof q.options]}
+          <Image
+            source={currentPlate.image}
+            style={styles.plateImage}
+            resizeMode="contain"
+          />
+          <Text style={[styles.instruction, { color: theme.text }]}>
+            {isHRR ? "Identify the hidden symbol" : "What number do you see?"}
           </Text>
-        </TouchableOpacity>
-      ))}
+        </View>
+
+        {/* Options grid */}
+        <View style={styles.grid}>
+          {currentOptions.map((opt) => (
+            <TouchableOpacity
+              key={opt}
+              style={[
+                styles.btn,
+                { backgroundColor: theme.card, borderColor: theme.border },
+              ]}
+              onPress={() => handleSelection(opt)}
+            >
+              <Text style={[styles.btnText, { color: theme.text }]}>{opt}</Text>
+            </TouchableOpacity>
+          ))}
+
+          <TouchableOpacity
+            style={[styles.nothingBtn, { backgroundColor: "#FFF5F5" }]}
+            onPress={() => handleSelection("Nothing")}
+          >
+            <Text style={styles.nothingText}>I see nothing</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+// Identical to original — no visual changes.
+
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 22, backgroundColor: "#FFFFFF" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  main: { flex: 1 },
 
-  loadingText: { marginTop: 12, fontSize: 16, color: "#475569" },
-
-  questionNumber: {
-    fontSize: 16,
-    marginBottom: 10,
-    color: "#64748B",
+  header: {
+    paddingTop: 60,
+    paddingHorizontal: 20,
   },
-  question: {
-    fontSize: 22,
+
+  phaseTag: {
+    alignSelf: "flex-start",
+    backgroundColor: "#E8F0FE",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 20,
+    marginBottom: 8,
+  },
+  phaseTagText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#4B6BFB",
+    letterSpacing: 1.0,
+  },
+
+  stepText: {
+    fontSize: 14,
     fontWeight: "600",
-    marginBottom: 20,
-    color: "#0F172A",
+    marginBottom: 10,
   },
 
-  option: {
-    padding: 14,
+  progressTrack: {
+    height: 4,
     backgroundColor: "#E2E8F0",
-    borderRadius: 10,
-    marginBottom: 12,
-  },
-  optionText: {
-    fontSize: 16,
-    color: "#0F172A",
+    borderRadius: 2,
+    overflow: "hidden",
   },
 
-  resultTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#1E3A8A",
+  progressBar: {
+    height: "100%",
+    backgroundColor: "#2D5BFF",
   },
-  resultText: { fontSize: 20, marginTop: 10 },
+
+  scrollContent: {
+    padding: 20,
+    alignItems: "center",
+  },
+
+  plateCard: {
+    width: "100%",
+    padding: 20,
+    borderRadius: 24,
+    borderWidth: 1,
+    alignItems: "center",
+    marginBottom: 30,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+
+  plateImage: {
+    width: 260,
+    height: 260,
+    marginBottom: 20,
+  },
+
+  instruction: {
+    fontSize: 18,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+
+  btn: {
+    width: "48%",
+    paddingVertical: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: "center",
+    marginBottom: 15,
+  },
+
+  btnText: {
+    fontSize: 22,
+    fontWeight: "bold",
+  },
+
+  nothingBtn: {
+    width: "100%",
+    paddingVertical: 18,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#FEB2B2",
+    alignItems: "center",
+  },
+
+  nothingText: {
+    color: "#C53030",
+    fontWeight: "700",
+    fontSize: 16,
+  },
 });

@@ -1,8 +1,22 @@
-import { useLocalSearchParams } from "expo-router";
-import Quiz1 from "../screens/Quiz1";
+// app/quiz.tsx
+import { useRouter } from "expo-router";
+import { useConfirmLeaveQuizOnBack } from "../hooks/useBackNavigation";
+import Quiz1, { QuizResults } from "../screens/Quiz1";
 
-export default function QuizScreen() {
-  const { difficulty } = useLocalSearchParams();
+export default function QuizRoute() {
+  const router = useRouter();
 
-  return <Quiz1 difficulty={difficulty as string} />;
+  useConfirmLeaveQuizOnBack();
+
+  const handleQuizComplete = (results: QuizResults, rawAnswers: any[]) => {
+    router.push({
+      pathname: "/result",
+      params: {
+        results: JSON.stringify(results),
+        data: JSON.stringify(rawAnswers),
+      },
+    });
+  };
+
+  return <Quiz1 difficulty="basic" onComplete={handleQuizComplete} />;
 }

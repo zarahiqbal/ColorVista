@@ -78,6 +78,24 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## Signal Rush (Hard Mode)
+
+The hard-mode mini game is now powered by Skia. It renders the Signal Rush challenge on a GPU canvas and applies a CVD color matrix based on the signed-in user's profile.
+
+- Entry point: hard mode in the game selection screen routes to `app/signal-rush.tsx`.
+- Rendering: `screens/SignalRush.tsx` uses `@shopify/react-native-skia` to draw signals and handle touches.
+- Scores: the most recent score is cached in AsyncStorage under `@signalRushLastScore`.
+
+If you run the project with Expo Go and see Skia-related issues, switch to a development build so native modules are available.
+
+## Color Detective (Easy Mode)
+
+Easy mode now routes to the Color Detective mini game, which challenges users to tap the object that is visually different using non-color cues.
+
+- Entry point: easy mode routes to `app/color-detective.tsx`.
+- Rendering: `screens/ColorDetective.tsx` draws shapes/patterns in Skia with a CVD filter.
+- Scores: cached in AsyncStorage under `@colorDetectiveLastScore`.
+
 ## Get a fresh project
 
 When you're ready, run:

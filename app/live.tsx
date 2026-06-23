@@ -1,13 +1,26 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { useCameraPermissions } from 'expo-camera';
 import { Alert } from 'react-native';
 
 // Adjust path if your file structure is different
+import { useGoBackOrHomeOnBack } from '../hooks/useBackNavigation';
 import LiveScreen from '../screens/LiveScreen'; 
 
 export default function LiveRoute() {
   const [active, setActive] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
+
+  useGoBackOrHomeOnBack();
+
+  // Leaving Live (back to home, etc.) must stop detection like tapping Stop Analysis.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setActive(false);
+      };
+    }, []),
+  );
 
   const handleToggleCamera = async () => {
     // 1. Check Permissions
