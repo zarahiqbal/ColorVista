@@ -42,14 +42,44 @@ export default function EnhancerScreen({ onSaveImage }: EnhancerScreenProps) {
   const [showOriginal, setShowOriginal] = useState(false);
   const [aspectRatio, setAspectRatio] = useState(1.5);
 
-  // ── CVD Normalization ──
-  const dbCvdType = useMemo(() => {
-    const raw = userData?.cvdType?.toLowerCase() || "none";
-    if (raw.includes("protan")) return "protanopia";
-    if (raw.includes("tritan")) return "tritanopia";
-    if (raw.includes("deuter")) return "deuteranopia";
-    return "none";
+  // ── CVD Profile (canonical) ──
+  // Stored as JSON: { hasRedGreen: boolean, hasTritan: boolean } — the same
+  // format VRScreen reads. Red-green maps to BOTH Protanopia and Deuteranopia
+  // (the test can't tell them apart), letting the user pick whichever
+  // correction looks best. A legacy fallback handles older prose labels.
+  const availableModes = useMemo<CVDType[]>(() => {
+    const raw = userData?.cvdType;
+    if (!raw) return [];
+
+    let hasRedGreen = false;
+    let hasTritan = false;
+
+    try {
+      const parsed = JSON.parse(String(raw));
+      hasRedGreen = !!parsed.hasRedGreen;
+      hasTritan = !!parsed.hasTritan;
+    } catch {
+      // Legacy fallback for older prose labels (e.g. "Likely Red-Green Deficiency").
+      const s = String(raw).toLowerCase();
+      hasRedGreen =
+        s.includes("red-green") || s.includes("protan") || s.includes("deutan");
+      hasTritan = s.includes("tritan") || s.includes("blue-yellow");
+    }
+
+    const modes: CVDType[] = [];
+    if (hasRedGreen) modes.push("protanopia", "deuteranopia");
+    if (hasTritan) modes.push("tritanopia");
+    return modes;
   }, [userData?.cvdType]);
+
+  // Which correction is actively applied (defaults to first available).
+  const [selectedMode, setSelectedMode] = useState<CVDType>("none");
+
+  useEffect(() => {
+    setSelectedMode(availableModes[0] ?? "none");
+  }, [availableModes]);
+
+  const showModeToggle = availableModes.length > 1;
 
   // Handle initial image ratio
   useEffect(() => {
@@ -65,7 +95,7 @@ export default function EnhancerScreen({ onSaveImage }: EnhancerScreenProps) {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsEditing: true,
       quality: 1,
     });
@@ -76,17 +106,17 @@ export default function EnhancerScreen({ onSaveImage }: EnhancerScreenProps) {
       setEnhancedImageUri(null);
       setAspectRatio(asset.width / asset.height);
 
-      // Auto-start server processing
-      enhanceImage(asset.uri);
+      // Auto-start server processing with the currently selected mode
+      enhanceImage(asset.uri, selectedMode);
     }
   };
 
   // ── Server Logic ──
-  const enhanceImage = async (uri: string) => {
+  const enhanceImage = async (uri: string, mode: CVDType = selectedMode) => {
     try {
       setIsEnhancing(true);
       const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: "base64" as any,
+        encoding: FileSystem.EncodingType.Base64,
       });
 
       const response = await fetch(ENHANCEMENT_URL, {
@@ -94,7 +124,7 @@ export default function EnhancerScreen({ onSaveImage }: EnhancerScreenProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           image: base64,
-          cvd_mode: dbCvdType,
+          cvd_mode: mode,
           mode: "full",
         }),
       });
@@ -110,6 +140,18 @@ export default function EnhancerScreen({ onSaveImage }: EnhancerScreenProps) {
       );
     } finally {
       setIsEnhancing(false);
+    }
+  };
+
+  // ── Mode Switch (dual case) ──
+  const handleSelectMode = (mode: CVDType) => {
+    if (mode === selectedMode) return;
+    setSelectedMode(mode);
+
+    // Re-process the current image with the new mode (only for local images;
+    // the default remote placeholder is never enhanced).
+    if (!imageUri.startsWith("http")) {
+      enhanceImage(imageUri, mode);
     }
   };
 
@@ -146,6 +188,9 @@ export default function EnhancerScreen({ onSaveImage }: EnhancerScreenProps) {
       setIsSaving(false);
     }
   };
+
+  const modeLabel = (mode: CVDType) =>
+    mode.charAt(0).toUpperCase() + mode.slice(1);
 
   return (
     <SafeAreaView
@@ -185,9 +230,7 @@ export default function EnhancerScreen({ onSaveImage }: EnhancerScreenProps) {
                 fontSize: 13 * textScale,
               },
             ]}
-          >
-            Stored Profile: {dbCvdType.toUpperCase()} • Font: {fontSize}
-          </Text>
+          ></Text>
         </View>
 
         <View
@@ -243,6 +286,49 @@ export default function EnhancerScreen({ onSaveImage }: EnhancerScreenProps) {
             )}
           </View>
         </View>
+
+        {/* --- CORRECTION MODE TOGGLE --- */}
+        {showModeToggle && (
+          <View style={styles.modeToggle}>
+            {availableModes.map((mode) => {
+              const active = selectedMode === mode;
+              return (
+                <TouchableOpacity
+                  key={mode}
+                  style={[
+                    styles.modeBtn,
+                    {
+                      backgroundColor: active
+                        ? darkMode
+                          ? "#8f6a52"
+                          : "#a1584c"
+                        : darkMode
+                          ? "#2a2a2a"
+                          : "#ece7df",
+                    },
+                  ]}
+                  onPress={() => handleSelectMode(mode)}
+                  disabled={isEnhancing}
+                >
+                  <Text
+                    style={[
+                      styles.modeBtnText,
+                      {
+                        color: active
+                          ? "#fff"
+                          : darkMode
+                            ? "#d3c7b8"
+                            : "#7A6C61",
+                      },
+                    ]}
+                  >
+                    {modeLabel(mode)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
 
         <View style={styles.buttonGroup}>
           <TouchableOpacity
@@ -329,6 +415,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   compareText: { fontSize: 11, fontWeight: "bold" },
+  modeToggle: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    width: "100%",
+    marginBottom: 16,
+  },
+  modeBtn: {
+    flexGrow: 1,
+    flexBasis: "30%",
+    minWidth: 100,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  modeBtnText: { fontWeight: "700", fontSize: 13, letterSpacing: 0.3 },
   buttonGroup: { width: "100%", gap: 12 },
   btn: {
     paddingVertical: 18,

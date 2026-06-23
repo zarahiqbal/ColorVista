@@ -40,6 +40,7 @@ import type {
 } from "@/Context/userProfileFirestore";
 import { patchUserProfile } from "@/Context/userProfileFirestore";
 import { useUserData } from "@/Context/useUserData";
+import { formatCvdType } from "@/utils/formatCvdType";
 import { insightLine, pctAccuracy } from "@/utils/gameProgressInsights";
 import { prepareProfileImageForFirestore } from "@/utils/prepareProfileImageForFirestore";
 import { useTheme } from "../Context/ThemeContext";
@@ -197,7 +198,7 @@ const ProfileScreen: React.FC = () => {
   };
 
   const [colorblindnessType, setColorblindnessType] = React.useState(
-    userData?.cvdType || user?.cvdType || "Normal Vision",
+    formatCvdType(userData?.cvdType || user?.cvdType),
   );
 
   const [isEditingUsername, setIsEditingUsername] = React.useState(false);
@@ -233,9 +234,9 @@ const ProfileScreen: React.FC = () => {
 
   React.useEffect(() => {
     if (userData?.cvdType) {
-      setColorblindnessType(userData.cvdType);
+      setColorblindnessType(formatCvdType(userData.cvdType));
     } else if (user?.cvdType) {
-      setColorblindnessType(user.cvdType);
+      setColorblindnessType(formatCvdType(user.cvdType));
     }
   }, [userData?.cvdType, user?.cvdType]);
 

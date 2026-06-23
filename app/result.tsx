@@ -279,7 +279,12 @@ export default function ResultScreen() {
   const tritanDiag = getTritanDiagnosis();
   const rgDiag = getRedGreenDiagnosis();
 
-  // 2. Modified savedString to store pure string outputs instead of stringified objects
+  // 2. Store the human-readable label (`savedString`). It displays cleanly on
+  //    the profile card AND is understood by VRScreen / EnhancerScreen, because
+  //    both have substring fallbacks that detect the axis keywords this label
+  //    always contains ("Red-Green", "Tritan", "Blue-Yellow", "Normal").
+  //    NOTE: the label MUST keep those keywords — if the wording ever drops
+  //    them, the parsers stop recognizing the deficiency.
   const combinedSummary = useMemo(() => {
     const hasRGDefect = rgDiag && !rgDiag.isNormal;
     const hasTritanDefect = tritanDiag && !tritanDiag.isNormal;
@@ -332,8 +337,11 @@ export default function ResultScreen() {
     const saveCVDType = async () => {
       if (!user || user.isGuest || !user.uid || !results) return;
       try {
+        // Save the human-readable label. It displays cleanly on the profile
+        // card and is recognized by VRScreen / EnhancerScreen via their
+        // keyword fallbacks.
         await updateUserCVDType(user.uid, combinedSummary.savedString);
-        console.log("✅ CVD structured metadata saved.");
+        console.log("✅ CVD type saved.");
       } catch (error) {
         console.error("❌ Failed to save CVD type:", error);
       }

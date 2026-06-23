@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { patchUserProfile } from './userProfileFirestore';
 
-/**
+/** 
  * Update user's CVD type in Firebase and local storage
  * @param uid - User's Firebase UID
  * @param cvdType - The detected CVD type (e.g., "Protanopia / Deuteranopia", "Tritanopia", "Normal Vision")
